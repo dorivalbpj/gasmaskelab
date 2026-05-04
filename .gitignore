@@ -1,1 +1,3 @@
 /vendor/
+config/google-credentials.json
+storage/google-credentials.json
