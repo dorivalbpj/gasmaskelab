@@ -76,9 +76,46 @@ $status_badge = [
     'finalizado'                   => 'badge-green',
 ];
 
+// --- INÍCIO: LÓGICA DO DASHBOARD EXPRESSIVO ---
+$qtd_briefings_ninja = $pdo->query("SELECT COUNT(*) FROM briefings WHERE status = 'novo'")->fetchColumn();
+$qtd_propostas_ninja = $pdo->query("SELECT COUNT(*) FROM propostas WHERE status IN ('rascunho', 'enviada')")->fetchColumn();
+// --- FIM: LÓGICA DO DASHBOARD EXPRESSIVO ---
+
 require_once 'includes/layout/header.php';
 require_once 'includes/layout/sidebar.php';
 ?>
+
+<!-- --- INÍCIO: ALERTAS DO DASHBOARD EXPRESSIVO --- -->
+<?php if ($qtd_briefings_ninja > 0 || $qtd_propostas_ninja > 0): ?>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 24px; margin-top: 10px;">
+        
+        <?php if ($qtd_briefings_ninja > 0): ?>
+        <div class="aprovacao-alerta" style="margin-bottom: 0; background: rgba(34, 197, 94, 0.08); border-color: var(--green);">
+            <div class="aprovacao-alerta-header" style="margin-bottom: 0; align-items: center;">
+                <span class="aprovacao-alerta-icon" style="color: var(--green);">🔥</span>
+                <div>
+                    <strong style="color: var(--green);"><?= $qtd_briefings_ninja ?> Briefing(s) Novo(s)!</strong>
+                    <p>Tem cliente querendo fechar negócio. Não deixa esfriar.</p>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($qtd_propostas_ninja > 0): ?>
+        <div class="aprovacao-alerta" style="margin-bottom: 0; background: rgba(245, 158, 11, 0.08); border-color: var(--yellow);">
+            <div class="aprovacao-alerta-header" style="margin-bottom: 0; align-items: center;">
+                <span class="aprovacao-alerta-icon" style="color: var(--yellow);">⏳</span>
+                <div>
+                    <strong style="color: var(--yellow);"><?= $qtd_propostas_ninja ?> Proposta(s) Parada(s)</strong>
+                    <p>Existem propostas em rascunho ou enviadas aguardando resposta.</p>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
+    </div>
+<?php endif; ?>
+<!-- --- FIM: ALERTAS DO DASHBOARD EXPRESSIVO --- -->
 
 <div class="card" style="background: transparent; border: none; padding: 0;">
 
