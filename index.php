@@ -87,14 +87,14 @@ require_once 'includes/layout/sidebar.php';
 
 <!-- --- INÍCIO: ALERTAS DO DASHBOARD EXPRESSIVO --- -->
 <?php if ($qtd_briefings_ninja > 0 || $qtd_propostas_ninja > 0): ?>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 24px; margin-top: 10px;">
-        
+    <div class="dash-alertas-grid">
+
         <?php if ($qtd_briefings_ninja > 0): ?>
-        <div class="aprovacao-alerta" style="margin-bottom: 0; background: rgba(34, 197, 94, 0.08); border-color: var(--green);">
-            <div class="aprovacao-alerta-header" style="margin-bottom: 0; align-items: center;">
-                <span class="aprovacao-alerta-icon" style="color: var(--green);">🔥</span>
+        <div class="aprovacao-alerta dash-alerta-briefing">
+            <div class="aprovacao-alerta-header">
+                <span class="aprovacao-alerta-icon">🔥</span>
                 <div>
-                    <strong style="color: var(--green);"><?= $qtd_briefings_ninja ?> Briefing(s) Novo(s)!</strong>
+                    <strong><?= $qtd_briefings_ninja ?> Briefing(s) Novo(s)!</strong>
                     <p>Tem cliente querendo fechar negócio. Não deixa esfriar.</p>
                 </div>
             </div>
@@ -102,11 +102,11 @@ require_once 'includes/layout/sidebar.php';
         <?php endif; ?>
 
         <?php if ($qtd_propostas_ninja > 0): ?>
-        <div class="aprovacao-alerta" style="margin-bottom: 0; background: rgba(245, 158, 11, 0.08); border-color: var(--yellow);">
-            <div class="aprovacao-alerta-header" style="margin-bottom: 0; align-items: center;">
-                <span class="aprovacao-alerta-icon" style="color: var(--yellow);">⏳</span>
+        <div class="aprovacao-alerta dash-alerta-proposta">
+            <div class="aprovacao-alerta-header">
+                <span class="aprovacao-alerta-icon">⏳</span>
                 <div>
-                    <strong style="color: var(--yellow);"><?= $qtd_propostas_ninja ?> Proposta(s) Parada(s)</strong>
+                    <strong><?= $qtd_propostas_ninja ?> Proposta(s) Parada(s)</strong>
                     <p>Existem propostas em rascunho ou enviadas aguardando resposta.</p>
                 </div>
             </div>
@@ -117,44 +117,44 @@ require_once 'includes/layout/sidebar.php';
 <?php endif; ?>
 <!-- --- FIM: ALERTAS DO DASHBOARD EXPRESSIVO --- -->
 
-<div class="card" style="background: transparent; border: none; padding: 0;">
+<div class="card dash-wrapper">
 
-    <div class="dashboard-greeting" style="background: var(--bg-surface); padding: 30px; border-radius: var(--radius-lg); border: 1px solid var(--border-mid); margin-bottom: 24px;">
-        <h1 class="greeting-title" style="font-size: 28px; margin-bottom: 8px;">Olá, <?= htmlspecialchars($_SESSION['usuario_nome']) ?>.</h1>
-        <p class="greeting-sub" style="font-size: 15px; color: var(--text-secondary);">
+    <div class="dashboard-greeting dash-greeting-box">
+        <h1 class="greeting-title">Olá, <?= htmlspecialchars($_SESSION['usuario_nome']) ?>.</h1>
+        <p class="greeting-sub">
             <?= isAdmin() ? 'O que vamos construir hoje? Aqui está o panorama da sua agência.' : 'Bem-vindo ao seu portal corporativo na Gasmaske Lab.' ?>
         </p>
     </div>
 
     <?php if (isAdmin()): ?>
 
-        <div class="dashboard-metrics" style="gap: 20px; margin-bottom: 30px;">
-            <div class="metric-card accent-yellow" style="background: var(--bg-surface); border: 1px solid var(--border-mid);">
+        <div class="dashboard-metrics dash-metrics-grid">
+            <div class="metric-card accent-yellow metric-card--surface">
                 <i class="ph-fill ph-envelope-open metric-bg-icon"></i>
-                <div class="metric-label" style="color: var(--text-secondary);">Briefings Novos</div>
-                <div class="metric-value" style="color: var(--text-primary); font-size: 32px;"><?= $briefings_novos ?></div>
+                <div class="metric-label metric-label--secondary">Briefings Novos</div>
+                <div class="metric-value metric-value--primary"><?= $briefings_novos ?></div>
             </div>
-            <div class="metric-card accent-blue" style="background: var(--bg-surface); border: 1px solid var(--border-mid);">
+            <div class="metric-card accent-blue metric-card--surface">
                 <i class="ph-fill ph-handshake metric-bg-icon"></i>
-                <div class="metric-label" style="color: var(--text-secondary);">Contratos Ativos</div>
-                <div class="metric-value" style="color: var(--text-primary); font-size: 32px;"><?= $contratos_ativos ?></div>
+                <div class="metric-label metric-label--secondary">Contratos Ativos</div>
+                <div class="metric-value metric-value--primary"><?= $contratos_ativos ?></div>
             </div>
-            <div class="metric-card accent-purple" style="background: var(--bg-surface); border: 1px solid var(--border-mid);">
+            <div class="metric-card accent-red metric-card--surface">
                 <i class="ph-fill ph-kanban metric-bg-icon"></i>
-                <div class="metric-label" style="color: var(--text-secondary);">Tarefas Rolando</div>
-                <div class="metric-value" style="color: var(--text-primary); font-size: 32px;"><?= $tarefas_pendentes ?></div>
+                <div class="metric-label metric-label--secondary">Tarefas Pendentes</div>
+                <div class="metric-value metric-value--primary"><?= $tarefas_pendentes ?></div>
             </div>
-            <div class="metric-card accent-green" style="background: var(--bg-surface); border: 1px solid var(--border-mid);">
+            <div class="metric-card accent-green metric-card--surface">
                 <i class="ph-fill ph-currency-dollar metric-bg-icon"></i>
-                <div class="metric-label" style="color: var(--green);">Faturamento (Mês)</div>
-                <div class="metric-value metric-value--sm" style="color: var(--text-primary); font-size: 26px;"><?= money($receita_mes) ?></div>
+                <div class="metric-label metric-label--secondary">Receita do Mês</div>
+                <div class="metric-value metric-value--sm metric-value--primary"><?= money($receita_mes) ?></div>
             </div>
         </div>
 
-        <h3 style="color: var(--text-primary); font-size: 18px; font-weight: 600; margin-bottom: 16px;">Acesso Rápido</h3>
+        <h3 class="dash-section-title">Acesso Rápido</h3>
 
         <div class="qa-grid">
-            
+
             <a href="modules/propostas/form.php" class="qa-card blue">
                 <div class="qa-icon-wrapper">
                     <i class="ph ph-file-text"></i>
@@ -189,17 +189,17 @@ require_once 'includes/layout/sidebar.php';
 
         </div>
 
-        <div class="dash-panel dash-panel--wide" style="background: var(--bg-surface); border: 1px solid var(--border-mid); border-radius: var(--radius-lg);">
-            <div class="dash-panel-title" style="padding: 20px; border-bottom: 1px solid var(--border-mid); margin: 0;">Últimas Tarefas Movimentadas</div>
+        <div class="dash-panel dash-panel--wide dash-tasks-panel">
+            <div class="dash-panel-title dash-tasks-panel-header">Últimas Tarefas Movimentadas</div>
 
-            <div style="padding: 0 20px;">
+            <div class="dash-tasks-panel-body">
             <?php if (count($tarefas_urgentes) > 0): ?>
                 <?php foreach ($tarefas_urgentes as $t): ?>
                     <?php $badge = $status_badge[$t['status_geral']] ?? 'badge-gray'; ?>
-                    <div class="dash-task-row" style="padding: 16px 0; border-bottom: 1px solid var(--border-mid);">
+                    <div class="dash-task-row dash-task-row--bordered">
                         <div>
-                            <span class="dash-task-title" style="font-weight: 600; color: var(--text-primary);"><?= htmlspecialchars($t['tema']) ?></span>
-                            <span class="dash-task-meta" style="color: var(--text-muted); font-size: 12px;"><?= htmlspecialchars($t['cliente_nome']) ?> · <?= htmlspecialchars($t['tipo']) ?></span>
+                            <span class="dash-task-title"><?= htmlspecialchars($t['tema']) ?></span>
+                            <span class="dash-task-meta"><?= htmlspecialchars($t['cliente_nome']) ?> · <?= htmlspecialchars($t['tipo']) ?></span>
                         </div>
                         <span class="badge <?= $badge ?>">
                             <?= str_replace('_', ' ', $t['status_geral']) ?>
@@ -207,7 +207,7 @@ require_once 'includes/layout/sidebar.php';
                     </div>
                 <?php endforeach; ?>
             <?php else: ?>
-                <p class="dash-empty" style="padding: 30px 0; text-align: center; color: var(--text-muted);">Nenhuma tarefa em andamento no momento.</p>
+                <p class="dash-empty">Nenhuma tarefa em andamento no momento.</p>
             <?php endif; ?>
             </div>
         </div>
@@ -215,21 +215,21 @@ require_once 'includes/layout/sidebar.php';
     <?php else: ?>
 
         <?php if (count($aprovacoes_pendentes) > 0): ?>
-            <div class="aprovacao-alerta" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 24px;">
-                <div class="aprovacao-alerta-header" style="display: flex; gap: 15px; margin-bottom: 20px;">
-                    <i class="ph-fill ph-warning-circle aprovacao-alerta-icon" style="color: var(--yellow); font-size: 32px;"></i>
+            <div class="aprovacao-alerta--cliente">
+                <div class="aprovacao-alerta-header">
+                    <i class="ph-fill ph-warning-circle aprovacao-alerta-icon"></i>
                     <div>
-                        <strong style="color: var(--text-primary); font-size: 16px; display: block; margin-bottom: 4px;">Materiais Aguardando sua Aprovação</strong>
-                        <p style="color: var(--text-secondary); font-size: 13px; margin: 0;">Nossa equipe produziu novos materiais e precisamos da sua revisão para dar continuidade.</p>
+                        <strong class="aprovacao-alerta-title">Materiais Aguardando sua Aprovação</strong>
+                        <p class="aprovacao-alerta-desc">Nossa equipe produziu novos materiais e precisamos da sua revisão para dar continuidade.</p>
                     </div>
                 </div>
                 <?php foreach ($aprovacoes_pendentes as $ap): ?>
-                    <div class="aprovacao-item" style="background: var(--bg-surface); border: 1px solid var(--border-mid); border-radius: var(--radius-md); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div class="aprovacao-item aprovacao-item--cliente">
                         <div>
-                            <span class="aprovacao-tema" style="color: var(--text-primary); font-weight: 600; display: block;"><?= htmlspecialchars($ap['tema']) ?></span>
-                            <span class="aprovacao-meta" style="color: var(--text-muted); font-size: 12px;"><?= htmlspecialchars($ap['tipo']) ?></span>
+                            <span class="aprovacao-tema"><?= htmlspecialchars($ap['tema']) ?></span>
+                            <span class="aprovacao-meta"><?= htmlspecialchars($ap['tipo']) ?></span>
                         </div>
-                        <a href="publico/aprovacoes.php?token=<?= $ap['contrato_token'] ?>" class="btn btn-primary btn--sm" target="_blank" style="background: var(--yellow); color: #000; border: none; font-weight: 700;">
+                        <a href="publico/aprovacoes.php?token=<?= $ap['contrato_token'] ?>" class="btn btn-primary btn--sm btn-aprovar" target="_blank">
                             Revisar e Aprovar
                         </a>
                     </div>
@@ -238,25 +238,25 @@ require_once 'includes/layout/sidebar.php';
         <?php endif; ?>
 
         <div class="dashboard-grid dashboard-grid--equal">
-            <div class="dash-panel" style="background: var(--bg-surface); border: 1px solid var(--border-mid); border-radius: var(--radius-lg); padding: 24px;">
-                <div class="dash-panel-title" style="margin-bottom: 20px; font-weight: 600; font-size: 16px; color: var(--text-primary); border-bottom: 1px solid var(--border-mid); padding-bottom: 10px;">Meus Contratos</div>
+            <div class="dash-panel dash-panel--cliente">
+                <div class="dash-panel-title dash-panel-title--cliente">Meus Contratos</div>
                 <?php if (count($meus_contratos) > 0): ?>
                     <?php foreach ($meus_contratos as $mc): ?>
-                        <div class="contrato-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border);">
+                        <div class="contrato-item contrato-item--cliente">
                             <div>
-                                <span class="contrato-codigo" style="color: var(--text-primary); font-weight: 600; display: block;"><?= htmlspecialchars($mc['codigo_agc']) ?></span>
-                                <span class="contrato-meta" style="color: var(--text-muted); font-size: 12px;">Duração: <?= $mc['duracao_meses'] ?> meses</span>
+                                <span class="contrato-codigo"><?= htmlspecialchars($mc['codigo_agc']) ?></span>
+                                <span class="contrato-meta">Duração: <?= $mc['duracao_meses'] ?> meses</span>
                             </div>
                             <span class="badge badge-green">Ativo</span>
                         </div>
                     <?php endforeach; ?>
                 <?php else: ?>
-                    <p class="dash-empty" style="color: var(--text-muted); font-size: 13px;">Você ainda não possui contratos ativos.</p>
+                    <p class="dash-empty dash-empty--padded">Você ainda não possui contratos ativos.</p>
                 <?php endif; ?>
             </div>
 
-            <div class="dash-panel" style="background: var(--bg-surface); border: 1px solid var(--border-mid); border-radius: var(--radius-lg); padding: 24px;">
-                <div class="dash-panel-title" style="margin-bottom: 20px; font-weight: 600; font-size: 16px; color: var(--text-primary); border-bottom: 1px solid var(--border-mid); padding-bottom: 10px;">Faturas em Aberto</div>
+            <div class="dash-panel dash-panel--cliente">
+                <div class="dash-panel-title dash-panel-title--cliente">Faturas em Aberto</div>
 
                 <?php if (count($faturas) > 0): ?>
                     <?php foreach ($faturas as $f): ?>
@@ -268,12 +268,12 @@ require_once 'includes/layout/sidebar.php';
                             <span class="fatura-valor"><?= money($f['valor']) ?></span>
                         </div>
                     <?php endforeach; ?>
-                    <p class="fatura-obs" style="font-size: 12px; color: var(--text-muted); margin-top: 15px;">Faturas pagas via QR Code enviado separadamente.</p>
+                    <p class="fatura-obs">Faturas pagas via QR Code enviado separadamente.</p>
                 <?php else: ?>
-                    <div class="faturas-ok" style="text-align: center; padding: 30px 0;">
-                        <i class="ph-fill ph-check-circle faturas-ok-icon" style="color: var(--green); font-size: 40px; margin-bottom: 10px;"></i>
-                        <strong style="display: block; color: var(--text-primary); margin-bottom: 5px;">Tudo em dia!</strong>
-                        <p style="color: var(--text-muted); font-size: 13px; margin: 0;">Você não possui faturas em aberto.</p>
+                    <div class="faturas-ok faturas-ok--centro">
+                        <i class="ph-fill ph-check-circle faturas-ok-icon"></i>
+                        <strong>Tudo em dia!</strong>
+                        <p>Você não possui faturas em aberto.</p>
                     </div>
                 <?php endif; ?>
             </div>
