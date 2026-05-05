@@ -1,5 +1,5 @@
 <?php
-// index.php (Página Inicial / Dashboard Misto)
+// index.php (Dashboard Premium - Layout Clean com Notificações nos Cards)
 
 require_once 'config/session.php';
 require_once 'config/database.php';
@@ -8,12 +8,12 @@ require_once 'includes/functions.php';
 requireLogin();
 
 if (isAdmin()) {
-    // --- VISÃO DO ADMIN DA AGÊNCIA ---
+    // --- VISÃO DO ADMIN ---
     $stmt_briefings = $pdo->query("SELECT COUNT(*) as total FROM briefings WHERE status = 'novo'");
     $briefings_novos = $stmt_briefings->fetch()['total'];
 
-    $stmt_contratos = $pdo->query("SELECT COUNT(*) as total FROM contratos WHERE status = 'em_andamento'");
-    $contratos_ativos = $stmt_contratos->fetch()['total'];
+    $stmt_propostas_paradas = $pdo->query("SELECT COUNT(*) as total FROM propostas WHERE status IN ('rascunho', 'enviada')");
+    $propostas_paradas = $stmt_propostas_paradas->fetch()['total'];
 
     $stmt_tarefas = $pdo->query("SELECT COUNT(*) as total FROM planejamento WHERE status_geral != 'finalizado'");
     $tarefas_pendentes = $stmt_tarefas->fetch()['total'];
@@ -63,7 +63,6 @@ if (isAdmin()) {
     $meus_contratos = $stmt_meus_contratos->fetchAll();
 }
 
-// Mapeamento status → badge
 $status_badge = [
     'pendente'                     => 'badge-gray',
     'roteiro_em_producao'          => 'badge-blue',
@@ -76,206 +75,195 @@ $status_badge = [
     'finalizado'                   => 'badge-green',
 ];
 
-// --- INÍCIO: LÓGICA DO DASHBOARD EXPRESSIVO ---
-$qtd_briefings_ninja = $pdo->query("SELECT COUNT(*) FROM briefings WHERE status = 'novo'")->fetchColumn();
-$qtd_propostas_ninja = $pdo->query("SELECT COUNT(*) FROM propostas WHERE status IN ('rascunho', 'enviada')")->fetchColumn();
-// --- FIM: LÓGICA DO DASHBOARD EXPRESSIVO ---
-
 require_once 'includes/layout/header.php';
 require_once 'includes/layout/sidebar.php';
 ?>
 
-<!-- --- INÍCIO: ALERTAS DO DASHBOARD EXPRESSIVO --- -->
-<?php if ($qtd_briefings_ninja > 0 || $qtd_propostas_ninja > 0): ?>
-    <div class="dash-alertas-grid">
+<div class="dashboard-premium">
 
-        <?php if ($qtd_briefings_ninja > 0): ?>
-        <div class="aprovacao-alerta dash-alerta-briefing">
-            <div class="aprovacao-alerta-header">
-                <span class="aprovacao-alerta-icon">🔥</span>
-                <div>
-                    <strong><?= $qtd_briefings_ninja ?> Briefing(s) Novo(s)!</strong>
-                    <p>Tem cliente querendo fechar negócio. Não deixa esfriar.</p>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
-
-        <?php if ($qtd_propostas_ninja > 0): ?>
-        <div class="aprovacao-alerta dash-alerta-proposta">
-            <div class="aprovacao-alerta-header">
-                <span class="aprovacao-alerta-icon">⏳</span>
-                <div>
-                    <strong><?= $qtd_propostas_ninja ?> Proposta(s) Parada(s)</strong>
-                    <p>Existem propostas em rascunho ou enviadas aguardando resposta.</p>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
-
-    </div>
-<?php endif; ?>
-<!-- --- FIM: ALERTAS DO DASHBOARD EXPRESSIVO --- -->
-
-<div class="card dash-wrapper">
-
-    <div class="dashboard-greeting dash-greeting-box">
-        <h1 class="greeting-title">Olá, <?= htmlspecialchars($_SESSION['usuario_nome']) ?>.</h1>
-        <p class="greeting-sub">
-            <?= isAdmin() ? 'O que vamos construir hoje? Aqui está o panorama da sua agência.' : 'Bem-vindo ao seu portal corporativo na Gasmaske Lab.' ?>
-        </p>
+    <!-- Saudação -->
+    <div class="greeting-premium">
+        <h1>Olá, <?= htmlspecialchars($_SESSION['usuario_nome']) ?>.</h1>
+        <p><?= isAdmin() ? 'Panorama geral da sua agência.' : 'Bem-vindo ao seu portal corporativo.' ?></p>
     </div>
 
     <?php if (isAdmin()): ?>
 
-        <div class="dashboard-metrics dash-metrics-grid">
-            <div class="metric-card accent-yellow metric-card--surface">
-                <i class="ph-fill ph-envelope-open metric-bg-icon"></i>
-                <div class="metric-label metric-label--secondary">Briefings Novos</div>
-                <div class="metric-value metric-value--primary"><?= $briefings_novos ?></div>
+        <!-- Métricas em grid compacto - COM NOTIFICAÇÕES EMBUTIDAS -->
+        <div class="metrics-premium-grid">
+            
+            <!-- Briefings Novos - Card VERDE com badge -->
+            <div class="metric-premium-card">
+                <?php if ($briefings_novos > 0): ?>
+                    <span class="metric-notification-badge">+<?= $briefings_novos ?> novo(s)</span>
+                <?php endif; ?>
+                <div class="metric-premium-icon" style="color: var(--green);">
+                    <i class="ph-fill ph-envelope-open"></i>
+                </div>
+                <div class="metric-premium-value"><?= $briefings_novos ?></div>
+                <div class="metric-premium-label">Briefings Novos</div>
+                <a href="/gasmaske/modules/briefing/index.php" class="metric-premium-link">→</a>
             </div>
-            <div class="metric-card accent-blue metric-card--surface">
-                <i class="ph-fill ph-handshake metric-bg-icon"></i>
-                <div class="metric-label metric-label--secondary">Contratos Ativos</div>
-                <div class="metric-value metric-value--primary"><?= $contratos_ativos ?></div>
+
+            <!-- Propostas Paradas - Card LARANJA/AMARELO com badge -->
+            <div class="metric-premium-card">
+                <?php if ($propostas_paradas > 0): ?>
+                    <span class="metric-notification-badge warning">+<?= $propostas_paradas ?> parada(s)</span>
+                <?php endif; ?>
+                <div class="metric-premium-icon" style="color: var(--yellow);">
+                    <i class="ph-fill ph-clock"></i>
+                </div>
+                <div class="metric-premium-value"><?= $propostas_paradas ?></div>
+                <div class="metric-premium-label">Propostas Paradas</div>
+                <a href="/gasmaske/modules/propostas/index.php" class="metric-premium-link">→</a>
             </div>
-            <div class="metric-card accent-red metric-card--surface">
-                <i class="ph-fill ph-kanban metric-bg-icon"></i>
-                <div class="metric-label metric-label--secondary">Tarefas Pendentes</div>
-                <div class="metric-value metric-value--primary"><?= $tarefas_pendentes ?></div>
+
+            <!-- Tarefas Pendentes -->
+            <div class="metric-premium-card">
+                <div class="metric-premium-icon" style="color: var(--red);">
+                    <i class="ph-fill ph-kanban"></i>
+                </div>
+                <div class="metric-premium-value"><?= $tarefas_pendentes ?></div>
+                <div class="metric-premium-label">Tarefas Pendentes</div>
+                <a href="/gasmaske/modules/planejamento/index.php" class="metric-premium-link">→</a>
             </div>
-            <div class="metric-card accent-green metric-card--surface">
-                <i class="ph-fill ph-currency-dollar metric-bg-icon"></i>
-                <div class="metric-label metric-label--secondary">Receita do Mês</div>
-                <div class="metric-value metric-value--sm metric-value--primary"><?= money($receita_mes) ?></div>
+
+            <!-- Receita do Mês -->
+            <div class="metric-premium-card">
+                <div class="metric-premium-icon" style="color: var(--blue);">
+                    <i class="ph-fill ph-currency-dollar"></i>
+                </div>
+                <div class="metric-premium-value"><?= money($receita_mes) ?></div>
+                <div class="metric-premium-label">Receita do Mês</div>
+                <a href="/gasmaske/modules/financeiro/index.php" class="metric-premium-link">→</a>
             </div>
         </div>
 
-        <h3 class="dash-section-title">Acesso Rápido</h3>
+        <!-- Acesso Rápido (estilo QUADRADO com ícone e texto) -->
+<div class="section-premium-title">
+    <i class="ph-fill ph-lightning"></i> Acesso Rápido
+</div>
+<div class="quick-premium-grid">
+    <a href="modules/propostas/form.php" class="quick-premium-item">
+        <i class="ph-file-text"></i> Nova Proposta
+    </a>
+    <a href="modules/contratos/form.php" class="quick-premium-item">
+        <i class="ph-handshake"></i> Gerar Contrato
+    </a>
+    <a href="publico/briefing.php" target="_blank" class="quick-premium-item">
+        <i class="ph-link"></i> Link Briefing
+    </a>
+    <a href="modules/planejamento/index.php" class="quick-premium-item">
+        <i class="ph-kanban"></i> Master Task
+    </a>
+    <a href="modules/clientes/index.php" class="quick-premium-item">
+        <i class="ph-users"></i> Clientes
+    </a>
+    <a href="modules/financeiro/index.php" class="quick-premium-item">
+        <i class="ph-chart-line"></i> Financeiro
+    </a>
+    <a href="modules/equipe/servicos.php" class="quick-premium-item">
+        <i class="ph-gear"></i> Configurações
+    </a>
+</div>
 
-        <div class="qa-grid">
-
-            <a href="modules/propostas/form.php" class="qa-card blue">
-                <div class="qa-icon-wrapper">
-                    <i class="ph ph-file-text"></i>
-                </div>
-                <div class="qa-title">Criar Proposta</div>
-                <div class="qa-desc">Monte um orçamento comercial para um lead.</div>
-            </a>
-
-            <a href="modules/contratos/form.php" class="qa-card green">
-                <div class="qa-icon-wrapper">
-                    <i class="ph ph-handshake"></i>
-                </div>
-                <div class="qa-title">Gerar Contrato</div>
-                <div class="qa-desc">Efetive um projeto com assinatura digital.</div>
-            </a>
-
-            <a href="publico/briefing.php" target="_blank" class="qa-card red">
-                <div class="qa-icon-wrapper">
-                    <i class="ph ph-link"></i>
-                </div>
-                <div class="qa-title">Link do Briefing</div>
-                <div class="qa-desc">Acesse o formulário público para enviar a clientes.</div>
-            </a>
-
-            <a href="modules/planejamento/index.php" class="qa-card purple">
-                <div class="qa-icon-wrapper">
-                    <i class="ph ph-kanban"></i>
-                </div>
-                <div class="qa-title">Master Task List</div>
-                <div class="qa-desc">Acompanhe a esteira de produção da equipe.</div>
-            </a>
-
-        </div>
-
-        <div class="dash-panel dash-panel--wide dash-tasks-panel">
-            <div class="dash-panel-title dash-tasks-panel-header">Últimas Tarefas Movimentadas</div>
-
-            <div class="dash-tasks-panel-body">
+        <!-- Últimas Tarefas - Lista Clean -->
+        <div class="tasks-premium-list">
+            <div class="tasks-premium-header">
+                <i class="ph-list"></i> Últimas Tarefas Movimentadas
+            </div>
             <?php if (count($tarefas_urgentes) > 0): ?>
                 <?php foreach ($tarefas_urgentes as $t): ?>
                     <?php $badge = $status_badge[$t['status_geral']] ?? 'badge-gray'; ?>
-                    <div class="dash-task-row dash-task-row--bordered">
-                        <div>
-                            <span class="dash-task-title"><?= htmlspecialchars($t['tema']) ?></span>
-                            <span class="dash-task-meta"><?= htmlspecialchars($t['cliente_nome']) ?> · <?= htmlspecialchars($t['tipo']) ?></span>
+                    <div class="tasks-premium-item">
+                        <div class="task-premium-info">
+                            <span class="task-premium-title"><?= htmlspecialchars($t['tema']) ?></span>
+                            <span class="task-premium-meta"><?= htmlspecialchars($t['cliente_nome']) ?> · <?= htmlspecialchars($t['tipo']) ?></span>
                         </div>
-                        <span class="badge <?= $badge ?>">
-                            <?= str_replace('_', ' ', $t['status_geral']) ?>
-                        </span>
+                        <span class="badge <?= $badge ?>"><?= str_replace('_', ' ', $t['status_geral']) ?></span>
                     </div>
                 <?php endforeach; ?>
             <?php else: ?>
-                <p class="dash-empty">Nenhuma tarefa em andamento no momento.</p>
+                <div class="empty-premium">
+                    <i class="ph-check-circle"></i>
+                    Nenhuma tarefa em andamento no momento.
+                </div>
             <?php endif; ?>
-            </div>
         </div>
 
     <?php else: ?>
 
+        <!-- VISÃO DO CLIENTE -->
+
+        <!-- Aprovações pendentes (se houver) -->
         <?php if (count($aprovacoes_pendentes) > 0): ?>
-            <div class="aprovacao-alerta--cliente">
-                <div class="aprovacao-alerta-header">
-                    <i class="ph-fill ph-warning-circle aprovacao-alerta-icon"></i>
-                    <div>
-                        <strong class="aprovacao-alerta-title">Materiais Aguardando sua Aprovação</strong>
-                        <p class="aprovacao-alerta-desc">Nossa equipe produziu novos materiais e precisamos da sua revisão para dar continuidade.</p>
+            <div class="alerts-premium-grid">
+                <div class="alert-premium-card">
+                    <div class="alert-premium-icon proposta">
+                        <i class="ph-fill ph-warning"></i>
+                    </div>
+                    <div class="alert-premium-content">
+                        <div class="alert-premium-title proposta">Materiais para Aprovação</div>
+                        <div class="alert-premium-desc"><?= count($aprovacoes_pendentes) ?> item(ns) aguardando sua revisão</div>
                     </div>
                 </div>
-                <?php foreach ($aprovacoes_pendentes as $ap): ?>
-                    <div class="aprovacao-item aprovacao-item--cliente">
-                        <div>
-                            <span class="aprovacao-tema"><?= htmlspecialchars($ap['tema']) ?></span>
-                            <span class="aprovacao-meta"><?= htmlspecialchars($ap['tipo']) ?></span>
-                        </div>
-                        <a href="publico/aprovacoes.php?token=<?= $ap['contrato_token'] ?>" class="btn btn-primary btn--sm btn-aprovar" target="_blank">
-                            Revisar e Aprovar
-                        </a>
-                    </div>
-                <?php endforeach; ?>
             </div>
         <?php endif; ?>
 
-        <div class="dashboard-grid dashboard-grid--equal">
-            <div class="dash-panel dash-panel--cliente">
-                <div class="dash-panel-title dash-panel-title--cliente">Meus Contratos</div>
-                <?php if (count($meus_contratos) > 0): ?>
-                    <?php foreach ($meus_contratos as $mc): ?>
-                        <div class="contrato-item contrato-item--cliente">
-                            <div>
-                                <span class="contrato-codigo"><?= htmlspecialchars($mc['codigo_agc']) ?></span>
-                                <span class="contrato-meta">Duração: <?= $mc['duracao_meses'] ?> meses</span>
+        <!-- Grid de Contratos e Faturas -->
+        <div class="cliente-premium-grid">
+            <!-- Meus Contratos -->
+            <div class="cliente-premium-panel">
+                <div class="cliente-premium-panel-header">
+                    <i class="ph-file"></i> Meus Contratos
+                </div>
+                <div class="cliente-premium-panel-body">
+                    <?php if (count($meus_contratos) > 0): ?>
+                        <?php foreach ($meus_contratos as $mc): ?>
+                            <div class="cliente-premium-item">
+                                <div>
+                                    <span class="code"><?= htmlspecialchars($mc['codigo_agc']) ?></span>
+                                    <span class="meta">Duração: <?= $mc['duracao_meses'] ?> meses</span>
+                                </div>
+                                <span class="badge-sm badge-sm-green">Ativo</span>
                             </div>
-                            <span class="badge badge-green">Ativo</span>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div class="empty-premium">
+                            <i class="ph-file"></i>
+                            Nenhum contrato ativo.
                         </div>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <p class="dash-empty dash-empty--padded">Você ainda não possui contratos ativos.</p>
-                <?php endif; ?>
+                    <?php endif; ?>
+                </div>
             </div>
 
-            <div class="dash-panel dash-panel--cliente">
-                <div class="dash-panel-title dash-panel-title--cliente">Faturas em Aberto</div>
-
-                <?php if (count($faturas) > 0): ?>
-                    <?php foreach ($faturas as $f): ?>
-                        <div class="fatura-item <?= $f['status'] == 'atrasado' ? 'fatura-item--atrasada' : 'fatura-item--pendente' ?>">
-                            <div class="fatura-desc">
-                                <span class="fatura-nome"><?= htmlspecialchars($f['descricao']) ?></span>
-                                <span class="fatura-venc">Vence em <?= date('d/m/Y', strtotime($f['data_vencimento'])) ?></span>
+            <!-- Faturas em Aberto -->
+            <div class="cliente-premium-panel">
+                <div class="cliente-premium-panel-header">
+                    <i class="ph-currency-dollar"></i> Faturas em Aberto
+                </div>
+                <div class="cliente-premium-panel-body">
+                    <?php if (count($faturas) > 0): ?>
+                        <?php foreach ($faturas as $f): ?>
+                            <div class="cliente-premium-item">
+                                <div>
+                                    <span class="code"><?= htmlspecialchars($f['descricao']) ?></span>
+                                    <span class="meta">Vence em <?= date('d/m/Y', strtotime($f['data_vencimento'])) ?></span>
+                                </div>
+                                <span class="code"><?= money($f['valor']) ?></span>
                             </div>
-                            <span class="fatura-valor"><?= money($f['valor']) ?></span>
+                        <?php endforeach; ?>
+                        <div class="empty-premium" style="padding-top: 8px;">
+                            <i class="ph-qr-code"></i>
+                            Pagamento via QR Code enviado separadamente.
                         </div>
-                    <?php endforeach; ?>
-                    <p class="fatura-obs">Faturas pagas via QR Code enviado separadamente.</p>
-                <?php else: ?>
-                    <div class="faturas-ok faturas-ok--centro">
-                        <i class="ph-fill ph-check-circle faturas-ok-icon"></i>
-                        <strong>Tudo em dia!</strong>
-                        <p>Você não possui faturas em aberto.</p>
-                    </div>
-                <?php endif; ?>
+                    <?php else: ?>
+                        <div class="empty-premium">
+                            <i class="ph-check-circle"></i>
+                            Tudo em dia! Nenhuma fatura pendente.
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
 
