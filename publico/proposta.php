@@ -164,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['aceitar']) && $propost
         <?php elseif ($mensagem == 'erro'): ?>
             <div class="alert alert-danger" style="text-align: center;"><i class="ph-fill ph-warning-circle"></i> Ocorreu um erro ao processar o aceite. Por favor, contate a agência.</div>
         
-        <?php elseif ($proposta['status'] == 'enviada'): ?>
+        <?php elseif ($proposta['status'] == 'enviada' || $proposta['status'] == 'rascunho'): ?>
             <div class="card" style="padding: 35px;">
                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
                     <i class="ph-fill ph-target" style="font-size: 24px; color: var(--red);"></i>
@@ -172,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['aceitar']) && $propost
                 </div>
                 
                 <div class="proposal-content">
-                    <?= nl2br(htmlspecialchars($proposta['descricao'])) ?>
+                    <?= $proposta['descricao'] ?>
                 </div>
 
                 <div class="pricing-box">

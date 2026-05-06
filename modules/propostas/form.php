@@ -82,7 +82,7 @@ require_once '../../includes/layout/header.php';
 require_once '../../includes/layout/sidebar.php';
 ?>
 
-<link href="[https://cdn.quilljs.com/1.3.6/quill.snow.css](https://cdn.quilljs.com/1.3.6/quill.snow.css)" rel="stylesheet">
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 <style>
     .ql-toolbar.ql-snow { border: 1px solid var(--border-mid); background: var(--bg-surface); border-top-left-radius: 8px; border-top-right-radius: 8px; }
     .ql-container.ql-snow { border: 1px solid var(--border-mid); background: var(--bg-elevated); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; color: var(--text-primary); font-family: 'DM Sans', sans-serif; font-size: 15px; }
@@ -243,8 +243,8 @@ Qualquer dúvida, me dá um toque por aqui!</textarea>
     </script>
 <?php endif; ?>
 
-<!-- SCRIPT PRINCIPAL E FOOTER ONDE DEVE FICAR -->
-<script src="[https://cdn.quilljs.com/1.3.6/quill.min.js](https://cdn.quilljs.com/1.3.6/quill.min.js)"></script>
+<!-- SCRIPT PRINCIPAL -->
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 <script>
     var quill = new Quill('#editor-container', {
         theme: 'snow',
@@ -285,7 +285,7 @@ Qualquer dúvida, me dá um toque por aqui!</textarea>
 
     async function gerarPropostaIA() {
         const clienteId = document.querySelector('select[name="cliente_id"]').value;
-        if(!clienteId) {
+        if (!clienteId) {
             alert("Opa! Selecione um Cliente primeiro para a IA saber para quem é a proposta.");
             return;
         }
@@ -299,20 +299,32 @@ Qualquer dúvida, me dá um toque por aqui!</textarea>
             const formData = new FormData();
             formData.append('cliente_id', clienteId);
 
-            const res = await fetch('gerar_proposta_ia.php', {
-                method: 'POST',
-                body: formData
-            });
-            const data = await res.json();
+            const res = await fetch('gerar_proposta_ia.php', { method: 'POST', body: formData });
+            const rawText = await res.text();
 
-            if(data.erro) {
-                alert("Erro: " + data.erro);
-            } else {
-                let htmlLimpo = data.texto.replace(/\`\`\`html/g, '').replace(/\`\`\`/g, '').trim();
-                quill.clipboard.dangerouslyPasteHTML(htmlLimpo);
+            let data;
+            try {
+                data = JSON.parse(rawText);
+            } catch (jsonErr) {
+                alert("O PHP quebrou nos bastidores! Veja o erro real:\n\n" + rawText.substring(0, 500));
+                return;
             }
-        } catch(e) {
-            alert("Erro de comunicação com o servidor local.");
+
+            if (data.erro) {
+                alert("Aviso: " + data.erro);
+            } else {
+                // O texto já vem limpo do PHP, só garante que não sobrou nenhum backtick
+                let htmlLimpo = data.texto
+                    .replace(/^```html\s*/gi, '')
+                    .replace(/^```\s*/gim, '')
+                    .replace(/```\s*$/gim, '')
+                    .trim();
+
+                quill.clipboard.dangerouslyPasteHTML(htmlLimpo);
+                alert("Mágica concluída! Proposta estruturada no editor.");
+            }
+        } catch (e) {
+            alert("Erro de rede: " + e.message);
         } finally {
             btn.innerHTML = textoOriginal;
             btn.disabled = false;
