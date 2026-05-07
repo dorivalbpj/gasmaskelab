@@ -46,8 +46,9 @@ require_once '../../includes/layout/sidebar.php';
             <label class="filter-label">Status</label>
             <select id="filtroStatus" class="form-control" onchange="filtrarTabelaAoVivo()">
                 <option value="">Todos</option>
+                <option value="rascunho">Rascunho</option>
                 <option value="enviada">Enviada</option>
-                <option value="aceita">Aceita</option>
+                <option value="aceita">Validada</option>
                 <option value="recusada">Recusada</option>
                 <option value="expirada">Expirada</option>
             </select>
@@ -120,7 +121,7 @@ require_once '../../includes/layout/sidebar.php';
                                     <i class="ph ph-pencil-simple" style="font-size: 18px;"></i>
                                 </a>
                                 
-                                <?php if($p['status'] == 'enviada'): ?>
+                                <?php if($p['status'] == 'enviada' || $p['status'] == 'rascunho'): ?>
                                     <button type="button" class="btn btn-ghost btn--sm" onclick="copiarMensagemWpp('<?= addslashes($p['cliente_nome']) ?>', '<?= addslashes($p['titulo']) ?>', '<?= $link_completo ?>', this)" style="color: #25D366; border-color: rgba(37, 211, 102, 0.2); background: rgba(37, 211, 102, 0.05); padding: 6px 10px;" title="Copiar mensagem para WhatsApp">
                                         <i class="ph ph-whatsapp-logo" style="font-size: 18px;"></i>
                                     </button>

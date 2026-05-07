@@ -1,210 +1,208 @@
 <?php
 // publico/proposta.php
-
 require_once '../config/database.php';
-require_once '../includes/functions.php';
 
 $token = $_GET['token'] ?? '';
-$mensagem = '';
+if (!$token) die("Documento indisponível.");
 
-if (empty($token)) die("<div style='padding: 50px; text-align: center; color: #fff; font-family: sans-serif;'>Acesso inválido.</div>");
-
-// Busca a proposta e o cliente
-$stmt = $pdo->prepare("SELECT p.*, c.nome as cliente_nome, c.email as cliente_email FROM propostas p JOIN clientes c ON p.cliente_id = c.id WHERE p.token = ?");
+// Puxa a proposta
+$stmt = $pdo->prepare("SELECT p.*, c.nome as cliente_nome FROM propostas p JOIN clientes c ON p.cliente_id = c.id WHERE p.token = ?");
 $stmt->execute([$token]);
-$proposta = $stmt->fetch();
+$proposta = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$proposta) die("<div style='padding: 50px; text-align: center; color: #fff; font-family: sans-serif;'>Proposta não encontrada.</div>");
-
-$valor_base = $proposta['valor'];
-$duracao = $proposta['duracao_meses'];
-if ($proposta['tipo_cobranca'] == 'mensal') {
-    $valor_total_contrato = $valor_base * $duracao;
-    $texto_cobranca = "Mensalidade";
-} else {
-    $valor_total_contrato = $valor_base;
-    $texto_cobranca = "Valor Único do Projeto";
+if (!$proposta || ($proposta['status'] != 'enviada' && $proposta['status'] != 'rascunho' && $proposta['status'] != 'aceita')) {
+    die("Proposta inválida ou expirada.");
 }
 
-// --- LOGICA DE ACEITE ---
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['aceitar']) && $proposta['status'] == 'enviada') {
-    try {
-        $pdo->beginTransaction();
-        
-        // 1. Gera os dados do contrato invisível para o cliente (Status: Rascunho)
-        $token_contrato = bin2hex(random_bytes(16));
-
-        $stmt_insert = $pdo->prepare("INSERT INTO contratos (cliente_id, valor, duracao_meses, status, token) VALUES (?, ?, ?, 'rascunho', ?)");
-        $stmt_insert->execute([$proposta['cliente_id'], $valor_total_contrato, $duracao, $token_contrato]);
-        
-        $novo_contrato_id = $pdo->lastInsertId();
-        
-        // 2. Gera o código AGC
-        $codigo_agc = "AGC-" . str_pad($novo_contrato_id, 3, '0', STR_PAD_LEFT);
-        $pdo->prepare("UPDATE contratos SET codigo_agc = ? WHERE id = ?")->execute([$codigo_agc, $novo_contrato_id]);
-
-        // 3. ATUALIZA A PROPOSTA
-        $pdo->prepare("UPDATE propostas SET status = 'aceita', contrato_id = ? WHERE id = ?")
-            ->execute([$novo_contrato_id, $proposta['id']]);
-        
-        $pdo->commit();
-        $mensagem = 'sucesso';
-        $proposta['status'] = 'aceita';
-        
-    } catch (Exception $e) {
-        if($pdo->inTransaction()) $pdo->rollBack();
-        $mensagem = 'erro';
+// ==========================================
+// ENDPOINT AJAX EMBUTIDO (Aceitar Proposta)
+// ==========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'aceitar_proposta') {
+    header('Content-Type: application/json');
+    
+    if ($proposta['status'] === 'aceita') {
+        echo json_encode(['success' => false, 'error' => 'Este projeto já foi aprovado anteriormente.']);
+        exit;
     }
+    
+    $upd = $pdo->prepare("UPDATE propostas SET status = 'aceita' WHERE id = ?");
+    if($upd->execute([$proposta['id']])) {
+        echo json_encode(['success' => true]);
+    } else {
+        echo json_encode(['success' => false, 'error' => 'Erro interno ao selar acordo.']);
+    }
+    exit;
 }
+// ==========================================
+
+$valor_formatado = number_format($proposta['valor'], 2, ',', '.');
+$data_validade = date('d/m/Y', strtotime($proposta['data_validade']));
+$ja_aceita = ($proposta['status'] === 'aceita');
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Proposta Comercial - Gasmaske Lab</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <title>Estratégia – Gasmaske Lab</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        
-        /* Redes Sociais no Sucesso */
-        .social-circle {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: var(--bg-hover);
-            color: var(--text-primary);
-            font-size: 24px;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            border: 1px solid var(--border-mid);
-        }
-        .social-circle:hover {
-            transform: translateY(-3px);
-            background: var(--red);
-            border-color: var(--red);
-            color: #fff;
-            box-shadow: 0 10px 20px rgba(255, 63, 52, 0.3);
-        }
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 
-        .proposal-content {
-            background: var(--bg-base);
-            padding: 25px;
-            border-radius: var(--radius-md);
-            border: 1px solid var(--border);
-            font-size: 15px;
-            color: var(--text-secondary);
-            line-height: 1.8;
-            margin-bottom: 30px;
-        }
-
-        .pricing-box {
-            background: linear-gradient(145deg, var(--bg-hover) 0%, var(--bg-base) 100%);
-            padding: 30px;
-            border-radius: var(--radius-lg);
-            border: 1px solid var(--border-mid);
-            position: relative;
-            overflow: hidden;
-        }
-        .pricing-box::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; width: 4px; height: 100%;
-            background: var(--blue);
-        }
-    </style>
+    <!-- CSS separado -->
+    <link rel="stylesheet" href="../assets/css/proposta.css">
 </head>
-<body class="public-body">
-    <div class="public-container">
+<body>
+
+    <div class="marquee-wrapper">
+        <div class="marquee-content">
+            ESTRATÉGIA B2B &bull; DESIGN DE ALTA PERFORMANCE &bull; ACELERAÇÃO DE NEGÓCIOS &bull; GASMASKE LAB &bull; ESTRATÉGIA B2B &bull; DESIGN DE ALTA PERFORMANCE &bull; ACELERAÇÃO DE NEGÓCIOS &bull; GASMASKE LAB &bull; 
+        </div>
+    </div>
+
+    <!-- Hero Section com Vídeo de Fundo -->
+    <section class="hero-section">
+        <!-- Vídeo de fundo do YouTube -->
+        <div class="video-background">
+            <div id="youtube-bg"></div>
+            <div class="overlay-white"></div>
+        </div>
         
-        <div class="public-header" style="text-align: center; margin-bottom: 40px;">
-            <div class="brand-wrapper">
-                <img src="../assets/img/logo-h.png" class="logo-img logo-h" alt="Gasmaske Lab" style="max-width: 200px; margin-bottom: 15px;">
+        <div class="hero-content">
+            <div class="navbar-premium" data-aos="fade-down" data-aos-duration="1000">
+                <img src="../assets/img/logo-h.png" alt="Gasmaske Lab" class="logo-img">
+                <div class="nav-ref">Ref. <?= htmlspecialchars($proposta['codigo_proposta']) ?><br><?= date('d/m/Y') ?></div>
             </div>
-            <h1 style="font-size: 24px; color: var(--text-primary); margin: 0 0 5px 0;">Proposta Comercial</h1>
-            <p class="public-subtitle" style="font-size: 14px;">Documento <strong>#<?= htmlspecialchars($proposta['codigo_proposta']) ?></strong> &bull; Preparado para <strong><?= htmlspecialchars($proposta['cliente_nome']) ?></strong></p>
+
+            <h1 class="hero-title" data-aos="fade-up">
+                <?= htmlspecialchars($proposta['titulo']) ?>
+            </h1>
+            <p class="hero-subtitle" data-aos="fade-up" data-aos-delay="200">
+                Inteligência e arquitetura de marca desenvolvida exclusivamente para o ecossistema de negócios da <strong><?= htmlspecialchars($proposta['cliente_nome']) ?></strong>.
+            </p>
+        </div>
+    </section>
+
+    <section class="proposal-content">
+        
+        <div class="success-screen" id="successBlock">
+            <i class="ph-fill ph-seal-check success-icon"></i>
+            <h2 style="margin-top:0;">Acordo Selado.</h2>
+            <p style="margin: 0 auto;">Deixe as fórmulas prontas e o "design fofo" para os amadores. O setup estratégico do seu projeto já começou a rodar nos bastidores. Nosso time assumiu o controle e fará o contato oficial de onboarding em breve.</p>
         </div>
 
-        <?php if ($mensagem == 'sucesso' || ($proposta['status'] == 'aceita' && $mensagem != 'erro')): ?>
-            <div class="card" style="border: 1px solid var(--border-mid); text-align: center; padding: 50px 30px; background: var(--bg-surface);">
-                <div style="display: inline-flex; align-items: center; justify-content: center; width: 80px; height: 80px; border-radius: 50%; background: rgba(34, 197, 94, 0.1); margin-bottom: 25px;">
-                    <i class="ph-fill ph-check-circle" style="font-size: 48px; color: var(--green);"></i>
-                </div>
-                
-                <h2 style="margin: 0 0 15px 0; color: var(--text-primary); font-size: 28px; letter-spacing: -0.5px;">Proposta Aceita! 🎉</h2>
-                
-                <p style="color: var(--text-secondary); font-size: 16px; line-height: 1.6; max-width: 400px; margin: 0 auto 30px auto;">
-                    Excelente escolha! Nossa equipe foi notificada e <strong>entraremos em contato em breve</strong> para alinharmos os próximos passos e enviar o contrato oficial para assinatura.
-                </p>
+        <div data-aos="fade-up" data-aos-duration="1000">
+            <?= $proposta['descricao'] ?>
+        </div>
 
-                <div style="border-top: 1px dashed var(--border-mid); padding-top: 30px; margin-top: 20px;">
-                    <p style="color: var(--text-primary); font-weight: 600; font-size: 14px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px;">
-                        Enquanto isso, conecte-se com a gente:
+        <h2 data-aos="fade-up">Roadmap Tático</h2>
+        <div class="roadmap-container" data-aos="fade-up">
+            <div class="roadmap-item">
+                <div class="roadmap-phase">Fase 1</div>
+                <h4 style="font-family: 'DM Serif Display'; margin-bottom: 5px;">Onboarding & Auditoria</h4>
+                <p style="font-size: 1rem; margin:0;">Mergulho profundo na sua operação e alinhamento de expectativas.</p>
+            </div>
+            <div class="roadmap-item">
+                <div class="roadmap-phase">Fase 2</div>
+                <h4 style="font-family: 'DM Serif Display'; margin-bottom: 5px;">Desenvolvimento de Escopo</h4>
+                <p style="font-size: 1rem; margin:0;">Criação de identidade visual e infraestrutura de alta performance.</p>
+            </div>
+            <div class="roadmap-item">
+                <div class="roadmap-phase">Fase 3</div>
+                <h4 style="font-family: 'DM Serif Display'; margin-bottom: 5px;">Rollout & Gestão Mensal</h4>
+                <p style="font-size: 1rem; margin:0;">Lançamento das campanhas, acompanhamento contínuo e refinamento.</p>
+            </div>
+        </div>
+        
+        <div class="investment-card" data-aos="zoom-in-up" data-aos-duration="800">
+            <div class="row">
+                <div class="col-md-7">
+                    <div style="font-family: 'Space Mono'; font-size: 0.85rem; color: var(--red); text-transform: uppercase;">Investimento</div>
+                    <div class="val-amount"><span>R$</span> <?= $valor_formatado ?></div>
+                    <p style="color: rgba(255,255,255,0.7); margin: 0;">Fatura <strong><?= ucfirst($proposta['tipo_cobranca']) ?></strong> &bull; Ciclo de <strong><?= $proposta['duracao_meses'] ?> meses</strong></p>
+                </div>
+                <div class="col-md-5 mt-4 mt-md-0 d-flex flex-column justify-content-center">
+                    <p style="color: rgba(255,255,255,0.6); font-size: 0.95rem; line-height: 1.6;">
+                        O arranque operacional começa imediatamente após a compensação da primeira fatura.<br><br>
+                        Condição válida até: <strong style="color: #FFF;"><?= $data_validade ?></strong>
                     </p>
-                    
-                    <div style="display: flex; justify-content: center; gap: 15px;">
-                        <a href="https://instagram.com/gasmaskelab" target="_blank" class="social-circle" title="Instagram">
-                            <i class="ph ph-instagram-logo"></i>
-                        </a>
-                        <a href="https://www.tiktok.com/@gasmaskelab" target="_blank" class="social-circle" title="TikTok">
-                            <i class="ph ph-tiktok-logo"></i>
-                        </a>
-                        <a href="https://linkedin.com/company/gasmaskelab" target="_blank" class="social-circle" title="LinkedIn">
-                            <i class="ph ph-linkedin-logo"></i>
-                        </a>
-                    </div>
                 </div>
             </div>
+        </div>
+    </section>
 
-        <?php elseif ($mensagem == 'erro'): ?>
-            <div class="alert alert-danger" style="text-align: center;"><i class="ph-fill ph-warning-circle"></i> Ocorreu um erro ao processar o aceite. Por favor, contate a agência.</div>
-        
-        <?php elseif ($proposta['status'] == 'enviada' || $proposta['status'] == 'rascunho'): ?>
-            <div class="card" style="padding: 35px;">
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
-                    <i class="ph-fill ph-target" style="font-size: 24px; color: var(--red);"></i>
-                    <h3 style="margin: 0; color: var(--text-primary); font-size: 18px;">Escopo do Projeto</h3>
-                </div>
-                
-                <div class="proposal-content">
-                    <?= $proposta['descricao'] ?>
-                </div>
+    <footer class="site-footer">
+        <div style="font-size: 0.9rem; color: var(--text-muted);">
+            Gasmaske Lab &copy; <?= date('Y') ?><br>
+            Vila Velha - ES
+        </div>
+        <div><img src="../assets/img/logo-h.png" class="logo-img" style="height:20px;"></div>
+    </footer>
 
-                <div class="pricing-box">
-                    <p style="margin: 0 0 5px 0; font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">Resumo do Investimento</p>
+    <div class="sticky-cta" id="stickyCta" style="<?= $ja_aceita ? 'display:none;' : '' ?>">
+        <div>
+            <div style="font-family: 'DM Serif Display', serif; font-size: 1.2rem; color: var(--dark); line-height: 1.2;">
+                Pronto para o próximo nível?
+            </div>
+            <div style="font-size: 0.85rem; color: var(--text-muted);">Aceite a proposta para iniciar.</div>
+        </div>
+        <button class="btn-sticky" data-bs-toggle="modal" data-bs-target="#modalAceite">Aceitar proposta &rarr;</button>
+    </div>
+
+    <div class="modal fade" id="modalAceite" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" style="font-family: 'DM Serif Display'; font-size: 1.5rem;">Selar Acordo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p style="font-size: 0.95rem; color: var(--text-muted);">Você está prestes a aprovar o plano estratégico desenhado para a <strong><?= htmlspecialchars($proposta['cliente_nome']) ?></strong>.</p>
                     
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <span style="color: var(--text-secondary); font-size: 15px;"><?= $texto_cobranca ?>:</span>
-                        <strong style="color: var(--text-primary); font-size: 18px;"><?= money($valor_base) ?></strong>
-                    </div>
-                    
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 20px; border-top: 1px solid var(--border);">
-                        <span style="font-weight: 800; color: var(--text-primary); font-size: 14px;">VALOR TOTAL DO ACORDO:</span>
-                        <div style="text-align: right;">
-                            <strong style="color: var(--blue); font-size: 28px; letter-spacing: -1px;"><?= money($valor_total_contrato) ?></strong>
-                            <?php if($duracao > 1): ?>
-                                <br><span style="font-size: 12px; color: var(--text-muted);">(Contrato de <?= $duracao ?> meses)</span>
-                            <?php endif; ?>
+                    <div style="background: var(--gray-mid); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="font-size: 0.85rem; color: var(--text-muted);">Mensalidade</span>
+                            <strong style="font-family: 'Space Mono';">R$ <?= $valor_formatado ?> <span style="font-size: 0.8rem;">/mês</span></strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="font-size: 0.85rem; color: var(--text-muted);">Ciclo total</span>
+                            <strong style="font-family: 'Space Mono';"><?= $proposta['duracao_meses'] ?>x R$ <?= $valor_formatado ?> = R$ <?= number_format($proposta['valor'] * $proposta['duracao_meses'], 2, ',', '.') ?></strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="font-size: 0.85rem; color: var(--text-muted);">Faturamento</span>
+                            <strong style="font-family: 'Space Mono';"><?= ucfirst($proposta['tipo_cobranca']) ?></strong>
                         </div>
                     </div>
+
+                    <div class="form-check custom-checkbox">
+                        <input class="form-check-input" type="checkbox" id="termosCheck">
+                        <label class="form-check-label" for="termosCheck" style="font-size: 0.9rem;">
+                            Li e concordo com os termos de prestação de serviços estabelecidos neste documento.
+                        </label>
+                    </div>
                 </div>
-
-                <form method="POST" style="margin-top: 35px;">
-                    <button type="submit" name="aceitar" value="1" class="btn btn-primary" style="width: 100%; justify-content: center; height: 55px; font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; background: var(--red); color: #fff;">
-                        <i class="ph ph-handshake" style="font-size: 20px;"></i> ACEITAR PROPOSTA
-                    </button>
-                    <p style="text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 15px;">
-                        Ao clicar em aceitar, nossa equipe será notificada para redigir o seu contrato.
-                    </p>
-                </form>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn-premium" id="btnConfirmar" onclick="confirmarAceite()">Confirmar Início</button>
+                </div>
             </div>
-        <?php endif; ?>
-
+        </div>
     </div>
+
+    <div class="toast-container">
+        <div id="liveToast" class="custom-toast">
+            <i class="ph-fill ph-info" id="toastIcon" style="font-size: 1.2rem; color: var(--red);"></i>
+            <span id="toastMsg">Mensagem aqui.</span>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="../assets/js/proposta.js"></script>
 </body>
 </html>

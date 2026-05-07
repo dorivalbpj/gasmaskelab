@@ -25,21 +25,27 @@ $api_key = trim(GEMINI_API_KEY);
 
 $prompt = "Aja ESTRITAMENTE como o sistema gerador de propostas da agência premium Gasmaske Lab. 
 REGRAS ABSOLUTAS:
-1. NÃO converse comigo. NÃO diga 'Compreendido', 'Aqui está' ou 'Certo'.
-2. Retorne APENAS E EXCLUSIVAMENTE o código HTML pronto.
-3. NÃO use blocos de código markdown (como \`\`\`html).
-4. Gere uma proposta longa, detalhada e completa. NÃO interrompa o texto no meio.
+1. NÃO converse comigo.
+2. Retorne APENAS E EXCLUSIVAMENTE o código HTML.
+3. NÃO use markdown (como ```html).
 
 DADOS DO CLIENTE:
 - Nome: $nome_cliente
 - Briefing/Detalhes: $info_briefing
 
-ESTRUTURA OBRIGATÓRIA DA PROPOSTA (Use tags <h2>, <h3>, <p>, <ul>, <li>, <strong>):
-1. O Desafio Estratégico (Foque na dor do cliente)
-2. Benchmarking e Direção Criativa (Padrão Gasmaske e ecossistema Adobe CC)
-3. Escopo de Serviços Detalhado
-4. Condições e Logística (Avisar que Tráfego Pago é pago à parte pelas plataformas)
-5. Próximos Passos para fechamento";
+ESTRUTURA OBRIGATÓRIA DA PROPOSTA (Use APENAS <h2>, <p>, <ul>, <li> e <strong>):
+
+<h2>O Momento</h2>
+(Escreva 2 parágrafos persuasivos focados na dor do cliente e como a agência vai agir.)
+
+<h2>O Escopo (O que está incluído)</h2>
+(Crie uma lista <ul> onde CADA item <li> represente um serviço. O item DEVE obrigatoriamente começar com <strong>Nome do Serviço</strong> seguido de um texto corrido explicando. Ex: <li><strong>Gestão de Redes:</strong> 5 postagens semanais...</li>)
+
+<h2>O Primeiro Movimento</h2>
+(Escreva parágrafos sobre os próximos passos e a estratégia inicial de ataque.)
+
+<h2>Linha do Tempo</h2>
+(Crie outra lista <ul> nos mesmos moldes do escopo, detalhando as fases do projeto. Ex: <li><strong>Fase 1 - Ignição:</strong> Setup e auditoria...</li>)";
 
 $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $api_key;
 
