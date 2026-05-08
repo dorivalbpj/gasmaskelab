@@ -50,6 +50,21 @@ $stmt = $pdo->query("SELECT p.*, c.codigo_agc, cli.nome as cliente_nome
                      ORDER BY p.data_vencimento ASC");
 $parcelas = $stmt->fetchAll();
 
+$total_receber = 0;
+$total_atrasado = 0;
+$total_recebido = 0;
+
+foreach ($parcelas as $p) {
+    if ($p['status'] == 'pago') {
+        $total_recebido += $p['valor'];
+    } elseif ($p['status'] == 'atrasado') {
+        $total_atrasado += $p['valor'];
+    } else {
+        // Se não está pago nem atrasado, está no prazo (pendente)
+        $total_receber += $p['valor'];
+    }
+}
+
 require_once '../../includes/layout/header.php';
 require_once '../../includes/layout/sidebar.php';
 ?>
