@@ -8,8 +8,6 @@ require_once '../includes/functions.php';
 try {
     $pdo->exec("ALTER TABLE contratos ADD COLUMN cpf_cnpj_aceite VARCHAR(20) NULL AFTER token, ADD COLUMN aceito_em DATETIME NULL AFTER cpf_cnpj_aceite, ADD COLUMN aceito_ip VARCHAR(50) NULL AFTER aceito_em");
     $pdo->exec("ALTER TABLE clientes ADD COLUMN cpf_cnpj VARCHAR(20) NULL AFTER telefone");
-    
-    // Garante que a tabela parcelas existe
     $pdo->exec("CREATE TABLE IF NOT EXISTS `parcelas` (
         `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `contrato_id` int(11) NOT NULL,
@@ -20,10 +18,9 @@ try {
         `status` enum('pendente','pago','atrasado') DEFAULT 'pendente',
         FOREIGN KEY (`contrato_id`) REFERENCES `contratos` (`id`) ON DELETE CASCADE
     )");
-} catch (PDOException $e) { }
+} catch (PDOException $e) {}
 // ===================================================
 
-// --- FUNÇÕES DE VALIDAÇÃO MATEMÁTICA (RECEITA FEDERAL) ---
 function validaCPF($cpf) {
     $cpf = preg_replace('/[^0-9]/is', '', $cpf);
     if (strlen($cpf) != 11 || preg_match('/(\d)\1{10}/', $cpf)) return false;
@@ -45,32 +42,33 @@ function validaCNPJ($cnpj) {
     $resto = $soma % 11;
     return $cnpj[13] == ($resto < 2 ? 0 : 11 - $resto);
 }
-// ---------------------------------------------------------
 
 $token = $_GET['token'] ?? '';
 $mensagem = '';
 
-if (empty($token)) die("<div style='padding: 50px; text-align: center; color: #fff; font-family: sans-serif;'>Acesso inválido. Token não informado.</div>");
+if (empty($token)) {
+    die("<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Erro</title><link rel='stylesheet' href='../assets/css/public.css'></head><body class='public-body'><div class='public-container'><div class='empty-state'><div class='empty-icon'><i class='ph-fill ph-warning-circle'></i></div><h3>Token não informado</h3><p>Este link está incompleto ou foi adulterado.</p></div></div></body></html>");
+}
 
-$stmt = $pdo->prepare("SELECT c.*, cli.nome as cliente_nome, cli.email as cliente_email 
-                       FROM contratos c JOIN clientes cli ON c.cliente_id = cli.id 
+$stmt = $pdo->prepare("SELECT c.*, cli.nome as cliente_nome, cli.email as cliente_email
+                       FROM contratos c JOIN clientes cli ON c.cliente_id = cli.id
                        WHERE c.token = ?");
 $stmt->execute([$token]);
 $contrato = $stmt->fetch();
 
-if (!$contrato) die("<div style='padding: 50px; text-align: center; color: #fff; font-family: sans-serif;'>Contrato não encontrado ou link inválido.</div>");
+if (!$contrato) {
+    die("<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Erro</title><link rel='stylesheet' href='../assets/css/public.css'></head><body class='public-body'><div class='public-container'><div class='empty-state'><div class='empty-icon'><i class='ph-fill ph-magnifying-glass'></i></div><h3>Contrato não encontrado</h3><p>O link pode ter expirado ou sido revogado.</p></div></div></body></html>");
+}
 
-// CORREÇÃO: O valor gravado no banco já é o valor mensal da parcela.
-$valor_parcela = isset($contrato['valor']) ? (float)$contrato['valor'] : 0;
-$meses_duracao = (isset($contrato['duracao_meses']) && $contrato['duracao_meses'] > 0) ? (int)$contrato['duracao_meses'] : 1;
+$valor_parcela  = isset($contrato['valor']) ? (float)$contrato['valor'] : 0;
+$meses_duracao  = (isset($contrato['duracao_meses']) && $contrato['duracao_meses'] > 0) ? (int)$contrato['duracao_meses'] : 1;
 
-// --- PROCESSAMENTO DA ASSINATURA (ETAPA 2) ---
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assinar_contrato']) && $contrato['status'] == 'aguardando_aceite_cliente') {
-    $cpf_cnpj = $_POST['cpf_cnpj'] ?? '';
+    $cpf_cnpj         = $_POST['cpf_cnpj'] ?? '';
     $endereco_completo = $_POST['endereco_completo'] ?? '';
-    $ip = $_SERVER['REMOTE_ADDR'];
-    $cpf_cnpj_limpo = preg_replace('/[^0-9]/', '', $cpf_cnpj);
-    
+    $ip               = $_SERVER['REMOTE_ADDR'];
+    $cpf_cnpj_limpo   = preg_replace('/[^0-9]/', '', $cpf_cnpj);
+
     if (empty($cpf_cnpj_limpo)) {
         $mensagem = 'vazio';
     } else {
@@ -83,33 +81,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assinar_contrato']) &&
         } else {
             try {
                 $pdo->beginTransaction();
-
-                // 1. Atualiza o Contrato
-                $stmt_aceite = $pdo->prepare("UPDATE contratos SET status = 'aguardando_pagamento', cpf_cnpj_aceite = ?, aceito_em = NOW(), aceito_ip = ? WHERE id = ?");
-                $stmt_aceite->execute([$cpf_cnpj, $ip, $contrato['id']]);
-                
-                // 2. Grava o log
-                $desc_log = "Contrato assinado digitalmente. Doc: $cpf_cnpj | IP: $ip";
-                $pdo->prepare("INSERT INTO contrato_log (contrato_id, descricao) VALUES (?, ?)")->execute([$contrato['id'], $desc_log]);
-                
-                // 3. Atualiza a Ficha do Cliente no CRM
+                $pdo->prepare("UPDATE contratos SET status = 'aguardando_pagamento', cpf_cnpj_aceite = ?, aceito_em = NOW(), aceito_ip = ? WHERE id = ?")->execute([$cpf_cnpj, $ip, $contrato['id']]);
+                $pdo->prepare("INSERT INTO contrato_log (contrato_id, descricao) VALUES (?, ?)")->execute([$contrato['id'], "Contrato assinado digitalmente. Doc: $cpf_cnpj | IP: $ip"]);
                 $pdo->prepare("UPDATE clientes SET cpf_cnpj = ?, endereco_completo = ? WHERE id = ?")->execute([$cpf_cnpj, $endereco_completo, $contrato['cliente_id']]);
-
-                // 4. MÁGICA FINANCEIRA: GERADOR DE PARCELAS AUTOMÁTICAS
-                // Limpa possíveis parcelas antigas (se houver duplicidade)
                 $pdo->prepare("DELETE FROM parcelas WHERE contrato_id = ?")->execute([$contrato['id']]);
-                
+
                 for ($i = 0; $i < $meses_duracao; $i++) {
                     $data_vencimento = date('Y-m-d', strtotime("+$i months"));
                     $num_parcela = $i + 1;
-                    $desc_parcela = "Mensalidade $num_parcela/$meses_duracao - " . $contrato['codigo_agc'];
-
-                    $stmt_parc = $pdo->prepare("INSERT INTO parcelas (contrato_id, descricao, valor, data_vencimento, status) VALUES (?, ?, ?, ?, 'pendente')");
-                    $stmt_parc->execute([$contrato['id'], $desc_parcela, $valor_parcela, $data_vencimento]);
+                    $pdo->prepare("INSERT INTO parcelas (contrato_id, descricao, valor, data_vencimento, status) VALUES (?, ?, ?, ?, 'pendente')")
+                        ->execute([$contrato['id'], "Mensalidade $num_parcela/$meses_duracao - " . $contrato['codigo_agc'], $valor_parcela, $data_vencimento]);
                 }
 
                 $pdo->commit();
-
                 $contrato['status'] = 'aguardando_pagamento';
                 $contrato['cpf_cnpj_aceite'] = $cpf_cnpj;
                 $mensagem = 'sucesso';
@@ -121,8 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assinar_contrato']) &&
     }
 }
 
-// --- DADOS REAIS DA CONTA DA AGÊNCIA (PIX) ---
-$chave_pix = "58714373000104"; 
+$chave_pix     = "58714373000104";
 $titular_conta = "Viviane de Souza Araujo";
 $cidade_agencia = "VILA VELHA";
 
@@ -137,305 +120,351 @@ if ($contrato['status'] == 'aguardando_pagamento') {
     $link_qrcode = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" . urlencode($pix_string);
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Assinatura de Contrato - Gasmaske Lab</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <title>Assinatura de Contrato — Gasmaske Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="../assets/css/public.css">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <style>
-        .pix-copia-cola { cursor: pointer; transition: 0.2s; position: relative; }
-        .pix-copia-cola:hover { background: var(--bg-hover) !important; border-color: var(--text-primary) !important; }
-        .pix-copia-cola:active { transform: scale(0.98); }
-        
-        .form-grid-endereco { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: left; margin-top: 15px; }
-        .form-grid-endereco .full-width { grid-column: span 2; }
-        .loading-api { opacity: 0.5; pointer-events: none; }
-
-        /* Estilo da caixa do contrato */
-        .contract-viewer {
-            background: var(--bg-base); padding: 30px; border-radius: 8px; height: 500px; 
-            overflow-y: auto; font-family: monospace; white-space: pre-wrap; font-size: 13px; 
-            color: var(--text-secondary); line-height: 1.6; border: 1px solid var(--border-mid);
-        }
-    </style>
 </head>
 <body class="public-body">
-    <div class="public-container" style="max-width: 900px;">
-        
-        <div class="public-header" style="text-align: center; margin-bottom: 30px;">
-            <img src="../assets/img/logo-h.png" class="logo-h" alt="Gasmaske Lab" style="max-width: 200px; margin-bottom: 15px;">
-            <p class="public-subtitle">Instrumento Particular de Prestação de Serviços</p>
-            <p style="font-size: 13px; color: var(--text-muted); margin-top: 5px;">Contrato: <strong><?= htmlspecialchars($contrato['codigo_agc']) ?></strong></p>
-        </div>
 
+    <!-- Header -->
+    <header class="public-header">
+        <div class="public-header-inner">
+            <img src="../assets/img/logo-h.png" class="logo-img" style="height:40px;">
+            <span class="public-badge">Assinatura Digital</span>
+        </div>
+        <div class="public-header-bar"></div>
+    </header>
+
+    <!-- Hero -->
+    <div class="page-hero">
+        <h1>Instrumento de Serviços</h1>
+        <p>Leia, assine e inicie sua parceria com a Gasmaske Lab</p>
+        <span class="contract-code"><?= htmlspecialchars($contrato['codigo_agc']) ?></span>
+    </div>
+
+    <div class="public-container" style="max-width:680px;">
+
+        <!-- Alertas de erro -->
         <?php if ($mensagem == 'erro'): ?>
-            <div class="alert alert-danger" style="text-align: center;"><i class="ph-fill ph-warning-circle"></i> Erro ao processar assinatura. Tente novamente.</div>
+            <div class="alert alert-danger">
+                <i class="ph-fill ph-warning-circle"></i>
+                <div>Erro ao processar assinatura. Tente novamente.</div>
+            </div>
         <?php elseif ($mensagem == 'vazio'): ?>
-            <div class="alert alert-warning" style="text-align: center;"><i class="ph-fill ph-warning-circle"></i> Informe o documento e o endereço para assinar.</div>
+            <div class="alert alert-warning">
+                <i class="ph-fill ph-warning-circle"></i>
+                <div>Informe o CPF/CNPJ e o endereço para assinar.</div>
+            </div>
         <?php elseif ($mensagem == 'doc_invalido'): ?>
-            <div class="alert alert-danger" style="text-align: center; background: rgba(255, 63, 52, 0.1); border: 1px solid var(--red); color: var(--red); padding: 15px; border-radius: 8px; margin-bottom: 25px;">
-                <strong style="display: flex; align-items: center; justify-content: center; gap: 8px;">
-                    <i class="ph-fill ph-x-circle" style="font-size: 20px;"></i> Documento Inválido!
-                </strong>
-                <p style="margin: 5px 0 0 0; font-size: 13px;">O CPF ou CNPJ digitado não é válido na Receita Federal.</p>
+            <div class="alert alert-danger">
+                <i class="ph-fill ph-x-circle"></i>
+                <div>
+                    <strong>Documento inválido!</strong><br>
+                    O CPF ou CNPJ digitado não é válido na Receita Federal.
+                </div>
             </div>
         <?php endif; ?>
 
         <?php if ($contrato['status'] == 'aguardando_aceite_cliente'): ?>
-            
-            <div id="step-1">
-                <div class="card" style="padding: 35px; border-top: 3px solid var(--blue);">
-                    <h3 class="public-section-title" style="border: none; font-size: 18px; margin-bottom: 10px;"><i class="ph-fill ph-identification-card"></i> 01. Seus Dados Legais</h3>
-                    <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 25px;">Informe seus dados para validar juridicamente este instrumento e liberar a leitura do contrato.</p>
-                    
-                    <div class="form-group" style="text-align: center; margin-bottom: 25px;">
-                        <label style="color: var(--blue);">CPF ou CNPJ *</label>
-                        <input type="text" id="doc_input" class="form-control" placeholder="Digite apenas números..." required style="width: 100%; max-width: 350px; margin: 0 auto; text-align: center; font-size: 18px; font-weight: bold; letter-spacing: 1px;" onkeyup="verificarDocumento(this.value)">
-                        <span id="doc-status" style="display: block; font-size: 12px; color: var(--text-muted); margin-top: 8px;">Aguardando documento para buscar endereço...</span>
-                    </div>
 
-                    <div id="box-endereco" style="display: none; background: var(--bg-hover); padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border-mid); margin-bottom: 25px;">
-                        <label style="display: block; font-size: 14px; font-weight: bold; color: var(--text-primary); text-align: center; margin-bottom: 15px;">Confirme seu Endereço</label>
-                        
-                        <div class="form-grid-endereco" id="campos-endereco">
-                            <div class="form-group full-width" style="margin-bottom: 0;">
-                                <label>CEP *</label>
-                                <input type="text" id="cep" class="form-control" required placeholder="00000-000" onkeyup="buscarCep(this.value)" maxlength="9">
-                            </div>
-                            <div class="form-group full-width" style="margin-bottom: 0;">
-                                <label>Logradouro (Rua/Av) *</label>
-                                <input type="text" id="logradouro" class="form-control" required>
-                            </div>
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label>Número *</label>
-                                <input type="text" id="numero" class="form-control" required>
-                            </div>
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label>Complemento</label>
-                                <input type="text" id="complemento" class="form-control" placeholder="Apto, Sala...">
-                            </div>
-                            <div class="form-group full-width" style="margin-bottom: 0;">
-                                <label>Bairro *</label>
-                                <input type="text" id="bairro" class="form-control" required>
-                            </div>
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label>Cidade *</label>
-                                <input type="text" id="cidade" class="form-control" required>
-                            </div>
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label>Estado (UF) *</label>
-                                <input type="text" id="uf" class="form-control" required maxlength="2">
-                            </div>
+            <!-- Indicador de etapas -->
+            <div style="display:flex; align-items:center; justify-content:center; gap:8px; padding:20px 0 24px; font-family:'Syne',sans-serif; font-size:0.8rem; font-weight:700;">
+                <div class="step-dot active">1</div>
+                <span style="color:var(--text-primary);">Seus Dados</span>
+                <div style="flex:1; max-width:60px; height:1px; background:var(--border-mid);"></div>
+                <div class="step-dot" id="dot-step2">2</div>
+                <span style="color:var(--text-muted);" id="label-step2">Revisar e Assinar</span>
+            </div>
+
+            <!-- STEP 1: Dados legais -->
+            <div id="step-1">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon"><i class="ph-fill ph-identification-card"></i></div>
+                        <div>
+                            <h3>Seus Dados Legais</h3>
+                            <p>Necessários para validar juridicamente o documento</p>
                         </div>
-                        <button type="button" class="btn btn-primary" style="width: 100%; margin-top: 20px; height: 50px; font-size: 14px;" onclick="irParaAssinatura()">
-                            Confirmar Dados e Ler Contrato <i class="ph ph-arrow-right"></i>
-                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group" style="text-align:center;">
+                            <label>CPF ou CNPJ *</label>
+                            <input type="text" id="doc_input" class="form-control"
+                                style="max-width:300px; margin:0 auto; text-align:center; font-size:1.1rem; font-weight:600; letter-spacing:1px;"
+                                placeholder="Digite apenas números..."
+                                onkeyup="verificarDocumento(this.value)">
+                            <div id="doc-status" class="doc-status"></div>
+                        </div>
+
+                        <div id="box-endereco" class="address-box" style="margin-top:20px;">
+                            <p style="font-size:0.8rem; font-weight:600; text-align:center; margin-bottom:16px; color:var(--text-primary);">Confirme seu Endereço</p>
+                            <div id="campos-endereco">
+                                <div class="form-grid" style="margin-bottom:14px;">
+                                    <div class="form-group col-full">
+                                        <label>CEP *</label>
+                                        <input type="text" id="cep" class="form-control" required
+                                            placeholder="00000-000" maxlength="9"
+                                            onkeyup="buscarCep(this.value)">
+                                    </div>
+                                    <div class="form-group col-full">
+                                        <label>Logradouro *</label>
+                                        <input type="text" id="logradouro" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Número *</label>
+                                        <input type="text" id="numero" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Complemento</label>
+                                        <input type="text" id="complemento" class="form-control" placeholder="Apto, Sala...">
+                                    </div>
+                                    <div class="form-group col-full">
+                                        <label>Bairro *</label>
+                                        <input type="text" id="bairro" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Cidade *</label>
+                                        <input type="text" id="cidade" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>UF *</label>
+                                        <input type="text" id="uf" class="form-control" required maxlength="2">
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-primary btn-full btn-lg"
+                                onclick="irParaAssinatura()">
+                                Confirmar e Ler Contrato <i class="ph ph-arrow-right"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div id="step-2" style="display: none;">
-                <div class="card" style="padding: 30px;">
-                    <h3 class="public-section-title" style="border: none; font-size: 18px; margin-bottom: 10px;"><i class="ph-fill ph-scroll"></i> 02. Revisão e Assinatura</h3>
-                    <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 20px;">Seus dados foram inseridos no documento abaixo. Leia atentamente.</p>
-                    
-                    <div id="viewer_contrato" class="contract-viewer">
+            <!-- STEP 2: Leitura e assinatura -->
+            <div id="step-2" style="display:none;">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon"><i class="ph-fill ph-scroll"></i></div>
+                        <div>
+                            <h3>Revisão e Assinatura</h3>
+                            <p>Leia o contrato completo antes de assinar</p>
                         </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="viewer_contrato" class="contract-viewer"></div>
 
-                    <form method="POST" action="" style="margin-top: 30px;">
-                        <input type="hidden" name="assinar_contrato" value="1">
-                        <input type="hidden" name="cpf_cnpj" id="final_doc">
-                        <input type="hidden" name="endereco_completo" id="final_end">
-                        
-                        <div style="background: var(--red-glow); padding: 20px; border-radius: 8px; border: 1px solid var(--red-border); margin-bottom: 20px;">
-                            <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; color: var(--text-primary);">
-                                <input type="checkbox" required style="margin-top: 4px; accent-color: var(--red);">
-                                <span style="font-size: 13px;">Li e concordo com todos os termos, cláusulas e obrigações descritas neste contrato. Declaro que os dados informados são autênticos e dou fé à minha assinatura digital vinculada ao IP <strong><?= $_SERVER['REMOTE_ADDR'] ?></strong>.</span>
-                            </label>
-                        </div>
+                        <form method="POST" action="" style="margin-top:20px;">
+                            <input type="hidden" name="assinar_contrato" value="1">
+                            <input type="hidden" name="cpf_cnpj" id="final_doc">
+                            <input type="hidden" name="endereco_completo" id="final_end">
 
-                        <button type="submit" name="aceitar" value="1" class="btn btn-primary" style="width: 100%; height: 60px; font-size: 18px; font-weight: 800; letter-spacing: 1px; justify-content: center;">
-                            <i class="ph-fill ph-pen-nib" style="font-size: 22px;"></i> FINALIZAR E ASSINAR AGORA
-                        </button>
-                    </form>
+                            <div class="sign-consent" style="margin-bottom:16px;">
+                                <input type="checkbox" id="consent-check" required>
+                                <p>Li e concordo com todos os termos deste contrato. Declaro que os dados informados são autênticos e dou fé à minha assinatura digital vinculada ao IP <strong><?= $_SERVER['REMOTE_ADDR'] ?></strong>.</p>
+                            </div>
+
+                            <button type="submit" name="aceitar" value="1" class="btn btn-primary btn-full btn-lg">
+                                <i class="ph-fill ph-pen-nib"></i> Finalizar e Assinar Agora
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
 
         <?php elseif ($contrato['status'] == 'aguardando_pagamento'): ?>
-            
-            <div class="alert alert-success" style="text-align: center; padding: 25px; border-radius: 12px; margin-bottom: 24px;">
-                <i class="ph-fill ph-check-circle" style="font-size: 40px; color: var(--green); margin-bottom: 10px;"></i>
-                <h2 style="margin: 0 0 10px 0;">Contrato Assinado com Sucesso!</h2>
-                <p style="margin: 0; font-size: 15px;">Documento validado: <strong style="letter-spacing: 1px;"><?= htmlspecialchars($contrato['cpf_cnpj_aceite']) ?></strong></p>
+
+            <!-- Contrato assinado, aguardando pagamento -->
+            <div class="alert alert-success" style="margin-bottom:16px;">
+                <i class="ph-fill ph-check-circle" style="font-size:1.3rem;"></i>
+                <div>
+                    <strong>Contrato Assinado!</strong><br>
+                    Documento validado: <strong><?= htmlspecialchars($contrato['cpf_cnpj_aceite']) ?></strong>
+                </div>
             </div>
 
-            <div class="card" style="text-align: center; padding: 40px 30px; border-top: 4px solid var(--green);">
-                <h3 style="margin: 0 0 10px 0; color: var(--text-primary);">Pagamento da 1ª Parcela</h3>
-                <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 25px;">Escaneie o QR Code abaixo no app do seu banco para confirmar a contratação e dar início imediato ao projeto.</p>
-                
-                <div style="margin: 20px 0; display: flex; justify-content: center;">
-                    <img src="<?= $link_qrcode ?>" alt="QR Code PIX" style="background: white; padding: 15px; border-radius: 12px; width: 200px; height: 200px;">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background:rgba(26,158,92,0.1); color:var(--green);">
+                        <i class="ph-fill ph-currency-circle-dollar"></i>
+                    </div>
+                    <div>
+                        <h3>Pagamento da 1ª Parcela</h3>
+                        <p>Confirme o pagamento para iniciar o projeto</p>
+                    </div>
                 </div>
+                <div class="pix-card">
+                    <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:4px;">Valor da Parcela</p>
+                    <div class="pix-amount"><?= money($valor_parcela) ?></div>
 
-                <p style="color: var(--text-muted); margin-bottom: 5px; font-size: 13px;">Valor da Parcela:</p>
-                <h2 style="margin: 0 0 20px 0; color: var(--green); font-size: 40px;"><?= money($valor_parcela) ?></h2>
+                    <div class="pix-qr">
+                        <img src="<?= $link_qrcode ?>" alt="QR Code PIX">
+                    </div>
 
-                <p style="color: var(--text-muted); margin-bottom: 8px; font-size: 13px;">Clique no código abaixo para Copiar e Colar:</p>
-                
-                <div id="btn-pix" class="pix-copia-cola" onclick="copiarPix('<?= $pix_string ?>')" style="background: var(--bg-base); border: 2px dashed var(--border-mid); color: var(--text-primary); padding: 18px; font-size: 12px; font-family: monospace; border-radius: 8px; word-break: break-all; margin-bottom: 25px; user-select: none;">
-                    <?= $pix_string ?>
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:10px;">
+                        Ou copie o código Pix abaixo:
+                    </p>
+                    <div id="btn-pix" class="pix-copy" onclick="copiarPix('<?= htmlspecialchars($pix_string) ?>')">
+                        <?= htmlspecialchars($pix_string) ?>
+                    </div>
+                    <p style="font-size:0.75rem; color:var(--text-muted); margin-top:10px;">
+                        Toque no código acima para copiar
+                    </p>
                 </div>
             </div>
 
         <?php else: ?>
-            <div class="card" style="text-align: center; padding: 40px; border-color: var(--blue); background: var(--bg-hover);">
-                <i class="ph-fill ph-check-circle" style="font-size: 60px; color: var(--blue); margin-bottom: 15px;"></i>
-                <h2 style="margin: 0 0 10px 0; color: var(--text-primary);">Tudo Certo!</h2>
-                <p style="color: var(--text-secondary); margin: 0; font-size: 15px;">Este contrato já foi assinado e validado.</p>
+
+            <div class="card">
+                <div class="success-card">
+                    <div class="success-icon-wrap" style="background:rgba(26,110,232,0.1); border-color:rgba(26,110,232,0.2); color:var(--blue);">
+                        <i class="ph-fill ph-check-circle"></i>
+                    </div>
+                    <h2>Tudo Certo!</h2>
+                    <p>Este contrato já foi assinado e validado anteriormente.</p>
+                </div>
             </div>
+
         <?php endif; ?>
 
     </div>
 
-       <script>
-        // O texto original do banco de dados (guardado no JS para substituirmos)
+    <footer class="site-footer">
+        <img src="../assets/img/logo-h.png" alt="Gasmaske Lab">
+        <p>© <?= date('Y') ?> Gasmaske Lab · CNPJ 58.714.373/0001-04</p>
+    </footer>
+
+    <script>
         let textoBase = `<?= str_replace(["\r", "\n"], ["", "\\n"], addslashes($contrato['texto_contrato'] ?? '')) ?>`;
 
-        // Formatação visual do documento
         function formatarDoc(v) {
-            v = v.replace(/\D/g,""); 
-            if (v.length <= 11) { 
+            v = v.replace(/\D/g,"");
+            if (v.length <= 11) {
                 v = v.replace(/(\d{3})(\d)/,"$1.$2"); v = v.replace(/(\d{3})(\d)/,"$1.$2"); v = v.replace(/(\d{3})(\d{1,2})$/,"$1-$2");
-            } else { 
-                v = v.replace(/^(\d{2})(\d)/,"$1.$2"); v = v.replace(/^(\d{2})\.(\d{3})(\d)/,"$1.$2.$3"); v = v.replace(/\.(\d{3})(\d)/,".$1/$2"); v = v.replace(/(\d{4})(\d)/,"$1-$2"); v = v.substring(0, 18); 
+            } else {
+                v = v.replace(/^(\d{2})(\d)/,"$1.$2"); v = v.replace(/^(\d{2})\.(\d{3})(\d)/,"$1.$2.$3"); v = v.replace(/\.(\d{3})(\d)/,".$1/$2"); v = v.replace(/(\d{4})(\d)/,"$1-$2"); v = v.substring(0, 18);
             }
             return v;
         }
 
-        // Validação Mágica da Receita
+        function setDocStatus(text, type) {
+            const el = document.getElementById('doc-status');
+            el.textContent = text;
+            el.className = 'doc-status visible ' + type;
+        }
+
         function verificarDocumento(valor) {
-            // CORRIGIDO: Agora o ID bate exatamente com o HTML (doc_input)
             const input = document.getElementById('doc_input');
             input.value = formatarDoc(valor);
-            
             const limpo = valor.replace(/\D/g, "");
-            const status = document.getElementById('doc-status');
             const box = document.getElementById('box-endereco');
 
             if (limpo.length === 11) {
-                status.innerHTML = '<span style="color: var(--blue);">CPF identificado. Preencha seu endereço abaixo.</span>';
-                box.style.display = 'block';
+                setDocStatus('CPF identificado. Preencha o endereço abaixo.', 'info');
+                box.classList.add('visible');
                 document.getElementById('cep').focus();
             } else if (limpo.length === 14) {
-                status.innerHTML = '<span style="color: var(--yellow);"><i class="ph ph-spinner"></i> Buscando empresa na Receita Federal...</span>';
-                box.style.display = 'block';
-                document.getElementById('campos-endereco').classList.add('loading-api');
-                
+                setDocStatus('Buscando empresa na Receita Federal...', 'info');
+                box.classList.add('visible');
+                document.getElementById('campos-endereco').classList.add('loading');
+
                 fetch(`https://brasilapi.com.br/api/cnpj/v1/${limpo}`)
-                    .then(response => { if (!response.ok) throw new Error(); return response.json(); })
+                    .then(r => { if(!r.ok) throw new Error(); return r.json(); })
                     .then(data => {
-                        document.getElementById('cep').value = data.cep || '';
+                        document.getElementById('cep').value        = data.cep || '';
                         document.getElementById('logradouro').value = data.logradouro || '';
-                        document.getElementById('numero').value = data.numero || '';
-                        document.getElementById('complemento').value = data.complemento || '';
-                        document.getElementById('bairro').value = data.bairro || '';
-                        document.getElementById('cidade').value = data.municipio || '';
-                        document.getElementById('uf').value = data.uf || '';
-                        
-                        status.innerHTML = '<span style="color: var(--green);"><i class="ph-fill ph-check-circle"></i> Empresa encontrada! Confirme o endereço.</span>';
-                        document.getElementById('campos-endereco').classList.remove('loading-api');
+                        document.getElementById('numero').value     = data.numero || '';
+                        document.getElementById('complemento').value= data.complemento || '';
+                        document.getElementById('bairro').value     = data.bairro || '';
+                        document.getElementById('cidade').value     = data.municipio || '';
+                        document.getElementById('uf').value         = data.uf || '';
+                        setDocStatus('Empresa encontrada! Confirme o endereço.', 'success');
+                        document.getElementById('campos-endereco').classList.remove('loading');
                     })
                     .catch(() => {
-                        status.innerHTML = '<span style="color: var(--red);">Falha ao buscar CNPJ. Preencha manualmente.</span>';
-                        document.getElementById('campos-endereco').classList.remove('loading-api');
+                        setDocStatus('Falha ao buscar CNPJ. Preencha manualmente.', 'error');
+                        document.getElementById('campos-endereco').classList.remove('loading');
                     });
             } else {
-                status.innerHTML = 'Aguardando documento...';
-                box.style.display = 'none';
+                const s = document.getElementById('doc-status');
+                s.className = 'doc-status';
+                box.classList.remove('visible');
             }
         }
 
-        // ViaCEP automático
         function buscarCep(valor) {
-            let cep = valor.replace(/\D/g, "");
-            if(cep.length === 8) {
+            const cep = valor.replace(/\D/g, "");
+            if (cep.length === 8) {
                 fetch(`https://viacep.com.br/ws/${cep}/json/`)
-                    .then(res => res.json())
+                    .then(r => r.json())
                     .then(data => {
-                        if(!data.erro) {
+                        if (!data.erro) {
                             document.getElementById('logradouro').value = data.logradouro;
-                            document.getElementById('bairro').value = data.bairro;
-                            document.getElementById('cidade').value = data.localidade;
-                            document.getElementById('uf').value = data.uf;
+                            document.getElementById('bairro').value     = data.bairro;
+                            document.getElementById('cidade').value     = data.localidade;
+                            document.getElementById('uf').value         = data.uf;
                             document.getElementById('numero').focus();
                         }
                     });
             }
         }
 
-        // Transição da Etapa 1 para Etapa 2
         function irParaAssinatura() {
-            // CORRIGIDO: Atualizado o ID aqui também
-            const doc = document.getElementById('doc_input').value;
-            const rua = document.getElementById('logradouro').value;
-            const num = document.getElementById('numero').value;
+            const doc  = document.getElementById('doc_input').value;
+            const rua  = document.getElementById('logradouro').value;
+            const num  = document.getElementById('numero').value;
             const comp = document.getElementById('complemento').value;
-            const bairro = document.getElementById('bairro').value;
-            const cidade = document.getElementById('cidade').value;
-            const uf = document.getElementById('uf').value;
-            const cep = document.getElementById('cep').value;
+            const bai  = document.getElementById('bairro').value;
+            const cid  = document.getElementById('cidade').value;
+            const uf   = document.getElementById('uf').value;
+            const cep  = document.getElementById('cep').value;
 
-            // Validação básica para não pular etapa com campo vazio
-            if(!doc || !rua || !num || !bairro || !cidade || !uf || !cep) {
-                alert("Por favor, preencha todos os campos obrigatórios do endereço.");
+            if (!doc || !rua || !num || !bai || !cid || !uf || !cep) {
+                alert("Preencha todos os campos obrigatórios do endereço.");
                 return;
             }
 
-            const enderecoCompleto = `${rua}, Nº ${num} ${comp ? '('+comp+')' : ''} - ${bairro}. ${cidade} - ${uf}. CEP: ${cep}`;
-            
-            // MÁGICA: Substitui a palavra "CONTRATANTE" genérica pelos dados reais
+            const enderecoCompleto = `${rua}, Nº ${num}${comp ? ' ('+comp+')' : ''} — ${bai}. ${cid} — ${uf}. CEP: ${cep}`;
+
             let textoRefletido = textoBase;
             if (textoRefletido.includes("CONTRATANTE")) {
-                textoRefletido = textoRefletido.replace(
-                    "CONTRATANTE", 
-                    "CONTRATANTE\nDocumento: " + doc + "\nEndereço: " + enderecoCompleto
-                );
+                textoRefletido = textoRefletido.replace("CONTRATANTE", "CONTRATANTE\nDocumento: " + doc + "\nEndereço: " + enderecoCompleto);
             } else {
-                // Fallback caso ele apague a palavra CONTRATANTE no editor
                 textoRefletido = "DADOS DO CONTRATANTE:\nDocumento: " + doc + "\nEndereço: " + enderecoCompleto + "\n\n" + textoRefletido;
             }
-            
+
             document.getElementById('viewer_contrato').innerText = textoRefletido;
-            
-            // Alimenta os inputs ocultos que vão salvar no banco de dados via PHP
             document.getElementById('final_doc').value = doc;
             document.getElementById('final_end').value = enderecoCompleto;
-            
-            // Troca de telas
+
+            // Atualiza step indicator
+            document.getElementById('dot-step2').classList.add('active');
+            document.getElementById('label-step2').style.color = 'var(--text-primary)';
+
             document.getElementById('step-1').style.display = 'none';
             document.getElementById('step-2').style.display = 'block';
-            window.scrollTo(0,0);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // Função do PIX
         function copiarPix(texto) {
             navigator.clipboard.writeText(texto).then(() => {
                 const btn = document.getElementById('btn-pix');
-                const original = btn.innerHTML;
-                btn.innerHTML = '<div style="font-size: 16px; font-weight: bold; color: var(--green); text-align: center;"><i class="ph-fill ph-check-circle"></i> Código Copiado!</div>';
-                btn.style.borderColor = 'var(--green)';
-                btn.style.background = 'rgba(34, 197, 94, 0.1)';
+                btn.classList.add('copied');
+                btn.innerHTML = '<strong style="font-size:0.9rem; color:var(--green); display:block; text-align:center; padding:6px 0;"><i class="ph-fill ph-check-circle"></i> Código Copiado!</strong>';
                 setTimeout(() => {
-                    btn.innerHTML = original;
-                    btn.style.borderColor = 'var(--border-mid)';
-                    btn.style.background = 'var(--bg-base)';
+                    btn.classList.remove('copied');
+                    btn.innerHTML = '<?= addslashes(htmlspecialchars($pix_string)) ?>';
                 }, 2500);
             });
         }
     </script>
+
 </body>
 </html>

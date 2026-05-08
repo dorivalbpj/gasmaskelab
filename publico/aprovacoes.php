@@ -7,7 +7,7 @@ $token = $_GET['token'] ?? '';
 $mensagem = '';
 
 if (empty($token)) {
-    die("<div style='padding: 50px; text-align: center; color: #fff; font-family: sans-serif;'>Acesso inválido. Link quebrado.</div>");
+    die("<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Erro</title><link rel='stylesheet' href='../assets/css/public.css'></head><body class='public-body'><div class='public-container'><div class='empty-state'><div class='empty-icon'><i class='ph-fill ph-warning-circle'></i></div><h3>Acesso inválido</h3><p>Este link está quebrado ou incompleto.</p></div></div></body></html>");
 }
 
 $stmt = $pdo->prepare("SELECT c.*, cli.nome as cliente_nome FROM contratos c JOIN clientes cli ON c.cliente_id = cli.id WHERE c.token = ?");
@@ -15,138 +15,190 @@ $stmt->execute([$token]);
 $contrato = $stmt->fetch();
 
 if (!$contrato) {
-    die("<div style='padding: 50px; text-align: center; color: #fff; font-family: sans-serif;'>Contrato não encontrado.</div>");
+    die("<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Erro</title><link rel='stylesheet' href='../assets/css/public.css'></head><body class='public-body'><div class='public-container'><div class='empty-state'><div class='empty-icon'><i class='ph-fill ph-magnifying-glass'></i></div><h3>Contrato não encontrado</h3><p>O link pode ter expirado ou sido revogado.</p></div></div></body></html>");
 }
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
     $id_tarefa = $_POST['id_tarefa'];
-    $fase_atual = $_POST['fase']; 
-    
+    $fase_atual = $_POST['fase'];
+
     if ($_POST['acao'] == 'aprovar') {
         $novo_status = ($fase_atual == 'roteiro') ? 'peca_em_producao' : 'pronto_para_postar';
         $pdo->prepare("UPDATE planejamento SET status_geral = ?, feedback_cliente = NULL, data_ultima_acao = NOW() WHERE id = ? AND contrato_id = ?")->execute([$novo_status, $id_tarefa, $contrato['id']]);
-        $mensagem = "<div class='alert alert-success'>✅ Aprovado com sucesso! Já enviámos para a equipa.</div>";
-    } 
-    elseif ($_POST['acao'] == 'reprovar') {
+        $mensagem = 'aprovado';
+    } elseif ($_POST['acao'] == 'reprovar') {
         $novo_status = ($fase_atual == 'roteiro') ? 'roteiro_em_revisao' : 'peca_em_revisao';
         $feedback = $_POST['feedback_cliente'] ?? 'Ajuste solicitado pelo cliente (sem detalhes).';
         $pdo->prepare("UPDATE planejamento SET status_geral = ?, feedback_cliente = ?, data_ultima_acao = NOW() WHERE id = ? AND contrato_id = ?")->execute([$novo_status, $feedback, $id_tarefa, $contrato['id']]);
-        $mensagem = "<div class='alert alert-warning'>⚠️ Ajuste solicitado! A nossa equipa vai rever e enviar novamente.</div>";
+        $mensagem = 'reprovado';
     }
 }
 
-$sql = "SELECT * FROM planejamento 
-        WHERE contrato_id = ? AND status_geral IN ('roteiro_aguardando_aprovacao', 'peca_aguardando_aprovacao') 
+$sql = "SELECT * FROM planejamento
+        WHERE contrato_id = ? AND status_geral IN ('roteiro_aguardando_aprovacao', 'peca_aguardando_aprovacao')
         ORDER BY data_publicacao ASC";
 $stmt_tarefas = $pdo->prepare($sql);
 $stmt_tarefas->execute([$contrato['id']]);
 $tarefas = $stmt_tarefas->fetchAll();
 ?>
 <!DOCTYPE html>
-<html lang="pt-PT">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Central de Aprovações - Gasmaske</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <title>Aprovações — <?= htmlspecialchars($contrato['cliente_nome']) ?></title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="../assets/css/public.css">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
 <body class="public-body">
-    <div class="public-container" style="max-width: 600px;">
-        
-        <div class="public-header">
-            <h1 class="public-logo">GASMASKE<span>.</span></h1>
-            <p class="public-subtitle">Central de Aprovações - <?= htmlspecialchars($contrato['cliente_nome']) ?></p>
-        </div>
 
-        <?= $mensagem ?>
+    <!-- Header -->
+    <header class="public-header">
+        <div class="public-header-inner">
+            <img src="../assets/img/logo-h.png" class="logo-img" style="height:40px;">
+            <span class="public-badge">Central de Aprovações</span>
+        </div>
+        <div class="public-header-bar"></div>
+    </header>
+
+    <!-- Hero -->
+    <div class="page-hero">
+        <h1><?= htmlspecialchars($contrato['cliente_nome']) ?></h1>
+        <p>Revise e aprove os conteúdos abaixo antes da publicação</p>
+    </div>
+
+    <div class="public-container">
+
+        <?php if ($mensagem == 'aprovado'): ?>
+            <div class="alert alert-success">
+                <i class="ph-fill ph-check-circle"></i>
+                <div>
+                    <strong>Aprovado com sucesso!</strong><br>
+                    <span style="font-size:0.85rem;">Já enviamos para a equipa dar continuidade.</span>
+                </div>
+            </div>
+        <?php elseif ($mensagem == 'reprovado'): ?>
+            <div class="alert alert-warning">
+                <i class="ph-fill ph-warning-circle"></i>
+                <div>
+                    <strong>Ajuste solicitado!</strong><br>
+                    <span style="font-size:0.85rem;">Nossa equipa vai rever e enviar novamente em breve.</span>
+                </div>
+            </div>
+        <?php endif; ?>
 
         <?php if (count($tarefas) > 0): ?>
-            <p style="text-align: center; color: var(--text-muted); margin-bottom: 25px; font-size: 14px;">Tens <strong><?= count($tarefas) ?></strong> item(ns) a aguardar a tua avaliação.</p>
 
-            <?php foreach ($tarefas as $t): 
+            <p style="font-size:0.85rem; color:var(--text-muted); text-align:center; margin-bottom:20px;">
+                Você tem <strong style="color:var(--text-primary);"><?= count($tarefas) ?></strong> item<?= count($tarefas) > 1 ? 'ns' : '' ?> aguardando sua avaliação
+            </p>
+
+            <?php foreach ($tarefas as $t):
                 $eh_roteiro = ($t['status_geral'] == 'roteiro_aguardando_aprovacao');
                 $fase = $eh_roteiro ? 'roteiro' : 'arte';
             ?>
-                <div class="card" style="margin-bottom: 25px; padding: 25px;">
-                    
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 1px solid var(--border-mid); padding-bottom: 15px;">
-                        <div>
-                            <span class="badge <?= $eh_roteiro ? 'badge-blue' : 'badge-purple' ?>" style="margin-bottom: 8px;">
-                                <?= $eh_roteiro ? '📝 Aprovação de Roteiro' : '🎨 Aprovação de Arte' ?>
-                            </span>
-                            <strong style="display: block; font-size: 16px; color: var(--text-primary);"><?= htmlspecialchars($t['tema']) ?></strong>
-                        </div>
-                        <div style="text-align: right;">
-                            <span style="color: var(--text-muted); font-size: 11px; text-transform: uppercase; display: block;">Prazo</span>
-                            <strong style="color: var(--text-secondary); font-size: 13px;"><?= date('d/m/Y', strtotime($t['data_publicacao'])) ?></strong>
-                        </div>
+
+            <div class="approval-card">
+
+                <!-- Cabeçalho do item -->
+                <div class="approval-card-header">
+                    <div>
+                        <span class="badge <?= $eh_roteiro ? 'badge-blue' : 'badge-red' ?>" style="margin-bottom:8px;">
+                            <i class="<?= $eh_roteiro ? 'ph ph-article' : 'ph ph-image' ?>"></i>
+                            <?= $eh_roteiro ? 'Roteiro' : 'Arte Final' ?>
+                        </span>
+                        <strong style="display:block; font-size:0.95rem; line-height:1.3;"><?= htmlspecialchars($t['tema']) ?></strong>
                     </div>
+                    <div style="text-align:right; flex-shrink:0;">
+                        <span style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted); display:block;">Prazo</span>
+                        <strong style="font-size:0.9rem; color:var(--text-primary);"><?= date('d/m', strtotime($t['data_publicacao'])) ?></strong>
+                    </div>
+                </div>
 
-                    <?php if ($eh_roteiro): ?>
-                        <label style="font-weight: 600; font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; display: block;">Conteúdo Sugerido:</label>
-                        <div style="background: var(--bg-hover); border: 1px dashed var(--border-mid); padding: 15px; border-radius: var(--radius-md); font-family: monospace; font-size: 14px; color: var(--text-primary); white-space: pre-wrap; margin-bottom: 25px; max-height: 300px; overflow-y: auto;">
-                            <?= htmlspecialchars($t['copy_legenda']) ?>
-                        </div>
-                    <?php endif; ?>
+                <!-- Conteúdo -->
+                <div class="approval-card-body">
 
-                    <?php if (!$eh_roteiro): ?>
-                        <a href="<?= htmlspecialchars($t['link_arte_final']) ?>" target="_blank" class="btn btn-secondary" style="width: 100%; justify-content: center; margin-bottom: 20px; border-color: var(--blue); color: var(--blue);">
-                            🔍 Visualizar Arte (Abrir Link)
+                    <?php if (!$eh_roteiro && !empty($t['link_arte_final'])): ?>
+                        <a href="<?= htmlspecialchars($t['link_arte_final']) ?>" target="_blank" class="art-link">
+                            <i class="ph ph-eye"></i> Visualizar Arte
                         </a>
-                        
-                        <label style="font-weight: 600; font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; display: block;">Legenda da Arte:</label>
-                        <div style="background: var(--bg-hover); padding: 15px; border-radius: var(--radius-md); font-size: 13px; color: var(--text-secondary); white-space: pre-wrap; margin-bottom: 25px; max-height: 150px; overflow-y: auto;">
-                            <?= htmlspecialchars($t['copy_legenda'] ?: 'Nenhuma legenda registada.') ?>
-                        </div>
                     <?php endif; ?>
 
-                    <form method="POST">
+                    <?php if (!empty($t['copy_legenda'])): ?>
+                        <p style="font-size:0.78rem; text-transform:uppercase; letter-spacing:0.07em; font-weight:600; color:var(--text-muted); margin-bottom:8px;">
+                            <?= $eh_roteiro ? 'Conteúdo sugerido' : 'Legenda' ?>
+                        </p>
+                        <div class="content-preview"><?= htmlspecialchars($t['copy_legenda']) ?></div>
+                    <?php endif; ?>
+
+                </div>
+
+                <!-- Ações -->
+                <div class="approval-card-footer">
+
+                    <form method="POST" style="display:contents;">
                         <input type="hidden" name="id_tarefa" value="<?= $t['id'] ?>">
                         <input type="hidden" name="fase" value="<?= $fase ?>">
-                        
-                        <button type="submit" name="acao" value="aprovar" class="btn btn-primary" style="width: 100%; justify-content: center; height: 50px; margin-bottom: 10px;" onclick="return confirm('Confirmar aprovação?');">
-                            ✅ APROVAR E AVANÇAR
-                        </button>
-                        <button type="button" class="btn btn-ghost" style="width: 100%; justify-content: center; color: var(--red);" onclick="abrirFeedback(<?= $t['id'] ?>)">
-                            ❌ Precisa de Ajustes
+                        <button type="submit" name="acao" value="aprovar" class="btn btn-primary btn-full"
+                            onclick="return confirm('Confirmar aprovação?');">
+                            <i class="ph-fill ph-check-circle"></i> Aprovar e Avançar
                         </button>
                     </form>
 
-                    <div id="feedback_box_<?= $t['id'] ?>" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px dashed var(--border-mid);">
+                    <button type="button" class="btn btn-danger-ghost btn-full"
+                        onclick="toggleFeedback(<?= $t['id'] ?>)">
+                        <i class="ph ph-x-circle"></i> Precisa de Ajustes
+                    </button>
+
+                    <!-- Feedback oculto -->
+                    <div id="feedback_<?= $t['id'] ?>" class="feedback-box" style="display:none;">
                         <form method="POST">
                             <input type="hidden" name="id_tarefa" value="<?= $t['id'] ?>">
                             <input type="hidden" name="fase" value="<?= $fase ?>">
                             <input type="hidden" name="acao" value="reprovar">
-                            
-                            <label style="font-weight: bold; font-size: 13px; color: var(--red); display: block; margin-bottom: 10px;">O que precisa de ser alterado?</label>
-                            <textarea name="feedback_cliente" rows="3" class="form-control" placeholder="Descreve o que não gostaste ou o que precisa de mudar..." required style="margin-bottom: 15px;"></textarea>
-                            
-                            <div style="display: flex; gap: 10px;">
-                                <button type="button" class="btn btn-secondary" style="flex: 1; justify-content: center;" onclick="fecharFeedback(<?= $t['id'] ?>)">Cancelar</button>
-                                <button type="submit" class="btn btn-primary" style="flex: 1; justify-content: center; background: var(--red);">Enviar Ajuste</button>
+                            <div class="form-group">
+                                <label>O que precisa mudar?</label>
+                                <textarea name="feedback_cliente" class="form-control" rows="3"
+                                    placeholder="Descreva o que deve ser ajustado..." required></textarea>
+                            </div>
+                            <div style="display:flex; gap:10px;">
+                                <button type="button" class="btn btn-secondary" style="flex:1;"
+                                    onclick="toggleFeedback(<?= $t['id'] ?>)">Cancelar</button>
+                                <button type="submit" class="btn btn-primary" style="flex:1; background:var(--red);">
+                                    Enviar Ajuste
+                                </button>
                             </div>
                         </form>
                     </div>
 
                 </div>
+            </div>
+
             <?php endforeach; ?>
 
         <?php else: ?>
+
             <div class="empty-state">
-                <div style="font-size: 40px; margin-bottom: 15px;">🎉</div>
-                <h3 style="margin: 0 0 10px 0; color: var(--text-primary);">Tudo em dia!</h3>
-                <p style="color: var(--text-muted); margin: 0;">Não tens nenhum item pendente de aprovação no momento.</p>
+                <div class="empty-icon"><i class="ph-fill ph-check-circle" style="color:var(--green);"></i></div>
+                <h3>Tudo em dia!</h3>
+                <p>Nenhum item aguardando sua aprovação no momento.</p>
             </div>
+
         <?php endif; ?>
 
     </div>
 
+    <footer class="site-footer">
+        <img src="../assets/img/logo-h.png" alt="Gasmaske Lab">
+        <p>© <?= date('Y') ?> Gasmaske Lab · CNPJ 58.714.373/0001-04</p>
+    </footer>
+
     <script>
-        function abrirFeedback(id) {
-            document.getElementById('feedback_box_' + id).style.display = 'block';
-        }
-        function fecharFeedback(id) {
-            document.getElementById('feedback_box_' + id).style.display = 'none';
+        function toggleFeedback(id) {
+            const box = document.getElementById('feedback_' + id);
+            box.style.display = box.style.display === 'none' ? 'block' : 'none';
         }
     </script>
 </body>
