@@ -8,89 +8,83 @@ requireLogin();
 if (!isAdmin()) { echo json_encode(['erro' => 'Acesso negado']); exit; }
 
 $cliente_id = $_POST['cliente_id'] ?? 0;
+// Recebe o texto que estava no editor da tela!
+$contexto_briefing = $_POST['contexto_briefing'] ?? '';
+
 if (!$cliente_id) { echo json_encode(['erro' => 'Cliente não informado']); exit; }
+if (empty($contexto_briefing)) { echo json_encode(['erro' => 'O briefing não foi recebido.']); exit; }
 
-$stmt = $pdo->prepare("SELECT c.nome, b.respostas, b.servicos_interesse FROM clientes c LEFT JOIN briefings b ON c.id = b.cliente_id WHERE c.id = ? ORDER BY b.id DESC LIMIT 1");
+// Puxa apenas o nome do cliente pra IA saber de quem tá falando
+$stmt = $pdo->prepare("SELECT nome FROM clientes WHERE id = ?");
 $stmt->execute([$cliente_id]);
-$dados = $stmt->fetch(PDO::FETCH_ASSOC);
-
-$nome_cliente = $dados['nome'] ?? 'Cliente';
-$info_briefing = $dados['respostas'] ?? 'Nenhum briefing formal preenchido.';
+$nome_cliente = $stmt->fetchColumn() ?: 'Cliente';
 
 if (!defined('GEMINI_API_KEY')) {
-    echo json_encode(['erro' => 'A chave GEMINI_API_KEY não foi encontrada dentro do cofre!']);
+    echo json_encode(['erro' => 'Chave GEMINI_API_KEY não encontrada no cofre!']);
     exit;
 }
+
+// Blindagem da API Key
 $api_key = trim(GEMINI_API_KEY);
+$host = "https://generativelanguage.googleapis.com";
+$endpoint = "/v1beta/models/gemini-2.5-flash:generateContent";
+$url_suja = $host . $endpoint . "?key=" . $api_key;
+$url_limpa = preg_replace('/[\s\x00-\x1F\x7F]/', '', $url_suja);
 
-$prompt = "Aja ESTRITAMENTE como o sistema gerador de propostas da agência premium Gasmaske Lab. 
+// PROMPT SNIPER DA GASMASKE LAB
+$prompt = "Aja ESTRITAMENTE como o estrategista chefe da agência premium Gasmaske Lab. 
+Sua missão é SUBSTITUIR o texto de briefing bruto abaixo por uma PROPOSTA COMERCIAL ULTRA-PERSONALIZADA.
+
 REGRAS ABSOLUTAS:
-1. NÃO converse comigo.
-2. Retorne APENAS E EXCLUSIVAMENTE o código HTML.
-3. NÃO use markdown (como ```html).
+1. Retorne APENAS o código HTML pronto (não use markdown ```html).
+2. Tom de voz: Premium, implacável, focado em autoridade e fechamento de alto nível (zero 'design fofo').
+3. VOCÊ DEVE OBRIGATORIAMENTE ler os problemas, dores e serviços contidos no texto de briefing e USÁ-LOS como base para a sua proposta.
 
-DADOS DO CLIENTE:
-- Nome: $nome_cliente
-- Briefing/Detalhes: $info_briefing
+DADOS DO CLIENTE E TEXTO DE BRIEFING CAPTURADO:
+- Nome do Cliente: $nome_cliente
+- CONTEÚDO DO BRIEFING A SER ANALISADO:
+$contexto_briefing
 
-ESTRUTURA OBRIGATÓRIA DA PROPOSTA (Use APENAS <h2>, <p>, <ul>, <li> e <strong>):
+ESTRUTURA OBRIGATÓRIA DA PROPOSTA (Use as tags <h2>, <p>, <ul>, <li>, <strong>):
 
-<h2>O Momento</h2>
-(Escreva 2 parágrafos persuasivos focados na dor do cliente e como a agência vai agir.)
+<h2>O Cenário Atual</h2>
+(Escreva 2 parágrafos imponentes mostrando que a Gasmaske entendeu perfeitamente as dores, as redes sociais e os objetivos relatados no briefing.)
 
-<h2>O Escopo (O que está incluído)</h2>
-(Crie uma lista <ul> onde CADA item <li> represente um serviço. O item DEVE obrigatoriamente começar com <strong>Nome do Serviço</strong> seguido de um texto corrido explicando. Ex: <li><strong>Gestão de Redes:</strong> 5 postagens semanais...</li>)
+<h2>A Arquitetura da Solução (O Escopo)</h2>
+(Com base no briefing, crie uma lista <ul> detalhando os serviços que serão executados. 
+CADA item <li> DEVE obrigatoriamente começar com <strong>Nome do Serviço:</strong> seguido da explicação prática de como isso resolve a dor do cliente.)
 
-<h2>O Primeiro Movimento</h2>
-(Escreva parágrafos sobre os próximos passos e a estratégia inicial de ataque.)
-
-<h2>Linha do Tempo</h2>
-(Crie outra lista <ul> nos mesmos moldes do escopo, detalhando as fases do projeto. Ex: <li><strong>Fase 1 - Ignição:</strong> Setup e auditoria...</li>)";
-
-$url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $api_key;
+<h2>A Execução</h2>
+(Escreva sobre a dinâmica de trabalho, o nível técnico da Gasmaske Lab e os próximos passos para iniciar o projeto.)";
 
 $data = [
     "contents" => [["parts" => [["text" => $prompt]]]],
-    "generationConfig" => [
-        "maxOutputTokens" => 8192,
-        "temperature" => 0.7
-    ]
+    "generationConfig" => ["maxOutputTokens" => 8192, "temperature" => 0.4] 
 ];
 
 $ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, $url);
+curl_setopt($ch, CURLOPT_URL, $url_limpa);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
 curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); 
 curl_setopt($ch, CURLOPT_TIMEOUT, 60);
 
 $response = curl_exec($ch);
 $err = curl_error($ch);
 curl_close($ch);
 
-if ($err) {
-    echo json_encode(['erro' => 'Erro cURL: ' . $err]);
-    exit;
+if ($err) { 
+    echo json_encode(['erro' => 'Erro cURL: ' . $err]); 
+    exit; 
 }
 
 $resArr = json_decode($response, true);
 $texto = $resArr['candidates'][0]['content']['parts'][0]['text'] ?? '';
 
-if (!$texto) {
-    echo json_encode(['erro' => 'Google disse: ' . $response]);
-    exit;
-}
+if (!$texto) { echo json_encode(['erro' => 'Google falhou.']); exit; }
 
-// Remove backticks de markdown caso o Gemini desobedeça
-$texto = preg_replace('/^```html\s*/i', '', $texto);
-$texto = preg_replace('/^```\s*/m', '', $texto);
-$texto = preg_replace('/```\s*$/m', '', $texto);
-$texto = trim($texto);
-
-// Usa JSON_UNESCAPED_UNICODE para não quebrar caracteres especiais em português
-// O json_encode já cuida de escapar as quebras de linha corretamente
-echo json_encode(['sucesso' => true, 'texto' => $texto], JSON_UNESCAPED_UNICODE);
+$texto = str_replace(["\r\n", "\r", "\n"], ' ', $texto);
+echo json_encode(['sucesso' => true, 'texto' => $texto]);
 ?>

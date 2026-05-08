@@ -84,27 +84,44 @@ require_once '../../includes/layout/sidebar.php';
 
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 <style>
-    .ql-toolbar.ql-snow { border: 1px solid var(--border-mid); background: var(--bg-surface); border-top-left-radius: 8px; border-top-right-radius: 8px; }
-    .ql-container.ql-snow { border: 1px solid var(--border-mid); background: var(--bg-elevated); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; color: var(--text-primary); font-family: 'DM Sans', sans-serif; font-size: 15px; }
-    .ql-snow .ql-stroke { stroke: var(--text-secondary); }
-    .ql-snow .ql-fill, .ql-snow .ql-stroke.ql-fill { fill: var(--text-secondary); }
-    .ql-editor { min-height: 400px; }
-    .layout-proposta { display: grid; grid-template-columns: 350px 1fr; gap: 24px; align-items: start; }
+    .layout-proposta { display: grid; grid-template-columns: 350px 1fr; gap: 30px; align-items: start; }
     @media(max-width: 992px) { .layout-proposta { grid-template-columns: 1fr; } }
+    
+    /* UX do Editor */
+    .ql-toolbar.ql-snow { border: 1px solid var(--border-light); background: #fcfcfc; border-top-left-radius: 8px; border-top-right-radius: 8px; padding: 12px; }
+    .ql-container.ql-snow { border: 1px solid var(--border-light); background: #ffffff; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; }
+    .ql-editor { min-height: 500px; padding: 30px; color: #1a1a1a; line-height: 1.7; }
+    
+    /* UX das Pills de Serviços (Moderno) */
+    .service-pill-container { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    .service-pill input[type="checkbox"] { display: none; }
+    .service-pill label { 
+        display: inline-block; padding: 8px 16px; background: var(--bg-hover); color: var(--text-secondary); 
+        border: 1px solid var(--border-mid); border-radius: 50px; font-size: 12px; font-weight: 600; 
+        cursor: pointer; transition: all 0.2s; user-select: none;
+    }
+    .service-pill input[type="checkbox"]:checked + label {
+        background: var(--red); color: #fff; border-color: var(--red); box-shadow: 0 4px 10px rgba(255, 59, 47, 0.2);
+    }
 </style>
 
 <div class="cabecalho">
     <div>
         <h2 class="page-title"><?= $id ? 'Editar Proposta (' . htmlspecialchars($proposta['codigo_proposta']) . ')' : 'Nova Proposta' ?></h2>
-        <p class="page-subtitle">Configure o cliente, a parte financeira e deixe a IA cuidar do resto.</p>
+        <p class="page-subtitle">Configure o financeiro e use a IA para redigir o escopo estratégico.</p>
     </div>
-    <div style="display: flex; gap: 10px;">
+    <div style="display: flex; gap: 12px;">
         <a href="index.php" class="btn btn-ghost"><i class="ph ph-arrow-left"></i> Voltar</a>
+        
         <?php if ($id): ?>
-            <a href="../contratos/form.php?proposta_id=<?= $id ?>" class="btn btn-primary" style="background: var(--purple); border-color: var(--purple);">
+            <a href="../contratos/form.php?proposta_id=<?= $id ?>" class="btn btn-ghost" style="color: var(--purple); border-color: rgba(168, 85, 247, 0.3);">
                 <i class="ph ph-scroll"></i> Gerar Contrato
             </a>
         <?php endif; ?>
+        
+        <button type="submit" form="formProposta" onclick="sincronizarEditor()" class="btn btn-primary">
+            <i class="ph ph-floppy-disk"></i> Salvar Proposta
+        </button>
     </div>
 </div>
 
@@ -113,13 +130,13 @@ require_once '../../includes/layout/sidebar.php';
 <form method="POST" id="formProposta" onsubmit="sincronizarEditor()">
     <div class="layout-proposta">
         
-        <div class="config-col">
+        <div style="display: flex; flex-direction: column; gap: 20px;">
             <div class="card">
-                <h3 class="card-title"><i class="ph ph-sliders"></i> Ajustes Iniciais</h3>
+                <h3 class="card-title"><i class="ph ph-identification-card"></i> Identificação</h3>
                 <div class="form-group">
                     <label>Cliente *</label>
                     <select name="cliente_id" class="form-control" required>
-                        <option value="">Selecione...</option>
+                        <option value="">Selecione o Cliente...</option>
                         <?php foreach($clientes as $c): ?>
                             <option value="<?= $c['id'] ?>" <?= ((string)$c['id'] === (string)$proposta['cliente_id']) ? 'selected' : '' ?>>
                                 <?= htmlspecialchars($c['nome']) ?>
@@ -127,140 +144,115 @@ require_once '../../includes/layout/sidebar.php';
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="form-group mb-0">
                     <label>Título da Proposta *</label>
-                    <input type="text" name="titulo" class="form-control" value="<?= htmlspecialchars($proposta['titulo']) ?>" placeholder="Ex: Gestão e Rebranding..." required>
+                    <input type="text" name="titulo" class="form-control" value="<?= htmlspecialchars($proposta['titulo']) ?>" placeholder="Ex: Launch Pack e Identidade" required>
                 </div>
             </div>
 
             <div class="card">
                 <h3 class="card-title"><i class="ph ph-currency-dollar"></i> Financeiro</h3>
                 <div class="form-group">
-                    <label>Valor (R$) *</label>
-                    <input type="number" step="0.01" id="valor_input" name="valor" class="form-control" value="<?= number_format((float)$proposta['valor'], 2, '.', '') ?>" required>
+                    <label>Investimento (R$) *</label>
+                    <input type="number" step="0.01" id="valor_input" name="valor" class="form-control" style="font-size: 18px; font-weight: bold; color: var(--green);" value="<?= number_format((float)$proposta['valor'], 2, '.', '') ?>" required>
                 </div>
-                <div class="dashboard-grid dashboard-grid--equal" style="gap: 10px;">
-                    <div class="form-group">
-                        <label>Cobrança *</label>
+                <div class="dashboard-grid dashboard-grid--equal" style="gap: 12px;">
+                    <div class="form-group mb-0">
+                        <label>Cobrança</label>
                         <select name="tipo_cobranca" id="tipo_cobranca" class="form-control" required>
                             <option value="mensal" <?= $proposta['tipo_cobranca'] == 'mensal' ? 'selected' : '' ?>>Mensal</option>
                             <option value="unico" <?= $proposta['tipo_cobranca'] == 'unico' ? 'selected' : '' ?>>Único</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>Duração *</label>
+                    <div class="form-group mb-0">
+                        <label>Ciclo (Meses)</label>
                         <input type="number" id="duracao_input" name="duracao_meses" class="form-control" value="<?= htmlspecialchars($proposta['duracao_meses']) ?>" required min="1">
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Validade *</label>
+                <div class="form-group mt-3">
+                    <label>Data de Validade *</label>
                     <input type="date" name="data_validade" class="form-control" value="<?= htmlspecialchars($proposta['data_validade']) ?>" required>
                 </div>
                 
-                <div class="total-preview-card" style="margin-top: 10px;">
-                    <span class="txt-meta-sm">Total a Receber</span>
-                    <strong id="total_preview" style="font-size: 20px; color: var(--red);">R$ 0,00</strong>
+                <div style="background: var(--bg-hover); padding: 15px; border-radius: 8px; text-align: center; margin-top: 15px; border: 1px solid var(--border-light);">
+                    <span style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">Valor Total do Contrato</span><br>
+                    <strong id="total_preview" style="font-size: 24px; color: var(--text-primary); font-family: 'DM Serif Display', serif;">R$ 0,00</strong>
                 </div>
             </div>
-            
-            <button type="submit" class="btn btn-primary" style="width: 100%; height: 50px; justify-content: center; font-size: 15px;">
-                <i class="ph ph-floppy-disk"></i> Salvar Proposta
-            </button>
         </div>
 
-        <div class="editor-col">
-            <div class="card" style="padding: 0; border: none; background: transparent;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <h3 class="card-title" style="margin: 0;"><i class="ph ph-text-align-left"></i> Corpo da Proposta</h3>
-                    
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" class="btn btn-secondary" onclick="abrirPrevia()" style="font-size: 11px; padding: 6px 12px;">
-                            <i class="ph ph-eye"></i> PRÉVIA
-                        </button>
-                        
-                        <button type="button" class="btn btn-primary" id="btnGerarIA" style="background: linear-gradient(45deg, #FF3B2F, #a78bfa); border: none; font-size: 11px; padding: 6px 12px;" onclick="gerarPropostaIA()">
-                            <i class="ph-fill ph-magic-wand"></i> GERAR COM IA
-                        </button>
-                    </div>
+        <div class="card" style="padding: 30px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 15px; margin-bottom: 20px;">
+                <div>
+                    <h3 class="card-title" style="margin: 0; font-size: 20px;">Escopo do Projeto</h3>
+                    <p class="text-muted" style="font-size: 12px; margin: 5px 0 0;">Selecione os serviços mapeados e deixe a IA redigir com base no briefing.</p>
                 </div>
-
-                <div style="margin-bottom: 16px;">
-                    <span class="txt-meta-sm" style="margin-bottom: 6px;">Serviços mapeados (Ajuda a IA a escrever):</span>
-                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                        <?php foreach ($todos_servicos as $index => $s): ?>
-                            <label style="display: inline-flex; align-items: center; gap: 4px; background: var(--bg-hover); padding: 4px 8px; border-radius: 4px; font-size: 11px; color: var(--text-secondary); cursor: pointer;">
-                                <input type="checkbox" name="servicos[]" value="<?= htmlspecialchars($s['nome']) ?>" <?= in_array($s['nome'], $servicos_marcados) ? 'checked' : '' ?>>
-                                <?= htmlspecialchars($s['nome']) ?>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="btn btn-ghost" onclick="abrirPrevia()" style="font-size: 12px;">
+                        <i class="ph ph-eye"></i> PRÉVIA
+                    </button>
+                    <button type="button" class="btn btn-primary" id="btnGerarIA" onclick="gerarPropostaIA()" style="background: var(--dark); border-color: var(--dark); font-size: 12px; letter-spacing: 0.5px;">
+                        <i class="ph-fill ph-magic-wand" style="color: var(--red);"></i> REDIGIR COM IA
+                    </button>
                 </div>
-
-                <div id="editor-container"><?= $proposta['descricao'] ?></div>
-                <textarea name="descricao" id="hidden_descricao" style="display:none;"></textarea>
             </div>
+
+            <div class="service-pill-container">
+                <?php foreach ($todos_servicos as $index => $s): ?>
+                    <div class="service-pill">
+                        <input type="checkbox" id="srv_<?= $index ?>" name="servicos[]" value="<?= htmlspecialchars($s['nome']) ?>" <?= in_array($s['nome'], $servicos_marcados) ? 'checked' : '' ?>>
+                        <label for="srv_<?= $index ?>"><?= htmlspecialchars($s['nome']) ?></label>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+            <div id="editor-container"><?= $proposta['descricao'] ?></div>
+            <textarea name="descricao" id="hidden_descricao" style="display:none;"></textarea>
         </div>
     </div>
 </form>
 
-<!-- MODAL DE PRÉVIA -->
-<div id="modalPrevia" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 999999; align-items: center; justify-content: center;">
-    <div style="background: #fff; width: 90%; max-width: 900px; height: 85vh; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+<div id="modalPrevia" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 999999; align-items: center; justify-content: center;">
+    <div style="background: #fff; width: 90%; max-width: 900px; height: 85vh; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden;">
         <div style="background: #111; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="color: #fff; margin: 0; font-family: 'DM Serif Display', serif;">Prévia da Proposta</h3>
-            <button type="button" onclick="fecharPrevia()" style="background: #FF3B2F; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">FECHAR X</button>
+            <h3 style="color: #fff; margin: 0;">Prévia da Proposta</h3>
+            <button type="button" onclick="fecharPrevia()" class="btn btn-primary" style="background: var(--red); border: none;">FECHAR</button>
         </div>
-        <div id="box_previa" style="padding: 40px; overflow-y: auto; color: #333; font-family: 'DM Sans', sans-serif; font-size: 16px; line-height: 1.6;">
-            <!-- O texto entra aqui -->
-        </div>
+        <div id="box_previa" style="padding: 40px; overflow-y: auto; color: #333; line-height: 1.6;"></div>
     </div>
 </div>
 
-<!-- MODAL NINJA (COPIAR LINK) -->
 <?php if ($exibir_modal_ninja): ?>
     <?php $link_proposta = "http://localhost/gasmaske/publico/proposta.php?token=" . $token_ninja; ?>
     <div id="modalNinja" class="modal-ninja-overlay">
         <div class="modal-ninja-box">
             <div class="modal-ninja-header">Proposta Pronta! 🚀</div>
-            <span class="modal-ninja-tag">Ação Requerida</span>
             <textarea id="textoProposta" class="modal-ninja-textarea" readonly>Fala <?= htmlspecialchars($nome_cliente_ninja) ?>, tudo bem?
 
-Separei aqui a nossa proposta detalhando tudo o que conversamos. Segue o link com acesso exclusivo:
-<?= $link_proposta ?>
-
-Qualquer dúvida, me dá um toque por aqui!</textarea>
-            <button class="modal-ninja-btn-copy" onclick="copiarTextoNinja(this)">Copiar Link e Mensagem</button>
-            <button class="modal-ninja-btn-close" onclick="document.getElementById('modalNinja').style.display='none'">Fechar</button>
+A estratégia que desenhamos para você já está no ar. Segue o link com acesso exclusivo à nossa proposta:
+<?= $link_proposta ?></textarea>
+            <button class="btn btn-primary w-100 mb-2" onclick="copiarTextoNinja(this)">Copiar Mensagem</button>
+            <button class="btn btn-ghost w-100" onclick="document.getElementById('modalNinja').style.display='none'">Fechar</button>
         </div>
     </div>
     <script>
         function copiarTextoNinja(btn) {
             navigator.clipboard.writeText(document.getElementById("textoProposta").value).then(function() {
-                btn.innerHTML = "✔ Mensagem Copiada!";
-                setTimeout(() => btn.innerHTML = "Copiar Link e Mensagem", 2500);
+                btn.innerHTML = "✔ Copiada!"; setTimeout(() => btn.innerHTML = "Copiar Mensagem", 2000);
             });
         }
     </script>
 <?php endif; ?>
 
-<!-- SCRIPT PRINCIPAL -->
 <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 <script>
     var quill = new Quill('#editor-container', {
         theme: 'snow',
-        modules: {
-            toolbar: [
-                [{ 'header': [2, 3, false] }],
-                ['bold', 'italic', 'underline'],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                ['clean']
-            ]
-        }
+        modules: { toolbar: [ [{ 'header': [2, 3, false] }], ['bold', 'italic'], [{'list': 'bullet'}], ['clean'] ] }
     });
 
-    function sincronizarEditor() {
-        document.getElementById('hidden_descricao').value = quill.root.innerHTML;
-    }
+    function sincronizarEditor() { document.getElementById('hidden_descricao').value = quill.root.innerHTML; }
 
     function calcularTotal() {
         const valor = parseFloat(document.getElementById('valor_input').value) || 0;
@@ -274,61 +266,42 @@ Qualquer dúvida, me dá um toque por aqui!</textarea>
     document.getElementById('tipo_cobranca').addEventListener('change', calcularTotal);
     calcularTotal();
 
-    function abrirPrevia() {
-        document.getElementById('box_previa').innerHTML = quill.root.innerHTML;
-        document.getElementById('modalPrevia').style.display = 'flex';
-    }
-
-    function fecharPrevia() {
-        document.getElementById('modalPrevia').style.display = 'none';
-    }
+    function abrirPrevia() { document.getElementById('box_previa').innerHTML = quill.root.innerHTML; document.getElementById('modalPrevia').style.display = 'flex'; }
+    function fecharPrevia() { document.getElementById('modalPrevia').style.display = 'none'; }
 
     async function gerarPropostaIA() {
         const clienteId = document.querySelector('select[name="cliente_id"]').value;
-        if (!clienteId) {
-            alert("Opa! Selecione um Cliente primeiro para a IA saber para quem é a proposta.");
+        if (!clienteId) { alert("Selecione um Cliente primeiro!"); return; }
+
+        // MAGIA AQUI: Ele pega todo o texto que já veio preenchido do briefing no editor
+        const contextoBriefing = quill.getText().trim();
+        
+        if(contextoBriefing.length < 15) {
+            alert("O editor está vazio. O sistema precisa que as respostas do briefing estejam no editor para a IA ler.");
             return;
         }
 
         const btn = document.getElementById('btnGerarIA');
         const textoOriginal = btn.innerHTML;
-        btn.innerHTML = '⏳ PENSANDO...';
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> ESTRUTURANDO...';
         btn.disabled = true;
 
         try {
             const formData = new FormData();
             formData.append('cliente_id', clienteId);
+            formData.append('contexto_briefing', contextoBriefing); // Mandando o texto pra IA ler!
 
             const res = await fetch('gerar_proposta_ia.php', { method: 'POST', body: formData });
-            const rawText = await res.text();
+            const data = await res.json();
 
-            let data;
-            try {
-                data = JSON.parse(rawText);
-            } catch (jsonErr) {
-                alert("O PHP quebrou nos bastidores! Veja o erro real:\n\n" + rawText.substring(0, 500));
-                return;
-            }
-
-            if (data.erro) {
-                alert("Aviso: " + data.erro);
-            } else {
-                // O texto já vem limpo do PHP, só garante que não sobrou nenhum backtick
-                let htmlLimpo = data.texto
-                    .replace(/^```html\s*/gi, '')
-                    .replace(/^```\s*/gim, '')
-                    .replace(/```\s*$/gim, '')
-                    .trim();
-
+            if (data.erro) { alert("Aviso: " + data.erro); } 
+            else {
+                let htmlLimpo = data.texto.replace(/^```html\s*/gi, '').replace(/^```\s*/gim, '').replace(/```\s*$/gim, '').trim();
                 quill.clipboard.dangerouslyPasteHTML(htmlLimpo);
-                alert("Mágica concluída! Proposta estruturada no editor.");
+                alert("Escopo gerado com sucesso baseado no briefing!");
             }
-        } catch (e) {
-            alert("Erro de rede: " + e.message);
-        } finally {
-            btn.innerHTML = textoOriginal;
-            btn.disabled = false;
-        }
+        } catch (e) { alert("Erro de rede ao falar com a IA."); } 
+        finally { btn.innerHTML = textoOriginal; btn.disabled = false; }
     }
 </script>
 
