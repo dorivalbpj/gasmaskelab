@@ -4,6 +4,9 @@
 // Inicia a sessão do PHP
 session_start();
 
+// Define a URL base do projeto
+define('BASE_URL', '/gasmaske/');
+
 // Função para verificar se existe alguém logado
 function isLogado() {
     return isset($_SESSION['usuario_id']);
