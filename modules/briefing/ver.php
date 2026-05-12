@@ -18,7 +18,7 @@ $stmt->execute([$id]);
 $briefing = $stmt->fetch();
 
 if (!$briefing) {
-    die("<div class='dashboard-grid' style='padding: 50px;'><div class='card text-center'><h2>Briefing ID #$id não encontrado.</h2><br><a href='index.php' class='btn btn-secondary'>Voltar para a Lista</a></div></div>");
+    die("<div class='dashboard-grid' style='padding: 50px;'><div class='card text-center'><h2>Briefing ID #$id não encontrado.</h2><br><a href='" . BASE_URL . "modules/briefing/index.php' class='btn btn-secondary'>Voltar para a Lista</a></div></div>");
 }
 
 // --- LÓGICA: GERAR PROPOSTA AUTOMÁTICA ---
@@ -84,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
 
         $pdo->commit();
 
-        header("Location: ../propostas/form.php?id=" . $prop_id);
+        header("Location: " . BASE_URL . "modules/propostas/form.php?id=" . $prop_id);
         exit;
     } catch (Exception $e) {
         $pdo->rollBack();
@@ -99,7 +99,7 @@ require_once '../../includes/layout/sidebar.php';
 <div class="cabecalho">
     <div>
         <h2 class="page-title">Detalhes do Briefing</h2>
-        <a href="index.php" style="color: var(--text-secondary); text-decoration: none; font-size: 14px;">← Voltar para a Lista</a>
+        <a href="<?= BASE_URL ?>modules/briefing/index.php" style="color: var(--text-secondary); text-decoration: none; font-size: 14px;">← Voltar para a Lista</a>
     </div>
     
     <div style="display: flex; gap: 12px;">

@@ -1,6 +1,11 @@
 <?php
 // config/database.php
 
+// Define a BASE_URL dinamicamente (Regra de Arquitetura V4)
+if (!defined('BASE_URL')) {
+    define('BASE_URL', (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . '/');
+}
+
 $host = 'localhost';
 $dbname = 'gasmaske_db';
 $usuario = 'root';

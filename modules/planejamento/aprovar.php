@@ -127,7 +127,7 @@ require_once '../../includes/layout/header.php';
         <?php endif; ?>
         
         <div style="text-align: center; margin-top: 20px;">
-            <a href="/gasmaske/index.php" style="color: #007bff; text-decoration: none;">Voltar ao Dashboard</a>
+            <a href="<?= BASE_URL ?>index.php" style="color: #007bff; text-decoration: none;">Voltar ao Dashboard</a>
         </div>
     </div>
 </div>

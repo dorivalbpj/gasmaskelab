@@ -21,7 +21,7 @@ require_once '../../includes/layout/sidebar.php';
         <h2 class="page-title">Contratos</h2>
         <p class="page-subtitle">Gestão de acordos, assinaturas e status financeiros.</p>
     </div>
-    <a href="form.php" class="btn btn-primary"><i class="ph ph-plus"></i> Novo Contrato</a>
+    <a href="<?= BASE_URL ?>modules/contratos/form.php" class="btn btn-primary"><i class="ph ph-plus"></i> Novo Contrato</a>
 </div>
 
 <div class="card">
@@ -105,11 +105,11 @@ require_once '../../includes/layout/sidebar.php';
                         </td>
                         <td class="text-center">
                             <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
-                                <a href="detalhes.php?id=<?= $c['id'] ?>" class="btn btn-secondary btn--sm" style="padding: 6px 10px;" title="Ver Detalhes e Ações">
+                                <a href="<?= BASE_URL ?>modules/contratos/detalhes.php?id=<?= $c['id'] ?>" class="btn btn-secondary btn--sm" style="padding: 6px 10px;" title="Ver Detalhes e Ações">
                                     <i class="ph ph-eye" style="font-size: 18px;"></i>
                                 </a>
                                 
-                                <a href="form.php?id=<?= $c['id'] ?>" class="btn btn-ghost btn--sm" style="padding: 6px 10px;" title="Editar Contrato">
+                                <a href="<?= BASE_URL ?>modules/contratos/form.php?id=<?= $c['id'] ?>" class="btn btn-ghost btn--sm" style="padding: 6px 10px;" title="Editar Contrato">
                                     <i class="ph ph-pencil-simple" style="font-size: 18px;"></i>
                                 </a>
                             </div>

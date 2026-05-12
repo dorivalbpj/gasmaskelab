@@ -13,7 +13,7 @@ function isLogado() {
 function requireLogin() {
     if (!isLogado()) {
         // Se não estiver logado, manda de volta pra tela de login
-        header("Location: /gasmaske/login.php");
+        header("Location: " . BASE_URL . "login.php");
         exit;
     }
 }

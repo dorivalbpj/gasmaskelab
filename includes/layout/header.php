@@ -14,7 +14,7 @@
     
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     
-    <link rel="stylesheet" href="/gasmaske/assets/css/style.css">
+    <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css">
     
     <style>
         body { font-family: 'Inter', var(--font); }
