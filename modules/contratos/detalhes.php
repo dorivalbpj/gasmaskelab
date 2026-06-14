@@ -42,9 +42,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $acao = $_POST['acao'] ?? '';
     
     try {
+        // Valida se o usuário ainda existe na tabela
+        $stmt_user = $pdo->prepare("SELECT id FROM usuarios WHERE id = ?");
+        $stmt_user->execute([$_SESSION['usuario_id']]);
+        $usuario_existe = $stmt_user->fetch();
+        
+        // Se o usuário não existe, usa NULL no log
+        $usuario_id_log = $usuario_existe ? $_SESSION['usuario_id'] : null;
+        
         if ($acao == 'enviar_cliente' && $contrato['status'] == 'rascunho') {
             $pdo->prepare("UPDATE contratos SET status = 'aguardando_aceite_cliente' WHERE id = ?")->execute([$id]);
-            $pdo->prepare("INSERT INTO contrato_log (contrato_id, usuario_id, descricao) VALUES (?, ?, 'Contrato enviado para o cliente.')")->execute([$id, $_SESSION['usuario_id']]);
+            $pdo->prepare("INSERT INTO contrato_log (contrato_id, usuario_id, descricao) VALUES (?, ?, 'Contrato enviado para o cliente.')")->execute([$id, $usuario_id_log]);
             $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Link liberado! O cliente já pode acessar e assinar.</div>";
             $contrato['status'] = 'aguardando_aceite_cliente';
             
@@ -95,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $stmt_parcela->execute([$id, $desc, $valor_parcela, $vencimento, 'pendente', null]);
                 }
             }
-            $pdo->prepare("INSERT INTO contrato_log (contrato_id, usuario_id, descricao) VALUES (?, ?, ?)")->execute([$id, $_SESSION['usuario_id'], "Pagamento confirmado$msg_drive."]);
+            $pdo->prepare("INSERT INTO contrato_log (contrato_id, usuario_id, descricao) VALUES (?, ?, ?)")->execute([$id, $usuario_id_log, "Pagamento confirmado$msg_drive."]);
             $pdo->commit();
             
             $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Pagamento confirmado! Contrato ativo$msg_drive.</div>";

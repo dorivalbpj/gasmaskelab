@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assinar_contrato']) &&
             try {
                 $pdo->beginTransaction();
                 $pdo->prepare("UPDATE contratos SET status = 'aguardando_pagamento', cpf_cnpj_aceite = ?, aceito_em = NOW(), aceito_ip = ? WHERE id = ?")->execute([$cpf_cnpj, $ip, $contrato['id']]);
-                $pdo->prepare("INSERT INTO contrato_log (contrato_id, descricao) VALUES (?, ?)")->execute([$contrato['id'], "Contrato assinado digitalmente. Doc: $cpf_cnpj | IP: $ip"]);
+                $pdo->prepare("INSERT INTO contrato_log (contrato_id, usuario_id, descricao) VALUES (?, NULL, ?)")->execute([$contrato['id'], "Contrato assinado digitalmente. Doc: $cpf_cnpj | IP: $ip"]);
                 $pdo->prepare("UPDATE clientes SET cpf_cnpj = ?, endereco_completo = ? WHERE id = ?")->execute([$cpf_cnpj, $endereco_completo, $contrato['cliente_id']]);
                 $pdo->prepare("DELETE FROM parcelas WHERE contrato_id = ?")->execute([$contrato['id']]);
 

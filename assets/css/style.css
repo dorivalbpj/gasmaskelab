@@ -1005,6 +1005,183 @@ table tbody td {
 .task-premium-meta  { font-size: 11px; color: var(--text-3); }
 
 /* ===========================================
+   ALERTAS URGENTES (DASHBOARD)
+   =========================================== */
+.urgent-alerts-panel {
+    background: var(--bg-surface);
+    border: 1px solid var(--red-border);
+    border-radius: var(--r-lg);
+    margin-bottom: 24px;
+    overflow: hidden;
+}
+
+.urgent-header {
+    background: rgba(255, 63, 52, 0.08);
+    padding: 12px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--red);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--red-border);
+}
+
+.urgent-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.urgent-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    text-decoration: none;
+    color: var(--text);
+    transition: background 0.15s;
+}
+
+.urgent-item:last-child {
+    border-bottom: none;
+}
+
+.urgent-item:hover {
+    background: var(--bg-hover);
+    opacity: 1;
+}
+
+.urgent-icon {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.urgent-text {
+    flex: 1;
+    font-size: 13px;
+}
+
+.urgent-item i.ph-arrow-right {
+    color: var(--text-3);
+    transition: transform 0.15s, color 0.15s;
+}
+
+.urgent-item:hover i.ph-arrow-right {
+    transform: translateX(3px);
+    color: var(--text);
+}
+
+/* ===========================================
+   DASHBOARD - CARDS CLICÁVEIS E GRID
+   =========================================== */
+a.metric-premium-card.clickable {
+    text-decoration: none;
+    display: block;
+    cursor: pointer;
+}
+
+a.metric-premium-card.clickable:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-mid);
+    transform: translateY(-2px);
+}
+
+.dashboard-row-2 {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+/* PIPELINE */
+.panel-pipeline, .panel-financeiro {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 20px;
+}
+
+.pipeline-grid {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-mid);
+    padding: 16px;
+    border-radius: var(--r-md);
+}
+
+.pipe-stage {
+    flex: 1;
+    text-align: center;
+    text-decoration: none;
+    padding: 12px 5px;
+    border-radius: var(--r-sm);
+    transition: background 0.15s;
+}
+
+.pipe-stage:hover {
+    background: var(--bg-hover);
+    opacity: 1;
+}
+
+.pipe-count {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+    line-height: 1;
+}
+
+.pipe-name {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-2);
+}
+
+.pipe-stage.stage-warning .pipe-count { color: var(--yellow); }
+.pipe-stage.stage-success .pipe-count { color: var(--green); }
+
+.pipe-arrow {
+    color: var(--text-3);
+    font-size: 20px;
+}
+
+/* FINANCEIRO */
+.financeiro-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.fin-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    background: var(--bg-elevated);
+    border-radius: var(--r-md);
+    border: 1px solid var(--border-mid);
+}
+
+.fin-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-2);
+}
+
+.fin-item strong {
+    font-size: 15px;
+}
+
+/* ===========================================
    DASHBOARD — CLIENTE
    =========================================== */
 
@@ -1395,6 +1572,19 @@ table tbody td {
 
     .logo-h { max-width: 130px; }
     .logo-v { width: 90px; }
+
+    .dashboard-row-2 {
+        grid-template-columns: 1fr;
+    }
+    .pipeline-grid {
+        flex-direction: column;
+        gap: 0;
+    }
+    .pipe-arrow {
+        transform: rotate(90deg);
+        margin: 5px 0;
+    }
+    .pipe-stage { width: 100%; }
 }
 
 @media (max-width: 480px) {

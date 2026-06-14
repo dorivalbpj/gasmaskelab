@@ -9,11 +9,33 @@ requireLogin();
 
 if (isAdmin()) {
     // --- VISÃO DO ADMIN ---
+    
+    // Alertas Urgentes
+    $stmt_faturas_atrasadas = $pdo->query("SELECT COUNT(*) as qtd, SUM(valor) as total FROM parcelas WHERE status = 'atrasado'");
+    $faturas_atrasadas = $stmt_faturas_atrasadas->fetch();
+    
+    $stmt_propostas_paradas = $pdo->query("SELECT COUNT(*) as total FROM propostas WHERE status IN ('rascunho', 'enviada')");
+    $propostas_paradas = $stmt_propostas_paradas->fetch()['total'];
+
     $stmt_briefings = $pdo->query("SELECT COUNT(*) as total FROM briefings WHERE status = 'novo'");
     $briefings_novos = $stmt_briefings->fetch()['total'];
 
-    $stmt_propostas_paradas = $pdo->query("SELECT COUNT(*) as total FROM propostas WHERE status IN ('rascunho', 'enviada')");
-    $propostas_paradas = $stmt_propostas_paradas->fetch()['total'];
+    // Pipeline
+    $stmt_pipe_plan = $pdo->query("SELECT COUNT(*) as qtd FROM planejamento WHERE status_geral IN ('roteiro_em_producao', 'roteiro_em_revisao')");
+    $pipe_plan = $stmt_pipe_plan->fetch()['qtd'];
+
+    $stmt_pipe_prod = $pdo->query("SELECT COUNT(*) as qtd FROM planejamento WHERE status_geral IN ('peca_em_producao', 'peca_em_revisao')");
+    $pipe_prod = $stmt_pipe_prod->fetch()['qtd'];
+
+    $stmt_pipe_aprov = $pdo->query("SELECT COUNT(*) as qtd FROM planejamento WHERE status_geral IN ('roteiro_aguardando_aprovacao', 'peca_aguardando_aprovacao')");
+    $pipe_aprov = $stmt_pipe_aprov->fetch()['qtd'];
+
+    $stmt_pipe_pronto = $pdo->query("SELECT COUNT(*) as qtd FROM planejamento WHERE status_geral = 'pronto_para_postar'");
+    $pipe_pronto = $stmt_pipe_pronto->fetch()['qtd'];
+
+    // Métricas Gerais
+    $stmt_clientes_ativos = $pdo->query("SELECT COUNT(DISTINCT cliente_id) as qtd FROM contratos WHERE status = 'em_andamento'");
+    $clientes_ativos = $stmt_clientes_ativos->fetch()['qtd'];
 
     $stmt_tarefas = $pdo->query("SELECT COUNT(*) as total FROM planejamento WHERE status_geral != 'finalizado'");
     $tarefas_pendentes = $stmt_tarefas->fetch()['total'];
@@ -24,6 +46,10 @@ if (isAdmin()) {
     $stmt_receita->execute([$mes_atual, $ano_atual]);
     $receita_mes = $stmt_receita->fetch()['total'] ?? 0;
 
+    $stmt_receber = $pdo->query("SELECT SUM(valor) as total FROM parcelas WHERE status = 'pendente'");
+    $receber_prazo = $stmt_receber->fetch()['total'] ?? 0;
+
+    // Feed de últimas atividades
     $stmt_urgentes = $pdo->query("SELECT p.*, cli.nome as cliente_nome
                                   FROM planejamento p
                                   JOIN contratos c ON p.contrato_id = c.id
@@ -84,90 +110,136 @@ require_once 'includes/layout/sidebar.php';
     <!-- Saudação -->
     <div class="greeting-premium">
         <h1>Olá, <?= htmlspecialchars($_SESSION['usuario_nome']) ?>.</h1>
-        <p><?= isAdmin() ? 'Panorama geral da sua agência.' : 'Bem-vindo ao seu portal corporativo.' ?></p>
+        <p><?= isAdmin() ? 'Central de Comando e Operações.' : 'Bem-vindo ao seu portal corporativo.' ?></p>
     </div>
 
     <?php if (isAdmin()): ?>
 
-        <!-- Métricas em grid compacto - COM NOTIFICAÇÕES EMBUTIDAS -->
+        <?php if ($faturas_atrasadas['qtd'] > 0 || $propostas_paradas > 0 || $briefings_novos > 0): ?>
+            <!-- Central de Alertas Urgentes -->
+            <div class="urgent-alerts-panel">
+                <div class="urgent-header">
+                    <i class="ph-fill ph-warning-circle"></i> Requer sua Atenção
+                </div>
+                <div class="urgent-list">
+                    <?php if ($faturas_atrasadas['qtd'] > 0): ?>
+                        <a href="modules/financeiro/index.php" class="urgent-item alert-red">
+                            <span class="urgent-icon">🔴</span>
+                            <span class="urgent-text"><strong><?= $faturas_atrasadas['qtd'] ?> Fatura(s) atrasada(s)</strong> (Total: <?= money($faturas_atrasadas['total']) ?>)</span>
+                            <i class="ph ph-arrow-right"></i>
+                        </a>
+                    <?php endif; ?>
+                    <?php if ($propostas_paradas > 0): ?>
+                        <a href="modules/propostas/index.php" class="urgent-item alert-yellow">
+                            <span class="urgent-icon">🟡</span>
+                            <span class="urgent-text"><strong><?= $propostas_paradas ?> Proposta(s)</strong> parada(s) aguardando envio/ação</span>
+                            <i class="ph ph-arrow-right"></i>
+                        </a>
+                    <?php endif; ?>
+                    <?php if ($briefings_novos > 0): ?>
+                        <a href="modules/briefing/index.php" class="urgent-item alert-green">
+                            <span class="urgent-icon">🟢</span>
+                            <span class="urgent-text"><strong><?= $briefings_novos ?> Novo(s) Briefing(s)</strong> aguardando proposta</span>
+                            <i class="ph ph-arrow-right"></i>
+                        </a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Métricas Principais (Botões Gigantes) -->
         <div class="metrics-premium-grid">
-            
-            <!-- Briefings Novos - Card VERDE com badge -->
-            <div class="metric-premium-card">
-                <?php if ($briefings_novos > 0): ?>
-                    <span class="metric-notification-badge">+<?= $briefings_novos ?> novo(s)</span>
-                <?php endif; ?>
-                <div class="metric-premium-icon" style="color: var(--green);">
-                    <i class="ph-fill ph-envelope-open"></i>
-                </div>
-                <div class="metric-premium-value"><?= $briefings_novos ?></div>
-                <div class="metric-premium-label">Briefings Novos</div>
-                <a href="/gasmaske/modules/briefing/index.php" class="metric-premium-link">→</a>
-            </div>
-
-            <!-- Propostas Paradas - Card LARANJA/AMARELO com badge -->
-            <div class="metric-premium-card">
-                <?php if ($propostas_paradas > 0): ?>
-                    <span class="metric-notification-badge warning">+<?= $propostas_paradas ?> parada(s)</span>
-                <?php endif; ?>
-                <div class="metric-premium-icon" style="color: var(--yellow);">
-                    <i class="ph-fill ph-clock"></i>
-                </div>
-                <div class="metric-premium-value"><?= $propostas_paradas ?></div>
-                <div class="metric-premium-label">Propostas Paradas</div>
-                <a href="/gasmaske/modules/propostas/index.php" class="metric-premium-link">→</a>
-            </div>
-
-            <!-- Tarefas Pendentes -->
-            <div class="metric-premium-card">
-                <div class="metric-premium-icon" style="color: var(--red);">
-                    <i class="ph-fill ph-kanban"></i>
-                </div>
-                <div class="metric-premium-value"><?= $tarefas_pendentes ?></div>
-                <div class="metric-premium-label">Tarefas Pendentes</div>
-                <a href="/gasmaske/modules/planejamento/index.php" class="metric-premium-link">→</a>
-            </div>
-
-            <!-- Receita do Mês -->
-            <div class="metric-premium-card">
+            <a href="modules/financeiro/index.php" class="metric-premium-card clickable">
                 <div class="metric-premium-icon" style="color: var(--blue);">
                     <i class="ph-fill ph-currency-dollar"></i>
                 </div>
                 <div class="metric-premium-value"><?= money($receita_mes) ?></div>
-                <div class="metric-premium-label">Receita do Mês</div>
-                <a href="/gasmaske/modules/financeiro/index.php" class="metric-premium-link">→</a>
+                <div class="metric-premium-label">Receita no Mês</div>
+            </a>
+
+            <a href="modules/contratos/index.php" class="metric-premium-card clickable">
+                <div class="metric-premium-icon" style="color: var(--purple);">
+                    <i class="ph-fill ph-handshake"></i>
+                </div>
+                <div class="metric-premium-value"><?= $clientes_ativos ?></div>
+                <div class="metric-premium-label">Contratos Ativos</div>
+            </a>
+
+            <a href="modules/planejamento/index.php" class="metric-premium-card clickable">
+                <div class="metric-premium-icon" style="color: var(--red);">
+                    <i class="ph-fill ph-kanban"></i>
+                </div>
+                <div class="metric-premium-value"><?= $tarefas_pendentes ?></div>
+                <div class="metric-premium-label">Tarefas Ativas</div>
+            </a>
+
+            <a href="modules/propostas/index.php" class="metric-premium-card clickable">
+                <div class="metric-premium-icon" style="color: var(--yellow);">
+                    <i class="ph-fill ph-file-text"></i>
+                </div>
+                <div class="metric-premium-value"><?= $propostas_paradas ?></div>
+                <div class="metric-premium-label">Propostas Abertas</div>
+            </a>
+        </div>
+
+        <div class="dashboard-row-2">
+            <!-- Pipeline de Produção -->
+            <div class="panel-pipeline">
+                <div class="section-premium-title">
+                    <i class="ph-fill ph-funnel"></i> Status do Pipeline
+                </div>
+                <div class="pipeline-grid">
+                    <a href="modules/planejamento/index.php" class="pipe-stage">
+                        <div class="pipe-count"><?= $pipe_plan ?></div>
+                        <div class="pipe-name">Planejamento</div>
+                    </a>
+                    <div class="pipe-arrow"><i class="ph ph-caret-right"></i></div>
+                    <a href="modules/planejamento/index.php" class="pipe-stage">
+                        <div class="pipe-count"><?= $pipe_prod ?></div>
+                        <div class="pipe-name">Em Produção</div>
+                    </a>
+                    <div class="pipe-arrow"><i class="ph ph-caret-right"></i></div>
+                    <a href="modules/planejamento/index.php" class="pipe-stage stage-warning">
+                        <div class="pipe-count"><?= $pipe_aprov ?></div>
+                        <div class="pipe-name">Aprovação</div>
+                    </a>
+                    <div class="pipe-arrow"><i class="ph ph-caret-right"></i></div>
+                    <a href="modules/planejamento/index.php" class="pipe-stage stage-success">
+                        <div class="pipe-count"><?= $pipe_pronto ?></div>
+                        <div class="pipe-name">Pronto</div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Radar Financeiro Prático -->
+            <div class="panel-financeiro">
+                <div class="section-premium-title">
+                    <i class="ph-fill ph-chart-polar"></i> Radar Financeiro
+                </div>
+                <div class="financeiro-list">
+                    <div class="fin-item">
+                        <div class="fin-info">
+                            <i class="ph-fill ph-check-circle" style="color: var(--green);"></i> Valor Recebido
+                        </div>
+                        <strong style="color: var(--green);"><?= money($receita_mes) ?></strong>
+                    </div>
+                    <div class="fin-item">
+                        <div class="fin-info">
+                            <i class="ph-fill ph-clock" style="color: var(--blue);"></i> A Receber (Prazo)
+                        </div>
+                        <strong style="color: var(--blue);"><?= money($receber_prazo) ?></strong>
+                    </div>
+                    <div class="fin-item">
+                        <div class="fin-info">
+                            <i class="ph-fill ph-warning-circle" style="color: var(--red);"></i> Valor Atrasado
+                        </div>
+                        <strong style="color: var(--red);"><?= money($faturas_atrasadas['total']) ?></strong>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- Acesso Rápido (estilo QUADRADO com ícone e texto) -->
-<div class="section-premium-title">
-    <i class="ph-fill ph-lightning"></i> Acesso Rápido
-</div>
-<div class="quick-premium-grid">
-    <a href="modules/propostas/form.php" class="quick-premium-item">
-        <i class="ph-file-text"></i> Nova Proposta
-    </a>
-    <a href="modules/contratos/form.php" class="quick-premium-item">
-        <i class="ph-handshake"></i> Gerar Contrato
-    </a>
-    <a href="publico/briefing.php" target="_blank" class="quick-premium-item">
-        <i class="ph-link"></i> Link Briefing
-    </a>
-    <a href="modules/planejamento/index.php" class="quick-premium-item">
-        <i class="ph-kanban"></i> Master Task
-    </a>
-    <a href="modules/clientes/index.php" class="quick-premium-item">
-        <i class="ph-users"></i> Clientes
-    </a>
-    <a href="modules/financeiro/index.php" class="quick-premium-item">
-        <i class="ph-chart-line"></i> Financeiro
-    </a>
-    <a href="modules/equipe/servicos.php" class="quick-premium-item">
-        <i class="ph-gear"></i> Configurações
-    </a>
-</div>
-
-        <!-- Últimas Tarefas - Lista Clean -->
+        <!-- Últimas Atividades -->
         <div class="tasks-premium-list">
             <div class="tasks-premium-header">
                 <i class="ph-list"></i> Últimas Tarefas Movimentadas
