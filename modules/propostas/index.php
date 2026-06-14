@@ -108,22 +108,29 @@ require_once '../../includes/layout/sidebar.php';
                         <td class="text-center">
                             <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
                                 
-                                <?php if ($p['status'] == 'aceita' && !empty($p['contrato_id'])): ?>
-                                    <a href="../contratos/detalhes.php?id=<?= $p['contrato_id'] ?>" 
-                                       class="btn btn-ghost btn--sm" 
-                                       style="color: var(--purple); border-color: rgba(168, 85, 247, 0.2); background: rgba(168, 85, 247, 0.05); padding: 6px 10px;" 
-                                       title="Ver Contrato Gerado">
-                                        <i class="ph ph-scroll" style="font-size: 18px;"></i>
-                                    </a>
+                                <?php if ($p['status'] == 'aceita'): ?>
+                                    <?php if (!empty($p['contrato_id'])): ?>
+                                        <a href="../contratos/detalhes.php?id=<?= $p['contrato_id'] ?>" 
+                                           class="btn btn-ghost btn--sm btn-icon-table btn-icon-purple" 
+                                           title="Ver Contrato Gerado">
+                                            <i class="ph ph-scroll"></i>
+                                        </a>
+                                    <?php else: ?>
+                                        <a href="../contratos/form.php?proposta_id=<?= $p['id'] ?>" 
+                                           class="btn btn-ghost btn--sm btn-icon-table btn-icon-green" 
+                                           title="Gerar Contrato">
+                                            <i class="ph ph-file-text"></i>
+                                        </a>
+                                    <?php endif; ?>
                                 <?php endif; ?>
 
-                                <a href="form.php?id=<?= $p['id'] ?>" class="btn btn-secondary btn--sm" style="padding: 6px 10px;" title="Editar Proposta">
-                                    <i class="ph ph-pencil-simple" style="font-size: 18px;"></i>
+                                <a href="form.php?id=<?= $p['id'] ?>" class="btn btn-secondary btn--sm btn-icon-table" title="Editar Proposta">
+                                    <i class="ph ph-pencil-simple"></i>
                                 </a>
                                 
                                 <?php if($p['status'] == 'enviada' || $p['status'] == 'rascunho'): ?>
-                                    <button type="button" class="btn btn-ghost btn--sm" onclick="copiarMensagemWpp('<?= addslashes($p['cliente_nome']) ?>', '<?= addslashes($p['titulo']) ?>', '<?= $link_completo ?>', this)" style="color: #25D366; border-color: rgba(37, 211, 102, 0.2); background: rgba(37, 211, 102, 0.05); padding: 6px 10px;" title="Copiar mensagem para WhatsApp">
-                                        <i class="ph ph-whatsapp-logo" style="font-size: 18px;"></i>
+                                    <button type="button" class="btn btn-ghost btn--sm btn-icon-table btn-icon-wpp" onclick="copiarMensagemWpp('<?= addslashes($p['cliente_nome']) ?>', '<?= addslashes($p['titulo']) ?>', '<?= $link_completo ?>', this)" title="Copiar mensagem para WhatsApp">
+                                        <i class="ph ph-whatsapp-logo"></i>
                                     </button>
                                 <?php endif; ?>
 
@@ -154,8 +161,8 @@ function copiarMensagemWpp(nome, titulo, link, btn) {
     navigator.clipboard.writeText(msg).then(() => {
         const originalHTML = btn.innerHTML;
         // Muda para o ícone de sucesso mantendo o formato do botão quadrado
-        btn.innerHTML = '<i class="ph-fill ph-check-circle" style="font-size: 18px;"></i>';
-        btn.style.background = 'rgba(37, 211, 102, 0.2)';
+        btn.innerHTML = '<i class="ph-fill ph-check-circle"></i>';
+        btn.style.background = 'rgba(37, 211, 102, 0.15)';
         
         setTimeout(() => {
             btn.innerHTML = originalHTML;

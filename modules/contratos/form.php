@@ -17,24 +17,23 @@ $contrato = [
 ];
 $mensagem = '';
 
-// Puxa dados da proposta (se vier dela)
+// 1. Puxa dados da proposta e verifica se JÁ EXISTE contrato gerado para ela
 if ($proposta_id && !$id) {
     $stmt_prop = $pdo->prepare("SELECT p.* FROM propostas p WHERE p.id = ?");
     $stmt_prop->execute([$proposta_id]);
     $dados_proposta = $stmt_prop->fetch();
     if ($dados_proposta) {
-        $contrato['cliente_id'] = $dados_proposta['cliente_id'];
-        $contrato['valor'] = $dados_proposta['valor'];
-        $contrato['duracao_meses'] = $dados_proposta['duracao_meses'];
+        if (!empty($dados_proposta['contrato_id'])) {
+            $id = $dados_proposta['contrato_id'];
+        } else {
+            $contrato['cliente_id'] = $dados_proposta['cliente_id'];
+            $contrato['valor'] = $dados_proposta['valor'];
+            $contrato['duracao_meses'] = $dados_proposta['duracao_meses'];
+        }
     }
-} elseif ($id) {
-    $stmt = $pdo->prepare("SELECT * FROM contratos WHERE id = ?");
-    $stmt->execute([$id]);
-    $res = $stmt->fetch();
-    if ($res) $contrato = array_merge($contrato, $res);
 }
 
-// Salvamento
+// 2. Salvamento
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['salvar_contrato'])) {
     $cliente_id = $_POST['cliente_id'] ?? '';
     $valor = str_replace(',', '.', $_POST['valor'] ?? 0);
@@ -55,15 +54,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['salvar_contrato'])) {
             $codigo_agc = "CTR-" . str_pad($id, 3, '0', STR_PAD_LEFT);
             $pdo->prepare("UPDATE contratos SET codigo_agc = ? WHERE id = ?")->execute([$codigo_agc, $id]);
             $contrato['codigo_agc'] = $codigo_agc;
+            
+            // Vincula o ID do contrato na proposta para não criar duplicado futuramente
+            if ($proposta_id) {
+                $pdo->prepare("UPDATE propostas SET contrato_id = ? WHERE id = ?")->execute([$id, $proposta_id]);
+            }
+            
             $mensagem = "<div class='alert alert-success'><i class='ph ph-check-circle'></i> Novo contrato gerado!</div>";
         }
-        $stmt = $pdo->prepare("SELECT * FROM contratos WHERE id = ?");
-        $stmt->execute([$id]);
-        $res = $stmt->fetch();
-        if ($res) $contrato = array_merge($contrato, $res);
     } catch (Exception $e) {
         $mensagem = "<div class='alert alert-danger'>Erro: " . $e->getMessage() . "</div>";
     }
+}
+
+// 3. Puxa os dados atualizados do contrato (se já existir um ID)
+if ($id) {
+    $stmt = $pdo->prepare("SELECT * FROM contratos WHERE id = ?");
+    $stmt->execute([$id]);
+    $res = $stmt->fetch();
+    if ($res) $contrato = array_merge($contrato, $res);
 }
 
 $clientes = $pdo->query("SELECT id, nome FROM clientes ORDER BY nome ASC")->fetchAll();
@@ -228,6 +237,8 @@ async function redigirContratoIA() {
         const formData = new FormData();
         formData.append('proposta_id', propostaId);
         formData.append('cliente_id', clienteId); // Envia o cliente caso não tenha proposta!
+        formData.append('valor', document.querySelector('input[name="valor"]').value);
+        formData.append('duracao_meses', document.querySelector('input[name="duracao_meses"]').value);
         
         const res = await fetch('gerar_contrato_ia.php', { method: 'POST', body: formData });
         const data = await res.json();

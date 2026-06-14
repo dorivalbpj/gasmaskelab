@@ -428,6 +428,25 @@ a:hover { opacity: .75; }
 .btn--sm { padding: 5px 11px; font-size: 12px; }
 .btn-h44 { height: 44px; } /* alinha com os inputs nos filtros */
 
+/* Botões apenas com ícone (Tabelas) */
+.btn-icon-table { padding: 6px 10px; }
+.btn-icon-table i { font-size: 18px; }
+.btn-icon-purple {
+    color: var(--purple);
+    border-color: rgba(167, 139, 250, 0.2);
+    background: rgba(167, 139, 250, 0.05);
+}
+.btn-icon-green {
+    color: var(--green);
+    border-color: rgba(34, 197, 94, 0.2);
+    background: rgba(34, 197, 94, 0.05);
+}
+.btn-icon-wpp {
+    color: #25D366;
+    border-color: rgba(37, 211, 102, 0.2);
+    background: rgba(37, 211, 102, 0.05);
+}
+
 /* ===========================================
    FORMULÁRIOS
    =========================================== */

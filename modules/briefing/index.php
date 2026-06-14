@@ -53,6 +53,7 @@ require_once '../../includes/layout/sidebar.php';
                 <option value="">Todos</option>
                 <option value="novo">Novo</option>
                 <option value="proposta_criada">Proposta Criada</option>
+                <option value="proposta_aceita">Proposta Aceita</option>
             </select>
         </div>
         <div>
@@ -100,12 +101,33 @@ require_once '../../includes/layout/sidebar.php';
                         <td class="text-center">
                             <?php if($b['status'] == 'novo'): ?>
                                 <span class="badge badge-blue">Novo</span>
-                            <?php else: ?>
+                            <?php elseif($b['status'] == 'proposta_criada'): ?>
                                 <span class="badge badge-green">Proposta Criada</span>
+                            <?php elseif($b['status'] == 'proposta_aceita'): ?>
+                                <span class="badge badge-purple">Proposta Aceita</span>
+                            <?php else: ?>
+                                <span class="badge badge-gray"><?= htmlspecialchars($b['status']) ?></span>
                             <?php endif; ?>
                         </td>
                         <td class="text-center">
-                            <a href="ver.php?id=<?= $b['id'] ?>" class="btn btn-secondary btn--sm">Ver Detalhes</a>
+                            <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+                                <a href="ver.php?id=<?= $b['id'] ?>" class="btn btn-secondary btn--sm btn-icon-table" title="Ver Detalhes">
+                                    <i class="ph ph-eye"></i>
+                                </a>
+                                
+                                <?php if($b['status'] == 'novo'): ?>
+                                    <form method="POST" action="ver.php?id=<?= $b['id'] ?>" style="margin: 0;" onsubmit="return confirm('Deseja gerar uma proposta automática para este briefing?');">
+                                        <input type="hidden" name="acao" value="gerar_proposta">
+                                        <button type="submit" class="btn btn-ghost btn--sm btn-icon-table btn-icon-purple" title="Gerar Proposta Automática">
+                                            <i class="ph ph-magic-wand"></i>
+                                        </button>
+                                    </form>
+                                <?php elseif($b['status'] == 'proposta_aceita'): ?>
+                                    <a href="../propostas/index.php" class="btn btn-ghost btn--sm btn-icon-table btn-icon-green" title="Ir para Propostas">
+                                        <i class="ph ph-folder-open"></i>
+                                    </a>
+                                <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                     <?php endforeach; ?>

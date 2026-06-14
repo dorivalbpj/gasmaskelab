@@ -103,13 +103,15 @@ require_once '../../includes/layout/sidebar.php';
     </div>
     
     <div style="display: flex; gap: 12px;">
-        <?php if ($briefing['status'] != 'proposta_criada'): ?>
+        <?php if ($briefing['status'] == 'novo'): ?>
         <form method="POST" style="margin: 0;">
             <input type="hidden" name="acao" value="gerar_proposta">
             <button type="submit" class="btn btn-primary">
                 <i class="ph ph-magic-wand"></i> Gerar Proposta Automática
             </button>
         </form>
+        <?php elseif ($briefing['status'] == 'proposta_aceita'): ?>
+            <span class="badge badge-purple" style="font-size: 14px; padding: 10px 15px;"><i class="ph-fill ph-check-circle"></i> Proposta Aceita</span>
         <?php else: ?>
             <span class="badge badge-green" style="font-size: 14px; padding: 10px 15px;"><i class="ph-fill ph-check-circle"></i> Proposta já gerada</span>
         <?php endif; ?>

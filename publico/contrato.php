@@ -434,7 +434,13 @@ if ($contrato['status'] == 'aguardando_pagamento') {
             const enderecoCompleto = `${rua}, Nº ${num}${comp ? ' ('+comp+')' : ''} — ${bai}. ${cid} — ${uf}. CEP: ${cep}`;
 
             let textoRefletido = textoBase;
-            if (textoRefletido.includes("CONTRATANTE")) {
+            if (textoRefletido.includes("Será preenchido na assinatura")) {
+                textoRefletido = textoRefletido.replace("Será preenchido na assinatura", doc);
+                textoRefletido = textoRefletido.replace("Será preenchido na assinatura", enderecoCompleto);
+                const dataHora = new Date().toLocaleString('pt-BR');
+                textoRefletido = textoRefletido.replace("{{SISTEMA_DATA_HORA}}", dataHora);
+                textoRefletido = textoRefletido.replace("{{SISTEMA_IP}}", "<?= $_SERVER['REMOTE_ADDR'] ?>");
+            } else if (textoRefletido.includes("CONTRATANTE")) {
                 textoRefletido = textoRefletido.replace("CONTRATANTE", "CONTRATANTE\nDocumento: " + doc + "\nEndereço: " + enderecoCompleto);
             } else {
                 textoRefletido = "DADOS DO CONTRATANTE:\nDocumento: " + doc + "\nEndereço: " + enderecoCompleto + "\n\n" + textoRefletido;
