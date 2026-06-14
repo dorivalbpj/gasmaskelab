@@ -41,9 +41,29 @@ $current_page = basename($_SERVER['PHP_SELF']);
         
         <?php if (isAdmin()): ?>
             <div class="sidebar-section-label">Gestão</div>
-            <a href="<?= BASE_URL ?>modules/financeiro/index.php" class="<?= ($current_dir == 'financeiro') ? 'active' : '' ?>">
-                <i class="ph ph-currency-dollar" style="font-size: 18px;"></i> Financeiro
-            </a>
+            <div class="sidebar-submenu-wrapper <?= ($current_dir == 'financeiro') ? 'open' : '' ?>">
+                <div class="sidebar-submenu-trigger <?= ($current_dir == 'financeiro') ? 'active' : '' ?>" onclick="toggleSubmenu(this)">
+                    <i class="ph ph-currency-dollar" style="font-size: 18px;"></i> Financeiro
+                    <i class="ph ph-caret-down sidebar-caret" style="font-size: 12px; margin-left: auto;"></i>
+                </div>
+                <div class="sidebar-submenu">
+                    <a href="<?= BASE_URL ?>modules/financeiro/index.php" class="<?= ($current_page == 'index.php' && $current_dir == 'financeiro') ? 'active' : '' ?>">
+                        <i class="ph ph-arrow-down" style="font-size: 15px;"></i> Entradas
+                    </a>
+                    <a href="<?= BASE_URL ?>modules/financeiro/saidas.php" class="<?= ($current_page == 'saidas.php') ? 'active' : '' ?>">
+                        <i class="ph ph-arrow-up" style="font-size: 15px;"></i> Saídas
+                    </a>
+                    <a href="<?= BASE_URL ?>modules/financeiro/cartoes.php" class="<?= ($current_page == 'cartoes.php') ? 'active' : '' ?>">
+                        <i class="ph ph-credit-card" style="font-size: 15px;"></i> Cartões
+                    </a>
+                    <a href="<?= BASE_URL ?>modules/financeiro/recorrentes.php" class="<?= ($current_page == 'recorrentes.php') ? 'active' : '' ?>">
+                        <i class="ph ph-repeat" style="font-size: 15px;"></i> Recorrentes
+                    </a>
+                    <a href="<?= BASE_URL ?>modules/financeiro/fluxo.php" class="<?= ($current_page == 'fluxo.php') ? 'active' : '' ?>">
+                        <i class="ph ph-chart-line" style="font-size: 15px;"></i> Fluxo de Caixa
+                    </a>
+                </div>
+            </div>
             <a href="<?= BASE_URL ?>modules/equipe/servicos.php" class="<?= ($current_dir == 'equipe' || $current_dir == 'usuarios') ? 'active' : '' ?>">
                 <i class="ph ph-gear" style="font-size: 18px;"></i> Configurações
             </a>
@@ -80,3 +100,9 @@ $current_page = basename($_SERVER['PHP_SELF']);
         </div>
     </div>
     <div class="content-body">
+
+<script>
+function toggleSubmenu(el) {
+    el.parentElement.classList.toggle('open');
+}
+</script>

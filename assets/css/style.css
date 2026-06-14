@@ -167,6 +167,35 @@ a:hover { opacity: .75; }
     border-radius: 10px;
 }
 
+/* Submenu expansível do sidebar */
+.sidebar-submenu-wrapper .sidebar-submenu {
+    display: none;
+    padding-left: 16px;
+}
+.sidebar-submenu-wrapper.open .sidebar-submenu {
+    display: block;
+}
+.sidebar-submenu a {
+    font-size: 13px;
+    padding: 6px 12px;
+}
+.sidebar-submenu-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+    border-radius: 8px;
+    color: var(--text-2);
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.15s;
+}
+.sidebar-submenu-trigger:hover, .sidebar-submenu-trigger.active {
+    background: var(--bg-hover);
+    color: var(--text);
+}
+
 /* ===========================================
    LAYOUT PRINCIPAL
    =========================================== */
