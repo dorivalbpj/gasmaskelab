@@ -33,8 +33,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
             
             $pdo->prepare("UPDATE fin_lancamentos SET status = 'pago', data_pagamento = ? WHERE id = ?")
                 ->execute([$data_pagamento, $lancamento_id]);
-                
-            $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Lançamento pago com sucesso!</div>";
+            
+            header("Location: saidas.php?msg=sucesso");
+            exit;
             
         } elseif ($acao == 'excluir_lancamento') {
             $lancamento_id = $_POST['lancamento_id'] ?? 0;
@@ -51,11 +52,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
                 } else {
                     $pdo->prepare("DELETE FROM fin_lancamentos WHERE id = ?")->execute([$lancamento_id]);
                 }
-                $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Compra parcelada excluída completamente!</div>";
             } else {
                 $pdo->prepare("DELETE FROM fin_lancamentos WHERE id = ?")->execute([$lancamento_id]);
-                $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Lançamento excluído com sucesso!</div>";
             }
+            
+            header("Location: saidas.php?msg=sucesso");
+            exit;
         }
     } catch (Exception $e) {
         $mensagem = "<div class='alert alert-danger'><i class='ph-fill ph-warning-circle'></i> Erro: " . $e->getMessage() . "</div>";

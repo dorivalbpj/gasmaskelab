@@ -64,14 +64,10 @@ $stmt_l = $pdo->prepare("
 $stmt_l->execute([$id]);
 $lancamentos = $stmt_l->fetchAll();
 
-// Recalcula e sincroniza o total real da fatura dinamicamente
+// Calcula o total real da fatura
 $total_fatura = 0;
 foreach ($lancamentos as $l) {
     $total_fatura += (float)$l['valor'];
-}
-if ($total_fatura != $fatura['valor_total']) {
-    $pdo->prepare("UPDATE fin_faturas SET valor_total = ? WHERE id = ?")->execute([$total_fatura, $id]);
-    $fatura['valor_total'] = $total_fatura;
 }
 
 // Tradução do mês

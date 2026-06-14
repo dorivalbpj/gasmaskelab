@@ -92,7 +92,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
             
             $pdo->commit();
-            // O redirecionamento vai dar 404 até criarmos o saidas.php, mas a URL já está pronta!
             header("Location: saidas.php?msg=sucesso");
             exit;
             
@@ -102,9 +101,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $codigo_pagamento = trim($_POST['codigo_pagamento'] ?? '');
             $data_pagamento = ($status === 'pago') ? date('Y-m-d') : null;
             
-            $stmt = $pdo->prepare("INSERT INTO fin_lancamentos (descricao, valor, data_vencimento, data_pagamento, categoria_id, tipo, forma_pagamento, codigo_pagamento, status, observacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            // Calcula mes_referencia e ano_referencia
+            $mes_ref = (int)date('n', strtotime($data_vencimento));
+            $ano_ref = (int)date('Y', strtotime($data_vencimento));
+            
+            $stmt = $pdo->prepare("INSERT INTO fin_lancamentos (descricao, valor, data_vencimento, data_pagamento, categoria_id, tipo, forma_pagamento, codigo_pagamento, status, observacao, mes_referencia, ano_referencia) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([
-                $descricao, $valor, $data_vencimento, $data_pagamento, $categoria_id, $tipo, $forma_pagamento, $codigo_pagamento, $status, $observacao
+                $descricao, $valor, $data_vencimento, $data_pagamento, $categoria_id, $tipo, $forma_pagamento, $codigo_pagamento, $status, $observacao, $mes_ref, $ano_ref
             ]);
             
             $pdo->commit();
