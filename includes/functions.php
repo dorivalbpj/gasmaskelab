@@ -57,7 +57,3 @@ function gerarPayloadPix($chave, $valor, $nome, $cidade) {
     // Adiciona a trava matemática no final
     return $payload . '6304' . calcularCrc16($payload);
 }
-
-
-?>
-

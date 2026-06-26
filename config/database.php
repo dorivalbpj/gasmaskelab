@@ -6,10 +6,10 @@ if (!defined('BASE_URL')) {
     define('BASE_URL', (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . '/');
 }
 
-$host = 'localhost';
-$dbname = 'gasmaske_db';
-$usuario = 'root';
-$senha = ''; // No XAMPP, a senha do banco geralmente é vazia por padrão
+$host = 'banco_de_dados'; // Nome do serviço no docker-compose.yml
+$dbname = 'gasmaske_db';  // Nome do banco que está lá no seu phpMyAdmin
+$usuario = 'root';        // Usuário padrão configurado no Docker
+$senha = 'root';          // Senha configurada no Docker
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $usuario, $senha);
