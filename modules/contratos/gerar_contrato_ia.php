@@ -201,9 +201,15 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
 curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
 $response = curl_exec($ch);
+$err = curl_error($ch);
 curl_close($ch);
+
+if ($response === false || $err) {
+    echo json_encode(['erro' => 'Erro cURL: ' . ($err ?: 'Falha na requisiçã')]); 
+    exit;
+}
 
 $resArr = json_decode($response, true);
 $texto = $resArr['candidates'][0]['content']['parts'][0]['text'] ?? '';
