@@ -134,7 +134,7 @@ require_once '../../includes/layout/sidebar.php';
                     <button type="button" class="btn btn-secondary" style="flex: 1; justify-content: center;" onclick="abrirModalCartao(<?= $c['id'] ?>, '<?= addslashes(htmlspecialchars($c['nome'])) ?>', '<?= addslashes(htmlspecialchars($c['bandeira'])) ?>', <?= $c['limite'] ?>, <?= $c['dia_fechamento'] ?>, <?= $c['dia_vencimento'] ?>)">
                         <i class="ph ph-pencil-simple"></i> Editar
                     </button>
-                    <a href="javascript:alert('Filtro de faturas do cartão será implementado em breve! Por enquanto, use saidas.php para ver as transações.')" class="btn btn-primary" style="flex: 1; justify-content: center;">
+                    <a href="fatura.php?cartao_id=<?= $c['id'] ?>" class="btn btn-primary" style="flex: 1; justify-content: center;">
                         <i class="ph ph-file-text"></i> Ver Faturas
                     </a>
                 </div>

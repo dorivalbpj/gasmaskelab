@@ -83,6 +83,7 @@ if ($filtro_status) {
     $params[] = $filtro_status;
 }
 
+$where[] = "l.forma_pagamento != 'cartao'";
 $where_sql = implode(' AND ', $where);
 
 // --- CONSULTA PRINCIPAL ---
@@ -97,6 +98,43 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute($params);
 $lancamentos = $stmt->fetchAll();
+
+// --- INJETA AS FATURAS DO MÊS COMO LINHA ÚNICA ---
+$stmt_faturas = $pdo->prepare("
+    SELECT f.*, c.nome as cartao_nome, c.bandeira 
+    FROM fin_faturas f
+    JOIN fin_cartoes c ON f.cartao_id = c.id
+    WHERE YEAR(f.data_vencimento) = ? AND MONTH(f.data_vencimento) = ?
+");
+$stmt_faturas->execute([$ano_filtro, $mes_filtro]);
+$faturas_mes = $stmt_faturas->fetchAll();
+
+foreach ($faturas_mes as $fat) {
+    $stmt_tot = $pdo->prepare("SELECT SUM(valor) FROM fin_lancamentos WHERE fatura_id = ?");
+    $stmt_tot->execute([$fat['id']]);
+    $total = (float)$stmt_tot->fetchColumn();
+    
+    if ($total > 0) {
+        $status_fat = 'pendente';
+        if ($fat['status'] == 'paga') $status_fat = 'pago';
+        elseif (strtotime($fat['data_vencimento']) < strtotime(date('Y-m-d'))) $status_fat = 'atrasado';
+        
+        if ($filtro_status && $filtro_status != $status_fat) continue;
+        if ($filtro_tipo) continue; // Esconde faturas se filtrar ativamente por pessoal/empresa
+        
+        $lancamentos[] = [
+            'id' => 0, 'real_fatura_id' => $fat['id'], 'descricao' => 'Fatura ' . $fat['cartao_nome'],
+            'categoria_nome' => 'Cartão de Crédito', 'categoria_cor' => '#8b5cf6',
+            'data_vencimento' => $fat['data_vencimento'], 'data_pagamento' => $fat['data_pagamento'],
+            'valor' => $total, 'status' => $status_fat, 'tipo' => 'misto', 'forma_pagamento' => 'fatura',
+            'cartao_nome' => $fat['cartao_nome'], 'total_parcelas' => 1, 'parcela_atual' => 1, 'grupo_id' => null
+        ];
+    }
+}
+
+usort($lancamentos, function($a, $b) {
+    return strtotime($a['data_vencimento']) <=> strtotime($b['data_vencimento']);
+});
 
 // --- CÁLCULO DAS MÉTRICAS ---
 $total_pagar = 0;
@@ -246,7 +284,11 @@ require_once '../../includes/layout/sidebar.php';
                             <?php endif; ?>
                         </td>
                         <td class="text-center">
-                            <span class="badge <?= $l['tipo'] == 'empresa' ? 'badge-blue' : 'badge-gray' ?>"><?= strtoupper($l['tipo']) ?></span>
+                            <?php if ($l['forma_pagamento'] == 'fatura'): ?>
+                                <span class="badge badge-purple">MISTO</span>
+                            <?php else: ?>
+                                <span class="badge <?= $l['tipo'] == 'empresa' ? 'badge-blue' : 'badge-gray' ?>"><?= strtoupper($l['tipo']) ?></span>
+                            <?php endif; ?>
                         </td>
                         <td class="text-center">
                             <span class="tag-tipo" <?= $l['forma_pagamento'] == 'cartao' ? 'style="color: var(--blue); border-color: rgba(59,130,246,0.3);"' : '' ?>>
@@ -266,8 +308,10 @@ require_once '../../includes/layout/sidebar.php';
                         <td style="text-align: center;">
                             <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
                                 <?php if ($l['status'] != 'pago'): ?>
-                                    <?php if ($l['forma_pagamento'] == 'cartao'): ?>
-                                        <a href="cartoes.php" class="btn btn-secondary btn--sm" style="font-size: 11px;" title="Cartões são pagos através da Fatura"><i class="ph ph-info"></i> Fatura</a>
+                                    <?php if ($l['forma_pagamento'] == 'fatura'): ?>
+                                        <a href="fatura.php?id=<?= $l['real_fatura_id'] ?>" class="btn btn-secondary btn--sm" style="color: var(--purple); border-color: rgba(139,92,246,0.3);">
+                                            <i class="ph ph-file-text"></i> Ver Fatura
+                                        </a>
                                     <?php else: ?>
                                         <form method="POST" style="margin: 0;" onsubmit="return confirm('Confirmar o pagamento deste lançamento?');">
                                             <input type="hidden" name="acao" value="dar_baixa">
@@ -287,14 +331,16 @@ require_once '../../includes/layout/sidebar.php';
                                     $is_grupo = ($l['grupo_id'] != null && $l['total_parcelas'] > 1) ? 1 : 0;
                                     if ($is_grupo) $msg_exclusao = "Atenção: Esta é uma compra parcelada.\\nDeseja excluir TODAS as parcelas dessa compra?";
                                 ?>
-                                <form method="POST" style="margin: 0;" onsubmit="return confirm('<?= $msg_exclusao ?>');">
-                                    <input type="hidden" name="acao" value="excluir_lancamento">
-                                    <input type="hidden" name="lancamento_id" value="<?= $l['id'] ?>">
-                                    <input type="hidden" name="excluir_grupo" value="<?= $is_grupo ?>">
-                                    <button type="submit" class="btn btn-ghost btn--sm btn-icon-table text-red" title="Excluir" style="padding: 4px 6px;">
-                                        <i class="ph ph-trash" style="font-size: 16px;"></i>
-                                    </button>
-                                </form>
+                                <?php if ($l['forma_pagamento'] != 'fatura'): ?>
+                                    <form method="POST" style="margin: 0;" onsubmit="return confirm('<?= $msg_exclusao ?>');">
+                                        <input type="hidden" name="acao" value="excluir_lancamento">
+                                        <input type="hidden" name="lancamento_id" value="<?= $l['id'] ?>">
+                                        <input type="hidden" name="excluir_grupo" value="<?= $is_grupo ?>">
+                                        <button type="submit" class="btn btn-ghost btn--sm btn-icon-table text-red" title="Excluir" style="padding: 4px 6px;">
+                                            <i class="ph ph-trash" style="font-size: 16px;"></i>
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
                             </div>
                         </td>
                     </tr>
