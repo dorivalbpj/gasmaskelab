@@ -125,7 +125,7 @@ require_once 'includes/layout/sidebar.php';
                     <?php if ($faturas_atrasadas['qtd'] > 0): ?>
                         <a href="modules/financeiro/index.php" class="urgent-item alert-red">
                             <span class="urgent-icon">🔴</span>
-                            <span class="urgent-text"><strong><?= $faturas_atrasadas['qtd'] ?> Fatura(s) atrasada(s)</strong> (Total: <?= money($faturas_atrasadas['total']) ?>)</span>
+                            <span class="urgent-text"><strong><?= $faturas_atrasadas['qtd'] ?> Fatura(s) atrasada(s)</strong> (Total: <?= money($faturas_atrasadas['total'] ?? 0) ?>)</span>
                             <i class="ph ph-arrow-right"></i>
                         </a>
                     <?php endif; ?>
@@ -233,7 +233,7 @@ require_once 'includes/layout/sidebar.php';
                         <div class="fin-info">
                             <i class="ph-fill ph-warning-circle" style="color: var(--red);"></i> Valor Atrasado
                         </div>
-                        <strong style="color: var(--red);"><?= money($faturas_atrasadas['total']) ?></strong>
+                        <strong style="color: var(--red);"><?= money($faturas_atrasadas['total'] ?? 0) ?></strong>
                     </div>
                 </div>
             </div>

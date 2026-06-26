@@ -149,7 +149,7 @@ require_once '../../includes/layout/sidebar.php';
                     <strong style="color: var(--text-primary); font-size: 15px;"><?= htmlspecialchars($contrato['cliente_nome']) ?></strong>
                 </div>
                 <div>
-                    <span style="display: block; color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Status Atual</span>
+                    <span style="display: block; color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Status</span>
                     <strong style="color: var(--blue); font-size: 15px; text-transform: uppercase;"><?= str_replace('_', ' ', $contrato['status']) ?></strong>
                 </div>
                 <div>

@@ -186,7 +186,7 @@ require_once '../../includes/layout/sidebar.php';
                 <strong style="color: var(--text);"><?= date('d/m/Y', strtotime($fatura['data_vencimento'])) ?></strong>
             </div>
             <div style="display: flex; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--border-mid);">
-                <span style="color: var(--text-3); font-size: 13px;">Status Atual</span>
+                <span style="color: var(--text-3); font-size: 13px;">Status</span>
                 <?php if($fatura['status'] == 'paga'): ?>
                     <span class="badge badge-green">PAGA</span>
                 <?php elseif($fatura['status'] == 'fechada'): ?>

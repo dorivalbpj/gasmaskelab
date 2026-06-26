@@ -39,7 +39,7 @@ require_once '../../includes/layout/sidebar.php';
             <input type="date" id="filtroData" class="form-control" onchange="filtrarTabelaAoVivo()">
         </div>
         <div class="filter-col-sm">
-            <label class="filter-label">Status Atual</label>
+            <label class="filter-label">Status</label>
             <select id="filtroStatus" class="form-control" onchange="filtrarTabelaAoVivo()">
                 <option value="">Todos</option>
                 <option value="rascunho">Rascunho</option>

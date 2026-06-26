@@ -163,7 +163,7 @@ require_once '../../includes/layout/sidebar.php';
                     <input type="number" name="duracao_meses" class="form-control" value="<?= htmlspecialchars($contrato['duracao_meses']) ?>" required>
                 </div>
                 <div class="form-group mb-0">
-                    <label>Status Atual *</label>
+                    <label>Status *</label>
                     <select name="status" id="statusSelect" class="form-control">
                         <option value="rascunho" <?= $contrato['status'] == 'rascunho' ? 'selected' : '' ?>>Rascunho</option>
                         <option value="aguardando_aceite_cliente" <?= $contrato['status'] == 'aguardando_aceite_cliente' ? 'selected' : '' ?>>Enviado para Assinatura</option>
