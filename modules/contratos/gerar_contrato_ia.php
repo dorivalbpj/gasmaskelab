@@ -40,6 +40,20 @@ if (!$dados_cliente) {
     exit;
 }
 
+// --- INÍCIO DA INJEÇÃO DOS QUANTITATIVOS ---
+$quantitativos = "";
+if (!empty($dados_cliente['posts_semanais']))   $quantitativos .= "- Posts Semanais: " . $dados_cliente['posts_semanais'] . "\n";
+if (!empty($dados_cliente['videos_semana']))    $quantitativos .= "- Vídeos por Semana: " . $dados_cliente['videos_semana'] . "\n";
+if (!empty($dados_cliente['estaticos_semana'])) $quantitativos .= "- Estáticos por Semana: " . $dados_cliente['estaticos_semana'] . "\n";
+if (!empty($dados_cliente['roteiros']))         $quantitativos .= "- Roteiros Mensais: " . $dados_cliente['roteiros'] . "\n";
+if (!empty($dados_cliente['captacao_mensal']))  $quantitativos .= "- Diárias de Captação Mensal: " . $dados_cliente['captacao_mensal'] . "\n";
+if (!empty($dados_cliente['trafego_pago']))     $quantitativos .= "- Gestão de Tráfego Pago: Inclusa\n";
+
+if ($quantitativos !== "") {
+    $escopo .= "\n\nLIMITES OPERACIONAIS E ENTREGÁVEIS QUANTITATIVOS:\n" . $quantitativos;
+}
+// --- FIM DA INJEÇÃO ---
+
 $api_key = preg_replace('/[^a-zA-Z0-9_-]/', '', trim(GEMINI_API_KEY));
 $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $api_key;
 
@@ -70,7 +84,7 @@ PRAZO_MESES: $duracao
 
 REGRAS:
 1. Retorne APENAS o contrato preenchido, sem adicionar nenhum texto antes ou depois.
-2. Na cláusula 1.2, insira os módulos e entregáveis descritos no ESCOPO de forma organizada e profissional, em formato de lista simples.
+2. Na cláusula 1.2, insira os módulos detalhados e INCLUA OBRIGATORIAMENTE OS LIMITES OPERACIONAIS (quantidade de posts, vídeos, captações, etc.) descritos no ESCOPO de forma organizada e profissional, em formato de lista simples.
 3. Não utilize NENHUMA formatação markdown (sem asteriscos, sem negrito, sem itálico) pois o sistema removerá. Use MAIÚSCULAS para dar ênfase a títulos.
 4. Mantenha os placeholders {{SISTEMA_DATA_HORA}} e {{SISTEMA_IP}} EXATAMENTE COMO ESTÃO no texto abaixo, pois o sistema PHP irá preenchê-los dinamicamente.
 
