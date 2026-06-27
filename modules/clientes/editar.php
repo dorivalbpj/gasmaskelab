@@ -1,5 +1,5 @@
 <?php
-// modules/clientes/editar.php - VERSÃO COMPLETA
+// modules/clientes/editar.php - VERSÃO SEM DEPENDÊNCIA GD
 
 require_once '../../config/session.php';
 require_once '../../config/database.php';
@@ -10,7 +10,90 @@ requireLogin();
 
 $id = $_GET['id'] ?? 0;
 
+// Função de upload sem GD - apenas move o arquivo original
+function uploadAvatar($file, $cliente_id) {
+    // Detecta o caminho base do projeto
+    $base_path = dirname(__DIR__, 2); // Sobe dois níveis a partir de modules/clientes
+    $upload_dir = $base_path . '/uploads/avatars/';
+    
+    // Cria o diretório se não existir
+    if (!is_dir($upload_dir)) {
+        mkdir($upload_dir, 0755, true);
+    }
+    
+    // Validações...
+    $check = @getimagesize($file['tmp_name']);
+    if ($check === false) {
+        return ['success' => false, 'error' => 'Arquivo não é uma imagem válida.'];
+    }
+    
+    $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!in_array($file['type'], $allowed_types)) {
+        return ['success' => false, 'error' => 'Tipo de arquivo não permitido. Use JPG, PNG, GIF ou WEBP.'];
+    }
+    
+    if ($file['size'] > 5 * 1024 * 1024) {
+        return ['success' => false, 'error' => 'Arquivo muito grande. Máximo: 5MB.'];
+    }
+    
+    // Gera nome único
+    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+    $filename = 'avatar_' . $cliente_id . '_' . time() . '.' . $extension;
+    $filepath = $upload_dir . $filename;
+    
+    // Move o arquivo
+    if (move_uploaded_file($file['tmp_name'], $filepath)) {
+        // Constrói a URL correta
+        $doc_root = $_SERVER['DOCUMENT_ROOT'];
+        $relative_path = str_replace($doc_root, '', $filepath);
+        $relative_path = str_replace('\\', '/', $relative_path);
+        
+        // Se o caminho começa com /, mantém
+        if (substr($relative_path, 0, 1) !== '/') {
+            $relative_path = '/' . $relative_path;
+        }
+        
+        return ['success' => true, 'url' => $relative_path];
+    }
+    
+    return ['success' => false, 'error' => 'Erro ao fazer upload do arquivo.'];
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Verifica se deve remover o avatar
+    $remover_avatar = isset($_POST['remover_avatar']) && $_POST['remover_avatar'] == '1';
+    
+    // Processa o upload manual se existir
+    if (isset($_FILES['avatar_upload']) && $_FILES['avatar_upload']['error'] === UPLOAD_ERR_OK) {
+        $result = uploadAvatar($_FILES['avatar_upload'], $id);
+        if ($result['success']) {
+            // Atualiza o avatar_url com o upload manual
+            $stmt = $pdo->prepare("UPDATE clientes SET avatar_url = ? WHERE id = ?");
+            $stmt->execute([$result['url'], $id]);
+            $_SESSION['mensagem_avatar'] = 'Avatar atualizado com sucesso!';
+        } else {
+            $_SESSION['erro_avatar'] = $result['error'];
+        }
+    } elseif ($remover_avatar) {
+        // Remove o avatar do banco e do sistema
+        $stmt = $pdo->prepare("SELECT avatar_url FROM clientes WHERE id = ?");
+        $stmt->execute([$id]);
+        $cliente = $stmt->fetch();
+        
+        if ($cliente && !empty($cliente['avatar_url'])) {
+            // Remove o arquivo físico se for um upload manual
+            $file_path = $_SERVER['DOCUMENT_ROOT'] . $cliente['avatar_url'];
+            if (strpos($cliente['avatar_url'], '/uploads/avatars/') !== false && file_exists($file_path)) {
+                unlink($file_path);
+            }
+        }
+        
+        // Atualiza o banco
+        $stmt = $pdo->prepare("UPDATE clientes SET avatar_url = NULL WHERE id = ?");
+        $stmt->execute([$id]);
+        $_SESSION['mensagem_avatar'] = 'Avatar removido com sucesso!';
+    }
+    
     // Atualiza todos os dados
     $sql = "UPDATE clientes SET 
             nome = ?, 
@@ -58,16 +141,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id
     ]);
 
-    // Atualiza o avatar baseado no Instagram
-    if (!empty($_POST['user_insta'])) {
-        salvarAvatarCliente($id, $_POST['user_insta'], $pdo);
-    } else {
-        // Se removeu o Instagram, remove o avatar
-        $stmt = $pdo->prepare("UPDATE clientes SET avatar_url = NULL WHERE id = ?");
-        $stmt->execute([$id]);
+    // Se não fez upload manual, não removeu e tem Instagram, busca do Instagram
+    if (!isset($_FILES['avatar_upload']) || $_FILES['avatar_upload']['error'] !== UPLOAD_ERR_OK) {
+        if (!$remover_avatar && !empty($_POST['user_insta'])) {
+            // Verifica se já tem avatar manual
+            $stmt_check = $pdo->prepare("SELECT avatar_url FROM clientes WHERE id = ?");
+            $stmt_check->execute([$id]);
+            $current = $stmt_check->fetch();
+            
+            // Só busca do Instagram se não tiver avatar manual
+            if (empty($current['avatar_url']) || strpos($current['avatar_url'], '/uploads/avatars/') === false) {
+                salvarAvatarCliente($id, $_POST['user_insta'], $pdo);
+            }
+        }
     }
 
-    header("Location: visualizar.php?id=" . $id); 
+    // Redireciona com mensagens
+    $redirect = "visualizar.php?id=" . $id;
+    if (isset($_SESSION['erro_avatar'])) {
+        $redirect .= "&erro_avatar=" . urlencode($_SESSION['erro_avatar']);
+        unset($_SESSION['erro_avatar']);
+    }
+    if (isset($_SESSION['mensagem_avatar'])) {
+        $redirect .= "&mensagem=" . urlencode($_SESSION['mensagem_avatar']);
+        unset($_SESSION['mensagem_avatar']);
+    }
+    header("Location: " . $redirect);
     exit;
 }
 
@@ -85,17 +184,55 @@ require_once '../../includes/layout/sidebar.php';
 <!-- CSS ESPECÍFICO DA PÁGINA -->
 <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/clientes.css">
 
+<style>
+.avatar-upload-area {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.avatar-preview-box {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid var(--border-color);
+    flex-shrink: 0;
+    background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.avatar-preview-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.avatar-preview-box i {
+    font-size: 40px;
+    color: var(--text-secondary);
+}
+.avatar-upload-actions {
+    flex: 1;
+}
+.avatar-upload-actions .btn-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+</style>
+
 <div class="cabecalho">
     <div class="cabecalho-cliente">
-        <?php if (!empty($cliente['avatar_url'])): ?>
-            <img src="<?= htmlspecialchars($cliente['avatar_url']) ?>" 
-                 alt="Avatar do Instagram" 
-                 class="avatar-cliente">
-        <?php else: ?>
-            <div class="avatar-placeholder">
-                <i class="ph ph-user"></i>
-            </div>
-        <?php endif; ?>
+        <div class="avatar-preview-box" id="avatarPreviewContainer">
+            <?php if (!empty($cliente['avatar_url'])): ?>
+                <img src="<?= htmlspecialchars($cliente['avatar_url']) ?>" 
+                     alt="Avatar" 
+                     id="avatarPreview">
+            <?php else: ?>
+                <i class="ph ph-user" id="avatarPreview"></i>
+            <?php endif; ?>
+        </div>
         <div>
             <h2 class="page-title">Editar Cliente</h2>
             <p class="page-subtitle"><?= htmlspecialchars($cliente['nome'] ?? '') ?></p>
@@ -111,7 +248,18 @@ require_once '../../includes/layout/sidebar.php';
     </div>
 </div>
 
-<form method="POST">
+<?php if (isset($_GET['erro_avatar'])): ?>
+    <div class="alert alert-danger" style="margin-bottom: 20px;">
+        <i class="ph-fill ph-warning-circle"></i> <?= htmlspecialchars($_GET['erro_avatar']) ?>
+    </div>
+<?php endif; ?>
+<?php if (isset($_GET['mensagem'])): ?>
+    <div class="alert alert-success" style="margin-bottom: 20px;">
+        <i class="ph-fill ph-check-circle"></i> <?= htmlspecialchars($_GET['mensagem']) ?>
+    </div>
+<?php endif; ?>
+
+<form method="POST" enctype="multipart/form-data">
     <div class="grid-2col">
         
         <!-- Coluna Esquerda -->
@@ -122,6 +270,45 @@ require_once '../../includes/layout/sidebar.php';
                     <h3 class="card-title"><i class="ph ph-user"></i> Dados do Cliente</h3>
                 </div>
                 <div class="card-body">
+                    <!-- Área de Upload do Avatar -->
+                    <div class="form-group">
+                        <label>Avatar / Foto do Cliente</label>
+                        <div class="avatar-upload-area">
+                            <div class="avatar-preview-box" id="avatarPreviewContainer2">
+                                <?php if (!empty($cliente['avatar_url'])): ?>
+                                    <img src="<?= htmlspecialchars($cliente['avatar_url']) ?>" 
+                                         alt="Avatar" 
+                                         id="avatarPreview2">
+                                <?php else: ?>
+                                    <i class="ph ph-user" id="avatarPreview2"></i>
+                                <?php endif; ?>
+                            </div>
+                            <div class="avatar-upload-actions">
+                                <div class="btn-group">
+                                    <label for="avatar_upload" class="btn btn-secondary" style="cursor: pointer; margin: 0;">
+                                        <i class="ph ph-upload"></i> Enviar Foto
+                                    </label>
+                                    <input type="file" 
+                                           id="avatar_upload" 
+                                           name="avatar_upload" 
+                                           accept="image/*" 
+                                           style="display: none;"
+                                           onchange="previewAvatarUpload(this)">
+                                    <button type="button" class="btn btn-ghost" onclick="removerAvatar()">
+                                        <i class="ph ph-x"></i> Remover
+                                    </button>
+                                </div>
+                                <small style="color: var(--text-secondary); display: block; margin-top: 4px;">
+                                    <i class="ph ph-info"></i> Formatos: JPG, PNG, GIF, WEBP. Máx: 5MB
+                                </small>
+                                <small style="color: var(--text-secondary); display: block;">
+                                    Se não enviar foto, o sistema buscará do Instagram automaticamente
+                                </small>
+                            </div>
+                        </div>
+                        <input type="hidden" name="remover_avatar" id="removerAvatarInput" value="0">
+                    </div>
+                    
                     <div class="form-group">
                         <label>Empresa / Nome *</label>
                         <input type="text" name="nome" class="form-control" value="<?= htmlspecialchars($cliente['nome'] ?? '') ?>" required>
@@ -247,5 +434,36 @@ require_once '../../includes/layout/sidebar.php';
         </div>
     </div>
 </form>
+
+<script>
+function previewAvatarUpload(input) {
+    const container = document.getElementById('avatarPreviewContainer2');
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            container.innerHTML = `
+                <img src="${e.target.result}" 
+                     alt="Preview" 
+                     id="avatarPreview2"
+                     style="width: 100%; height: 100%; object-fit: cover;">
+            `;
+        };
+        reader.readAsDataURL(input.files[0]);
+        
+        // Marca que não vai remover
+        document.getElementById('removerAvatarInput').value = '0';
+    }
+}
+
+function removerAvatar() {
+    if (confirm('Deseja remover o avatar atual?')) {
+        document.getElementById('removerAvatarInput').value = '1';
+        const container = document.getElementById('avatarPreviewContainer2');
+        container.innerHTML = `<i class="ph ph-user" id="avatarPreview2"></i>`;
+        document.getElementById('avatar_upload').value = '';
+    }
+}
+</script>
 
 <?php require_once '../../includes/layout/footer.php'; ?>
