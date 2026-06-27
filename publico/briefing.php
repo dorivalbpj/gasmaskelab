@@ -49,8 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     if (!empty($nome) && !empty($email)) {
         try {
-            $stmt = $pdo->prepare("INSERT INTO briefings (nome, empresa, email, telefone, servicos_desejados, objetivo, status) VALUES (?, ?, ?, ?, ?, ?, 'novo')");
-            $stmt->execute([$nome, $empresa, $email, $telefone, $string_servicos, $objetivo_final]);
+            $stmt = $pdo->prepare("INSERT INTO briefings (nome, empresa, email, telefone, servicos_interesse, servicos_desejados, objetivo, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'novo')");
+            $stmt->execute([$nome, $empresa, $email, $telefone, $string_servicos, $string_servicos, $objetivo_final]);
             $mensagem = 'sucesso';
         } catch (Exception $e) {
             $mensagem = 'erro';
