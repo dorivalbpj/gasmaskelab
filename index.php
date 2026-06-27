@@ -50,13 +50,16 @@ if (isAdmin()) {
     $receber_prazo = $stmt_receber->fetch()['total'] ?? 0;
 
     // Feed de últimas atividades
-    $stmt_urgentes = $pdo->query("SELECT p.*, cli.nome as cliente_nome
-                                  FROM planejamento p
-                                  JOIN contratos c ON p.contrato_id = c.id
-                                  JOIN clientes cli ON c.cliente_id = cli.id
-                                  WHERE p.status_geral != 'finalizado'
-                                  ORDER BY p.id DESC LIMIT 5");
-    $tarefas_urgentes = $stmt_urgentes->fetchAll();
+    $stmt_urgentes = $pdo->query("
+    SELECT p.*, 
+           COALESCE(c.nome, 'Interno') as cliente_nome 
+    FROM planejamento p 
+    LEFT JOIN clientes c ON p.cliente_id = c.id 
+    WHERE p.status_geral != 'finalizado' 
+       OR p.status_geral IS NULL
+    ORDER BY p.id DESC LIMIT 5
+");
+$tarefas_urgentes = $stmt_urgentes->fetchAll();
 
 } else {
     // --- VISÃO DO CLIENTE ---
