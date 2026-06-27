@@ -898,6 +898,17 @@
 
 /* Responsividade */
 @media (max-width: 768px) {
+    /* 1. CORRIGINDO O TOPO CORTANDO (Headers e Filtros) */
+    .item-header, 
+    .cabecalho, 
+    .filter-bar-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    
+    .item-header h2 { margin-bottom: 10px; }
+    
     .item-resumo .grid-info {
         grid-template-columns: 1fr 1fr;
     }
@@ -914,18 +925,76 @@
     .side-modal.open {
         transform: translateX(-100%);
     }
-    
-    .notion-table {
-        font-size: 12px;
+
+    /* 2. MATANDO A ROLAGEM HORIZONTAL DA TABELA */
+    .table-wrapper, 
+    .card {
+        overflow-x: hidden !important;
+        padding: 14px;
     }
-    
-    .notion-table th,
+
+    /* 3. TRANSFORMANDO A TABELA EM CARDS */
+    .notion-table, 
+    .notion-table tbody, 
+    .notion-table tr, 
     .notion-table td {
-        padding: 4px 6px;
+        display: block;
+        width: 100%;
     }
-    
+
+    /* Esconde o cabeçalho original da tabela (ex: "Status", "Prioridade") */
+    .notion-table thead {
+        display: none; 
+    }
+
+    /* Estilo de cada "Card" de tarefa (antiga linha da tabela) */
+    .notion-table tr.task-row {
+        background: var(--bg-surface, #1a1a1a);
+        border: 1px solid var(--border-mid, #444);
+        border-radius: 12px;
+        margin-bottom: 16px;
+        padding: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    /* Limpa os estilos das antigas células */
+    .notion-table td {
+        border: none;
+        padding: 0;
+        white-space: normal !important; /* Permite quebrar o texto se for grande */
+    }
+
+    /* Dá um destaque maior para o Título da Tarefa/Cliente (geralmente as primeiras colunas) */
+    .notion-table td:nth-child(1),
+    .notion-table td:nth-child(2) {
+        font-size: 16px;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    /* Destaca um pouco os selects e inputs para não sumirem no fundo do card */
+    .silent-input,
+    .silent-select {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--border-light, #333);
+        padding: 10px;
+    }
+
+    /* O botão de expandir ganha destaque total no fundo do card */
+    .btn-expand-task {
+        background: rgba(0, 123, 255, 0.1);
+        border: 1px solid var(--gn-blue);
+        border-radius: 8px;
+        padding: 12px;
+        margin-top: 8px;
+        font-weight: bold;
+    }
+
     .pill {
-        font-size: 11px;
-        padding: 4px 8px;
+        font-size: 12px;
+        padding: 6px 10px;
     }
 }
