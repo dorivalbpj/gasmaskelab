@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
     }
 
     if ($_POST['acao'] == 'salvar_roteiro') {
-        $pdo->prepare("UPDATE planejamento SET objetivo = ? WHERE id = ?")->execute([$_POST['roteiro'], $_POST['id_tarefa']]);
+        $pdo->prepare("UPDATE planejamento SET roteiro = ? WHERE id = ?")->execute([$_POST['roteiro'], $_POST['id_tareia']]);
         echo "ok"; exit;
     }
 
@@ -224,9 +224,9 @@ require_once '../../includes/layout/sidebar.php';
                 <td>
                     <input type="text" id="input_tema_<?= $t['id'] ?>" class="silent-input" value="<?= htmlspecialchars($t['tema']) ?>" onchange="salvar(<?= $t['id'] ?>, 'tema', this.value); document.getElementById('hidden_tema_<?= $t['id'] ?>').value = this.value;" style="font-weight: 600; color: var(--text-primary);">
                     
-                    <textarea id="hidden_rot_<?= $t['id'] ?>" style="display:none;"><?= htmlspecialchars($t['objetivo']) ?></textarea>
-                    <input type="hidden" id="hidden_link_<?= $t['id'] ?>" value="<?= htmlspecialchars($t['link_arte_final']) ?>">
-                    <input type="hidden" id="hidden_tema_<?= $t['id'] ?>" value="<?= htmlspecialchars($t['tema']) ?>">
+                    <textarea id="hidden_rot_<?= $t['id'] ?>" style="display:none;"><?= htmlspecialchars($t['roteiro']?? '') ?></textarea>
+                    <input type="hidden" id="hidden_link_<?= $t['id'] ?>" value="<?= htmlspecialchars($t['link_arte_final']?? '') ?>">
+                    <input type="hidden" id="hidden_tema_<?= $t['id'] ?>" value="<?= htmlspecialchars($t['tema']?? '') ?>">
                 </td>
                 
                 <td><input type="date" class="silent-input" value="<?= $t['data_publicacao'] ?>" onchange="salvar(<?= $t['id'] ?>, 'data_publicacao', this.value)" style="<?= $estilo_data ?>"></td>
