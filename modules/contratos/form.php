@@ -76,9 +76,7 @@ if ($id) {
 }
 
 $clientes = $pdo->query("SELECT id, nome FROM clientes ORDER BY nome ASC")->fetchAll();
-$protocolo = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
-$dominio = $_SERVER['HTTP_HOST'];
-$url_base_dinamica = $protocolo . "://" . $dominio . "/gasmaske/publico/contrato.php?token=";
+$url_base_dinamica = BASE_URL . "publico/contrato.php?token=";
 
 require_once '../../includes/layout/header.php';
 require_once '../../includes/layout/sidebar.php';
@@ -136,7 +134,7 @@ require_once '../../includes/layout/sidebar.php';
 
 <?= $mensagem ?>
 
-<form method="POST" id="formContrato">
+<form method="POST" id="formContrato" action="form.php?id=<?= $id ?>&proposta_id=<?= $proposta_id ?>">
     <input type="hidden" name="salvar_contrato" value="1">
     <input type="hidden" id="proposta_id_input" value="<?= $proposta_id ?>">
     

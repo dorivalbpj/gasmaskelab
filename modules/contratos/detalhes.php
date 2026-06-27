@@ -33,9 +33,7 @@ $duracao = (isset($contrato['duracao_meses']) && $contrato['duracao_meses'] > 0)
 $valor_contrato = $valor_parcela * $duracao;
 
 // Monta o link absoluto para o WhatsApp
-$protocolo = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
-$dominio = $_SERVER['HTTP_HOST'];
-$link_completo_contrato = $protocolo . "://" . $dominio . "/gasmaske/publico/contrato.php?token=" . $contrato['token'];
+$link_completo_contrato = BASE_URL . "publico/contrato.php?token=" . $contrato['token'];
 
 // --- LÓGICA DE AÇÕES ---
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
