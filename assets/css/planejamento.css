@@ -636,13 +636,22 @@
 }
 
 /* Grupo cabeçalho */
+/* Grupo cabeçalho com destaque visual */
 .group-header td {
-    background: var(--bg-surface, #1a1a1a);
+    background: var(--bg-elevated, #222222); /* Fundo um pouco mais claro que o padrão */
+    border-left: 3px solid var(--red, #ff3f34); /* Borda lateral com a cor principal do sistema */
+    border-bottom: 1px solid var(--border-mid, #444);
+    border-top: 1px solid var(--border, #333);
     font-weight: 700;
     font-size: 14px;
     color: var(--text-primary, #eee);
-    padding: 16px 10px 8px;
-    border-bottom: 1px solid var(--border-mid, #444);
+    padding: 14px 12px;
+    margin-top: 8px; /* Dá um respiro entre os grupos na versão mobile */
+}
+
+/* Efeito ao passar o mouse por cima do grupo */
+.group-header:hover td {
+    background: var(--bg-hover, #2a2a2a);
 }
 
 /* Cabeçalho com sort */
@@ -1035,4 +1044,35 @@
     background-color: var(--bg-surface);
     color: var(--text);
     padding: 10px;
+}
+
+/* ============================================================
+   SISTEMA DE COLAPSO DOS GRUPOS
+   ============================================================ */
+
+/* Deixa claro que o cabeçalho é clicável */
+.group-header {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.group-header:hover td {
+    background: var(--bg-hover, #2a2a2a);
+}
+
+/* Oculta as linhas quando o grupo estiver colapsado */
+.linha-colapsada {
+    display: none !important;
+}
+
+/* Se você for adicionar um ícone de seta no HTML do cabeçalho, ele vai girar com isso */
+.group-header .icone-colapso {
+    transition: transform 0.2s;
+    display: inline-block;
+    margin-right: 8px;
+}
+
+.group-header.collapsed .icone-colapso {
+    transform: rotate(-90deg);
 }

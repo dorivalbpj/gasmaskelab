@@ -13,40 +13,34 @@ $mensagem = '';
 // Atualiza automaticamente as parcelas que venceram para 'atrasado'
 $pdo->query("UPDATE parcelas SET status = 'atrasado' WHERE status = 'pendente' AND data_vencimento < CURRENT_DATE");
 
-// Se o Admin deu baixa em uma parcela
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['acao'] == 'dar_baixa') {
-    $parcela_id = $_POST['parcela_id'] ?? 0;
-    $data_pagamento = $_POST['data_pagamento'] ?? date('Y-m-d');
+/// --- INÍCIO DO CÓDIGO NOVO PARA ENTRADA AVULSA ---
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['acao'] == 'salvar_avulsa') {
+    $descricao = trim($_POST['descricao']);
+    $valor = str_replace(',', '.', $_POST['valor']);
+    $data = $_POST['data_vencimento'];
     
     try {
-        $pdo->beginTransaction();
-
-        // 1. Dá baixa na parcela
-        $pdo->prepare("UPDATE parcelas SET status = 'pago', data_pagamento = ? WHERE id = ?")->execute([$data_pagamento, $parcela_id]);
-
-        // 2. Verifica a qual contrato essa parcela pertence
-        $stmt_cid = $pdo->prepare("SELECT contrato_id FROM parcelas WHERE id = ?");
-        $stmt_cid->execute([$parcela_id]);
-        $contrato_id = $stmt_cid->fetchColumn();
-
-        // 3. MÁGICA: Ativa o contrato automaticamente se for a primeira parcela
-        if ($contrato_id) {
-            $pdo->prepare("UPDATE contratos SET status = 'em_andamento' WHERE id = ? AND status = 'aguardando_pagamento'")->execute([$contrato_id]);
-        }
-
-        $pdo->commit();
-        $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Pagamento registrado! O Contrato agora está Ativo.</div>";
+        // Adicionado 'numero_parcela' com o valor 1 fixo no final do INSERT
+        $pdo->prepare("INSERT INTO parcelas (descricao, valor, data_vencimento, data_pagamento, status, contrato_id, numero_parcela) VALUES (?, ?, ?, ?, 'pago', NULL, 1)")
+            ->execute([$descricao, $valor, $data, $data]);
+        $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Entrada rápida registrada com sucesso!</div>";
     } catch (Exception $e) {
-        $pdo->rollBack();
-        $mensagem = "<div class='alert alert-danger'><i class='ph-fill ph-warning-circle'></i> Erro ao registrar pagamento.</div>";
+        $mensagem = "<div class='alert alert-danger'><i class='ph-fill ph-warning-circle'></i> Erro ao registrar: " . $e->getMessage() . "</div>";
     }
 }
 
-// Busca todas as parcelas com os dados do cliente e do contrato
+// Busca todas as parcelas (Alterado para LEFT JOIN para aceitar avulsos)
 $stmt = $pdo->query("SELECT p.*, c.codigo_agc, cli.nome as cliente_nome 
                      FROM parcelas p 
-                     JOIN contratos c ON p.contrato_id = c.id 
-                     JOIN clientes cli ON c.cliente_id = cli.id 
+                     LEFT JOIN contratos c ON p.contrato_id = c.id 
+                     LEFT JOIN clientes cli ON c.cliente_id = cli.id 
+                     ORDER BY p.data_vencimento ASC");
+$parcelas = $stmt->fetchAll();
+// Busca todas as parcelas com os dados do cliente e do contrato mas deixxa avulso
+$stmt = $pdo->query("SELECT p.*, c.codigo_agc, cli.nome as cliente_nome 
+                     FROM parcelas p 
+                     LEFT JOIN contratos c ON p.contrato_id = c.id 
+                     LEFT JOIN clientes cli ON c.cliente_id = cli.id 
                      ORDER BY p.data_vencimento ASC");
 $parcelas = $stmt->fetchAll();
 
@@ -72,8 +66,11 @@ require_once '../../includes/layout/sidebar.php';
 <div class="cabecalho">
     <div>
         <h2 class="page-title">Gestão Financeira</h2>
-        <p class="page-subtitle">Acompanhe os recebimentos dos seus contratos ativos.</p>
+        <p class="page-subtitle">Acompanhe os recebimentos dos seus contratos e serviços avulsos.</p>
     </div>
+    <button type="button" class="btn btn-primary" onclick="abrirModalAvulso()">
+        <i class="ph ph-plus"></i> Entrada Avulsa
+    </button>
 </div>
 
 <?= $mensagem ?>
@@ -123,8 +120,12 @@ require_once '../../includes/layout/sidebar.php';
                             <?php endif; ?>
                         </td>
                         <td>
-                            <strong style="color: var(--text-primary); display: block;"><?= htmlspecialchars($p['cliente_nome']) ?></strong>
-                            <span style="font-size: 11px; color: var(--text-muted);"><?= htmlspecialchars($p['codigo_agc']) ?></span>
+                            <strong style="color: var(--text-primary); display: block;">
+                                <?= !empty($p['cliente_nome']) ? htmlspecialchars($p['cliente_nome']) : 'Serviço Avulso' ?>
+                            </strong>
+                            <span style="font-size: 11px; color: var(--text-muted);">
+                                <?= !empty($p['codigo_agc']) ? htmlspecialchars($p['codigo_agc']) : 'Sem Contrato' ?>
+                            </span>
                         </td>
                         <td style="color: var(--text-secondary);"><?= htmlspecialchars($p['descricao']) ?></td>
                         <td style="text-align: right; font-weight: 700; color: var(--text-primary); font-size: 14px;">
@@ -161,5 +162,42 @@ require_once '../../includes/layout/sidebar.php';
         </div>
     <?php endif; ?>
 </div>
+
+<!-- Modal Nova Entrada Avulsa -->
+<div class="modal-overlay" id="modalAvulso">
+    <div class="modal-box" style="max-width: 400px;">
+        <button type="button" class="modal-close-btn" onclick="fecharModalAvulso()"><i class="ph ph-x"></i></button>
+        <h3 style="margin-top: 0; margin-bottom: 20px;">Nova Entrada Rápida</h3>
+        
+        <form method="POST">
+            <input type="hidden" name="acao" value="salvar_avulsa">
+            
+            <div class="form-group">
+                <label>Descrição do Serviço *</label>
+                <input type="text" name="descricao" class="form-control" required placeholder="Ex: Ajuste de Arte, Flyer Redes Sociais...">
+            </div>
+            
+            <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label>Valor (R$) *</label>
+                    <input type="number" step="0.01" name="valor" class="form-control" required placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Data *</label>
+                    <input type="date" name="data_vencimento" class="form-control" value="<?= date('Y-m-d') ?>" required>
+                </div>
+            </div>
+            
+            <div style="text-align: right; margin-top: 20px;">
+                <button type="submit" class="btn btn-primary w-100" style="justify-content: center;">Registrar Entrada</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function abrirModalAvulso() { document.getElementById('modalAvulso').classList.add('active'); }
+function fecharModalAvulso() { document.getElementById('modalAvulso').classList.remove('active'); }
+</script>
 
 <?php require_once '../../includes/layout/footer.php'; ?>

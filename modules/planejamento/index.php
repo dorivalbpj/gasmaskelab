@@ -468,7 +468,7 @@ function sortTable(col, toggle = true) {
         Object.keys(groups).sort().forEach(g => {
             const header = document.createElement('tr');
             header.className = 'group-header';
-            header.innerHTML = `<td colspan="8"><i class="ph ph-caret-right" style="margin-right: 5px;"></i> ${g} <span style="color: var(--text-muted); font-size: 13px; font-weight: normal; margin-left: 5px;">(${groups[g].length})</span></td>`;
+            header.innerHTML = `<td colspan="8"><i class="ph ph-caret-down icone-colapso" style="margin-right: 5px;"></i> ${g} <span style="color: var(--text-muted); font-size: 13px; font-weight: normal; margin-left: 5px;">(${groups[g].length})</span></td>`;
             tbody.appendChild(header);
             groups[g].forEach(r => tbody.appendChild(r));
         });
@@ -480,6 +480,31 @@ function agruparTabela(save) {
     if(save) localStorage.setItem('planejamento_group', crit);
     sortTable(currentSortCol || 'data', false);
 }
+
+// ==========================================
+// SISTEMA DE COLAPSO (Delegação de Eventos)
+// ==========================================
+document.getElementById('tableBody').addEventListener('click', function(e) {
+    // Verifica se onde o cara clicou é um cabeçalho de grupo (ou dentro dele)
+    const header = e.target.closest('.group-header');
+    
+    // Se não for um cabeçalho de grupo, ignora
+    if (!header) return;
+
+    // Gira a setinha
+    header.classList.toggle('collapsed');
+    
+    // Pega a primeira linha de tarefa abaixo do cabeçalho
+    let nextRow = header.nextElementSibling;
+    
+    // Desce escondendo/mostrando as linhas até achar o próximo grupo
+    while (nextRow && !nextRow.classList.contains('group-header')) {
+        if (nextRow.classList.contains('task-row')) {
+            nextRow.classList.toggle('linha-colapsada');
+        }
+        nextRow = nextRow.nextElementSibling;
+    }
+});
 </script>
 
 <?php require_once '../../includes/layout/footer.php'; ?>
