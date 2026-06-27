@@ -224,7 +224,7 @@ require_once '../../includes/layout/sidebar.php';
 </div>
 
 <?php if ($exibir_modal_ninja): ?>
-    <?php $link_proposta = "http://localhost/gasmaske/publico/proposta.php?token=" . $token_ninja; ?>
+    <?php $link_proposta = "http://localhost/publico/proposta.php?token=" . $token_ninja; ?>
     <div id="modalNinja" class="modal-ninja-overlay">
         <div class="modal-ninja-box">
             <div class="modal-ninja-header">Proposta Pronta! 🚀</div>

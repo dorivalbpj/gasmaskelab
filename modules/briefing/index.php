@@ -16,7 +16,7 @@ $briefings = $stmt->fetchAll();
 // Monta a base da URL para o link do WhatsApp
 $protocolo = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
 $dominio = $_SERVER['HTTP_HOST'];
-$link_publico_briefing = $protocolo . "://" . $dominio . "/gasmaske/publico/briefing.php";
+$link_publico_briefing = $protocolo . "://" . $dominio . "/publico/briefing.php";
 
 require_once '../../includes/layout/header.php';
 require_once '../../includes/layout/sidebar.php';

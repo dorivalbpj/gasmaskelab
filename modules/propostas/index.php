@@ -14,7 +14,7 @@ $propostas = $stmt->fetchAll();
 
 $protocolo = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
 $dominio = $_SERVER['HTTP_HOST'];
-$url_base_publica = $protocolo . "://" . $dominio . "/gasmaske/publico/proposta.php?token=";
+$url_base_publica = $protocolo . "://" . $dominio . "/publico/proposta.php?token=";
 
 require_once '../../includes/layout/header.php';
 require_once '../../includes/layout/sidebar.php';
