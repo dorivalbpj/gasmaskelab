@@ -74,7 +74,7 @@ require_once '../../includes/layout/sidebar.php';
                                target="_blank" 
                                class="btn-whatsapp">
                                 <i class="ph ph-whatsapp-logo" style="font-size: 16px;"></i>
-                                WhatsApp
+                                
                             </a>
                         <?php endif; ?>
                     </span>

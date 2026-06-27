@@ -36,7 +36,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
         <div class="sidebar-section-label">Operação</div>
         <a href="<?= BASE_URL ?>modules/planejamento/index.php" class="<?= ($current_dir == 'planejamento') ? 'active' : '' ?>">
-            <i class="ph ph-kanban" style="font-size: 18px;"></i> Master Task List
+            <i class="ph ph-kanban" style="font-size: 18px;"></i> Tarefas
         </a>
         
         <?php if (isAdmin()): ?>

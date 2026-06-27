@@ -1,143 +1,819 @@
-/* assets/css/planejamento.css */
+/* ============================================================
+   PLANEJAMENTO.CSS - Versão Refatorada e Unificada
+   Todas as regras CSS do módulo de Planejamento
+   ============================================================ */
 
-/* --- VARIÁVEIS DE APOIO (Caso não venham do style.css principal) --- */
+/* ---------- VARIÁVEIS ---------- */
 :root {
     --gn-bg-input: rgba(255, 255, 255, 0.05);
     --gn-border: rgba(255, 255, 255, 0.1);
     --gn-accent: #007bff;
+    --gn-blue: #007bff;
+    --gn-red: #dc3545;
+    --gn-green: #28a745;
+    --gn-yellow: #ffc107;
+    --gn-pink: #e83e8c;
+    --gn-purple: #6f42c1;
+    --gn-orange: #fd7e14;
 }
 
-/* Grid Editável */
-.editable-grid {
-    width: 100%;
-    border-collapse: collapse;
-    background: transparent;
-    font-size: 13px;
-    color: var(--text-main);
+/* ---------- LAYOUT GERAL ---------- */
+.planejamento-container {
+    max-width: 800px;
+    margin: 40px auto;
+    font-family: sans-serif;
 }
 
-.editable-grid th {
-    background: var(--bg-hover);
-    padding: 14px;
-    text-align: left;
-    color: var(--text-muted);
+.planejamento-container .card {
+    border-top: 5px solid #000;
+    padding: 24px;
+    background: var(--bg-card, #fff);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* ---------- MENSAGENS ---------- */
+.msg-sucesso {
+    color: #155724;
+    padding: 15px;
+    background: #d4edda;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-weight: bold;
+    border: 1px solid #c3e6cb;
+}
+
+.msg-alerta {
+    color: #856404;
+    padding: 15px;
+    background: #fff3cd;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-weight: bold;
+    border: 1px solid #ffeeba;
+}
+
+.msg-erro {
+    color: #721c24;
+    padding: 15px;
+    background: #f8d7da;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    text-align: center;
+    border: 1px solid #f5c6cb;
+}
+
+/* ---------- TÍTULOS ---------- */
+.planejamento-titulo {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.planejamento-titulo h1 {
+    margin: 0;
+    font-size: 28px;
+}
+
+.planejamento-titulo p {
+    color: #666;
+    font-size: 14px;
+}
+
+/* ---------- CARD DE APROVAÇÃO ---------- */
+.card-aprovacao {
+    border-top: 5px solid #000;
+    padding: 24px;
+    background: var(--bg-card, #fff);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.card-aprovacao h2 {
+    margin-top: 0;
+    font-size: 22px;
+}
+
+.card-aprovacao .meta {
+    color: #666;
+    font-size: 14px;
+}
+
+.card-aprovacao .meta strong {
     font-weight: 600;
-    border-bottom: 1px solid var(--border-light);
+}
+
+/* ---------- BLOCOS DE APROVAÇÃO ---------- */
+.bloco-aprovacao {
+    background: #f9f9f9;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-top: 20px;
+}
+
+.bloco-aprovacao h3 {
+    margin-top: 0;
+    font-size: 18px;
+}
+
+.bloco-aprovacao .conteudo {
+    background: #fff;
+    padding: 15px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.bloco-aprovacao .link-material {
+    background: #000;
+    padding: 15px;
+    border-radius: 4px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.bloco-aprovacao .link-material a {
+    color: #0df;
+    font-weight: bold;
+    text-decoration: none;
+    font-size: 18px;
+}
+
+.bloco-aprovacao .link-material a:hover {
+    text-decoration: underline;
+}
+
+/* ---------- BOTÕES DE APROVAÇÃO ---------- */
+.btn-aprovar {
+    background: var(--gn-green);
+    color: white;
+    padding: 15px;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 16px;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.2s;
+}
+
+.btn-aprovar:hover {
+    background: #218838;
+}
+
+.btn-revisar {
+    background: var(--gn-yellow);
+    color: #000;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-revisar:hover {
+    background: #e0a800;
+}
+
+/* ---------- FORMULÁRIO DE REVISÃO ---------- */
+.form-revisao {
+    margin-top: 20px;
+    border-top: 1px dashed #ccc;
+    padding-top: 20px;
+}
+
+.form-revisao label {
+    display: block;
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.form-revisao textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    margin-bottom: 10px;
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* ---------- SEM PENDÊNCIAS ---------- */
+.sem-pendencias {
+    text-align: center;
+    padding: 30px;
+    color: #666;
+}
+
+/* ---------- LINK VOLTAR ---------- */
+.link-voltar {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.link-voltar a {
+    color: var(--gn-blue);
+    text-decoration: none;
+}
+
+.link-voltar a:hover {
+    text-decoration: underline;
+}
+
+/* ============================================================
+   CSS DA TELA item.php (Mesa de Trabalho)
+   ============================================================ */
+
+.item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.item-header h2 {
+    margin: 0;
+    font-size: 22px;
+}
+
+.item-header a {
+    color: #666;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.item-header a:hover {
+    color: #333;
+}
+
+/* Card de resumo */
+.item-resumo {
+    border-left: 5px solid #000;
+    padding: 20px 24px;
+    background: var(--bg-card, #fff);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 24px;
+}
+
+.item-resumo .grid-info {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+}
+
+.item-resumo .grid-info .label {
+    margin: 0;
+    color: #666;
+    font-size: 12px;
     text-transform: uppercase;
-    font-size: 10px;
     letter-spacing: 0.5px;
 }
 
-.editable-grid td {
-    padding: 4px 8px;
-    border-bottom: 1px solid var(--border-light);
-    vertical-align: middle;
+.item-resumo .grid-info .valor {
+    font-size: 15px;
+    font-weight: 600;
 }
 
-.task-row:hover { background: rgba(255,255,255, 0.02); }
+.item-resumo .grid-info .valor.status {
+    font-size: 14px;
+    text-transform: uppercase;
+    color: var(--gn-blue);
+}
 
-/* --- A CLASSE DO COMBOBOX E INPUT MODERNO --- */
-.gn-select, .gn-input, .gn-textarea {
-    appearance: none;
-    -webkit-appearance: none;
+.item-resumo .tema-box {
+    margin-top: 15px;
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 4px;
+}
+
+.item-resumo .tema-box .label {
+    margin: 0 0 5px 0;
+    color: #666;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.item-resumo .tema-box .tema {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.item-resumo .tema-box .descricao {
+    margin: 10px 0 0 0;
+    color: #444;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.item-resumo .tema-box .descricao strong {
+    color: #000;
+}
+
+/* Colunas lado a lado */
+.item-colunas {
+    display: flex;
+    gap: 20px;
+}
+
+.item-colunas .card-coluna {
+    flex: 1;
+    padding: 20px 24px;
+    background: var(--bg-card, #fff);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.card-coluna-roteiro {
+    border-top: 4px solid var(--gn-blue);
+}
+
+.card-coluna-arte {
+    border-top: 4px solid var(--gn-pink);
+}
+
+.card-coluna h3 {
+    margin-top: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 18px;
+}
+
+.card-coluna h3 .resp-badge {
+    font-size: 12px;
+    background: #eee;
+    padding: 3px 8px;
+    border-radius: 12px;
+    color: #666;
+    font-weight: 400;
+}
+
+.card-coluna .status-label {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+    margin-bottom: 15px;
+}
+
+.card-coluna textarea,
+.card-coluna input[type="url"] {
     width: 100%;
-    background-color: transparent;
-    border: 1px solid transparent;
+    padding: 12px 15px;
+    border: 1px solid #ccc;
     border-radius: 6px;
-    padding: 8px 30px 8px 10px;
-    color: var(--text-main);
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.2s ease;
+    box-sizing: border-box;
+    font-family: monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 15px;
+    background: #fff;
 }
 
-/* Ícone de seta customizado (SVG) para tirar a cara de Windows antigo */
-.gn-select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23888' viewBox='0 0 256 256'%3E%3Cpath d='M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80a8,8,0,0,1,11.32-11.32L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z'%3E%3C/path%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 8px center;
-    background-size: 12px;
-}
-
-.gn-input, .gn-textarea {
-    background-image: none;
-    padding-right: 10px;
-    cursor: text;
-}
-
-.gn-textarea {
-    border: 1px solid var(--border-mid);
-    padding: 12px;
+.card-coluna textarea {
     resize: vertical;
-    font-family: inherit;
+    min-height: 200px;
 }
 
-/* Quando passa o mouse ou clica */
-.gn-select:hover, .gn-input:hover, .gn-textarea:hover {
-    background-color: var(--gn-bg-input);
-    border-color: var(--gn-border);
+.card-coluna .btn-salvar {
+    background: #333;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    width: 100%;
+    transition: background 0.2s;
 }
 
-.gn-select:focus, .gn-input:focus, .gn-textarea:focus {
-    outline: none;
-    background-color: var(--bg-main);
-    border-color: var(--gn-accent);
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+.card-coluna .btn-salvar:hover {
+    background: #555;
 }
 
-/* IMPORTANTE: Corrigir o fundo branco das opções */
-.gn-select option {
-    background-color: #1a1a1a; /* Fundo escuro forçado */
-    color: #eee;
+.card-coluna .btn-enviar {
+    background: var(--gn-blue);
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    width: 100%;
+    margin-top: 10px;
+    transition: background 0.2s;
+}
+
+.card-coluna .btn-enviar:hover {
+    background: #0069d9;
+}
+
+.card-coluna .btn-enviar-arte {
+    background: var(--gn-pink);
+}
+
+.card-coluna .btn-enviar-arte:hover {
+    background: #c8235a;
+}
+
+.card-coluna .aprovado-badge {
+    margin-top: 15px;
+    text-align: center;
+    color: var(--gn-green);
+    font-weight: bold;
+    background: #d4edda;
     padding: 10px;
+    border-radius: 4px;
 }
 
-/* Badges de Prioridade (Texto Colorido) */
-.prio-urgente { color: var(--red) !important; font-weight: bold; }
-.prio-alta { color: #fd7e14 !important; font-weight: bold; }
-.prio-media { color: var(--blue) !important; }
-.prio-baixa { color: var(--text-muted) !important; }
+.card-coluna .bloqueado {
+    background: #f9f9f9;
+    padding: 30px 20px;
+    text-align: center;
+    border: 1px dashed #ccc;
+    border-radius: 6px;
+    color: #888;
+}
 
-/* Side Modal */
+.card-coluna .bloqueado p {
+    margin: 0;
+}
+
+/* ============================================================
+   CSS DA TELA index.php (Kanban/Lista)
+   ============================================================ */
+
+/* Tabela estilo Notion */
+.notion-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+.notion-table th {
+    text-align: left;
+    padding: 12px 10px;
+    color: var(--text-muted, #888);
+    font-weight: 500;
+    border-bottom: 1px solid var(--border, #333);
+    font-size: 13px;
+}
+
+.notion-table td {
+    padding: 4px 10px;
+    border-bottom: 1px solid var(--border-light, #2a2a2a);
+    vertical-align: middle;
+    position: relative;
+}
+
+.notion-table tr.task-row:hover {
+    background: rgba(255,255,255,0.02);
+}
+
+/* Inputs silenciosos */
+.silent-input,
+.silent-select {
+    width: 100%;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-family: inherit;
+    font-size: inherit;
+    color: var(--text-primary, #eee);
+    transition: all 0.2s;
+    outline: none;
+}
+
+.silent-input:hover,
+.silent-select:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: var(--border-mid, #444);
+}
+
+.silent-input:focus,
+.silent-select:focus {
+    background: rgba(0,0,0,0.2);
+    border-color: var(--gn-blue);
+    color: var(--text-primary, #eee);
+    box-shadow: 0 0 0 2px rgba(26,110,232,0.15);
+    font-weight: 500;
+}
+
+.silent-select:focus {
+    background: #1a1a1a;
+    border-color: var(--gn-blue);
+}
+
+.silent-select option {
+    background: #1a1a1a;
+    color: var(--text-primary, #eee);
+    padding: 8px;
+}
+
+.silent-input[type="date"] {
+    min-width: 120px;
+}
+
+/* Pills de status */
+.pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 13px;
+    font-weight: 600;
+    height: auto;
+    line-height: 1.2;
+    border: 1px solid transparent;
+    width: 100%;
+}
+
+.pill:focus {
+    outline: 2px solid var(--gn-blue);
+    outline-offset: 1px;
+}
+
+/* Status cores */
+.pill-status-pendente { background: rgba(255,255,255,0.1); color: #e5e7eb; }
+.pill-status-roteiro_em_producao { background: rgba(59,130,246,0.2); color: #93c5fd; }
+.pill-status-roteiro_aguardando_aprovacao { background: rgba(245,158,11,0.2); color: #fcd34d; }
+.pill-status-roteiro_em_revisao { background: rgba(234,88,12,0.2); color: #fdba74; }
+.pill-status-peca_em_producao { background: rgba(168,85,247,0.2); color: #d8b4fe; }
+.pill-status-peca_aguardando_aprovacao { background: rgba(245,158,11,0.2); color: #fcd34d; }
+.pill-status-peca_em_revisao { background: rgba(234,88,12,0.2); color: #fdba74; }
+.pill-status-pronto_para_postar { background: rgba(99,102,241,0.2); color: #c7d2fe; }
+.pill-status-finalizado { background: rgba(16,185,129,0.2); color: #6ee7b7; }
+.pill-status-A_fazer { background: rgba(255,255,255,0.05); color: #9ca3af; }
+.pill-status-Aguardar { background: rgba(245,158,11,0.15); color: #fbbf24; }
+.pill-status-Postar { background: rgba(99,102,241,0.2); color: #a5b4fc; }
+
+/* Prioridade pills */
+.pill-prio-baixa { background: rgba(255,255,255,0.1); color: #9ca3af; }
+.pill-prio-media { background: rgba(59,130,246,0.2); color: #93c5fd; }
+.pill-prio-alta { background: rgba(249,115,22,0.2); color: #fdba74; }
+.pill-prio-urgente { background: rgba(239,68,68,0.2); color: #fca5a5; }
+
+/* Responsável pills */
+.pill-resp-vazio { background: transparent; color: var(--text-muted, #888); }
+.pill-resp-atribuido { background: rgba(99,102,241,0.2); color: #c7d2fe; border-color: rgba(99,102,241,0.3); }
+
+/* Badge categoria */
+.badge-cat {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: rgba(255,255,255,0.08);
+    color: var(--text-secondary, #aaa);
+}
+
+/* Botão expandir */
+.btn-expand-task {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--gn-blue);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.btn-expand-task:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: var(--border-mid, #444);
+    transform: scale(1.1);
+}
+
+/* Quick add */
+.quick-add-btn {
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    border-bottom: 1px solid var(--border-light, #2a2a2a);
+}
+
+.quick-add-btn:hover {
+    background: rgba(255,255,255,0.02);
+}
+
+.quick-add-btn td {
+    padding: 12px 10px;
+    color: var(--text-muted, #888);
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+/* Grupo cabeçalho */
+.group-header td {
+    background: var(--bg-surface, #1a1a1a);
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-primary, #eee);
+    padding: 16px 10px 8px;
+    border-bottom: 1px solid var(--border-mid, #444);
+}
+
+/* Cabeçalho com sort */
+.notion-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+.notion-table th.sortable:hover {
+    background: rgba(255,255,255,0.05);
+    color: var(--text-primary, #eee);
+}
+
+.notion-table td {
+    white-space: nowrap;
+}
+
+.notion-table td:nth-child(3) {
+    white-space: normal;
+}
+
+/* Resize */
+.notion-table th.resizable {
+    resize: horizontal;
+    overflow: hidden;
+}
+
+/* ============================================================
+   SIDE MODAL
+   ============================================================ */
+
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(2px);
+    z-index: 1040;
+    display: none;
+}
+
+.overlay.open {
+    display: block;
+}
+
 .side-modal {
-    position: fixed; top: 0; right: -550px; width: 500px; height: 100vh;
-    background: var(--bg-card);
+    position: fixed;
+    top: 0;
+    right: -550px;
+    width: 500px;
+    height: 100vh;
+    background: var(--bg-card, #1a1a1a);
     box-shadow: -15px 0 40px rgba(0,0,0,0.8);
     transition: transform 0.4s cubic-bezier(0.075, 0.82, 0.165, 1);
-    z-index: 1050; display: flex; flex-direction: column;
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
 }
-.side-modal.open { transform: translateX(-550px); }
+
+.side-modal.open {
+    transform: translateX(-550px);
+}
 
 .side-modal-header {
-    padding: 24px;
-    border-bottom: 1px solid var(--border-light);
-    display: flex; justify-content: space-between; align-items: center;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 15px;
+    border-bottom: 1px solid var(--border-mid, #333);
+    padding: 24px 24px 20px;
+    background: var(--bg-card, #1a1a1a);
+    flex-shrink: 0;
 }
-.side-modal-body { padding: 24px; flex-grow: 1; overflow-y: auto; }
 
-/* Link Card (Google Drive) */
+.side-modal-title-input {
+    font-size: 20px;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+    padding: 0;
+    height: auto;
+    border: none;
+    background: transparent;
+    width: 100%;
+    color: var(--text-primary, #eee);
+    outline: none;
+}
+
+.side-modal-title-input:focus {
+    background: rgba(255,255,255,0.05);
+    border-radius: 4px;
+    padding: 4px;
+    margin: -4px;
+}
+
+.side-modal-body {
+    padding: 24px;
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.side-modal-footer {
+    padding: 24px;
+    border-top: 1px solid var(--border-mid, #333);
+    background: var(--bg-card, #1a1a1a);
+    flex-shrink: 0;
+}
+
+.side-section {
+    margin-top: 20px;
+}
+
+.side-section:first-child {
+    margin-top: 0;
+}
+
+.side-section-label {
+    font-weight: 700;
+    display: block;
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: var(--text-secondary, #aaa);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Drive card */
 .drive-card {
-    background: var(--bg-hover);
+    background: var(--bg-hover, #2a2a2a);
     border-radius: 8px;
     padding: 16px;
     display: flex;
     align-items: center;
     gap: 12px;
     margin-top: 15px;
-    border: 1px solid var(--border-light);
+    border: 1px solid var(--border-light, #333);
 }
-.drive-icon { font-size: 32px; color: #1fa463; }
 
-.overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.7); backdrop-filter: blur(2px);
-    z-index: 1040; display: none;
+.drive-card .drive-icon {
+    font-size: 32px;
+    color: #1fa463;
+    flex-shrink: 0;
 }
-.overlay.open { display: block; }
 
-/* BOTÃO DE SALVAR "PARRUDO" */
+.drive-card .drive-info {
+    flex: 1;
+}
+
+.drive-card .drive-info strong {
+    color: var(--text-primary, #eee);
+}
+
+.drive-card .drive-info a {
+    font-size: 12px;
+    color: var(--gn-blue);
+    text-decoration: none;
+}
+
+.drive-card .drive-info a:hover {
+    text-decoration: underline;
+}
+
+/* ============================================================
+   BOTÃO SALVAR GRANDE
+   ============================================================ */
+
 .btn-save-lg {
-    background: var(--blue);
+    background: var(--gn-blue);
     color: #fff;
     border: none;
     border-radius: 8px;
@@ -160,17 +836,96 @@
     box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4);
 }
 
-/* Cores de Alerta */
-.prazo-hoje { border-left: 4px solid var(--red) !important; background: rgba(220, 53, 69, 0.05); }
-.prazo-amanha { border-left: 4px solid var(--yellow) !important; background: rgba(255, 193, 7, 0.05); }
-.prazo-vencido { border-left: 4px solid #85144b !important; background: rgba(133, 20, 75, 0.1); }
+.btn-save-lg:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
 
-/* Agrupamento */
-.group-header td {
-    background: var(--bg-hover);
-    font-weight: 700;
-    color: var(--text-main);
-    padding: 12px 15px;
-    font-size: 12px;
-    border-top: 2px solid var(--border-mid);
+/* ============================================================
+   UTILITÁRIOS
+   ============================================================ */
+
+.text-center { text-align: center; }
+.text-muted { color: var(--text-muted, #888); }
+.mt-10 { margin-top: 10px; }
+.mt-20 { margin-top: 20px; }
+.mb-20 { margin-bottom: 20px; }
+.gap-15 { gap: 15px; }
+.flex { display: flex; }
+.flex-1 { flex: 1; }
+.flex-wrap { flex-wrap: wrap; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+
+/* Cores de prazo na tabela */
+.prazo-vencido { color: #fca5a5; font-weight: bold; background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.3); }
+.prazo-hoje { color: #fcd34d; font-weight: bold; background: rgba(245,158,11,0.2); border-color: rgba(245,158,11,0.3); }
+.prazo-normal { color: var(--text-primary, #eee); }
+
+/* Link de entrega dentro do side modal - botão de abrir */
+.btn-abrir-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--gn-blue);
+    color: #fff;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.2s;
+}
+
+.btn-abrir-link:hover {
+    background: #0069d9;
+    color: #fff;
+    text-decoration: none;
+}
+
+.btn-abrir-link:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Badge indicando que tem link */
+.has-link-indicator {
+    color: var(--gn-green);
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .item-resumo .grid-info {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .item-colunas {
+        flex-direction: column;
+    }
+    
+    .side-modal {
+        width: 100%;
+        right: -100%;
+    }
+    
+    .side-modal.open {
+        transform: translateX(-100%);
+    }
+    
+    .notion-table {
+        font-size: 12px;
+    }
+    
+    .notion-table th,
+    .notion-table td {
+        padding: 4px 6px;
+    }
+    
+    .pill {
+        font-size: 11px;
+        padding: 4px 8px;
+    }
 }

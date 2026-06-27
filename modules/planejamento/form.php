@@ -1,7 +1,5 @@
 <?php
-// modules/planejamento/form.php
-
-require_once '../../config/session.php';
+// modules/planejamento/form.phprequire_once '../../config/session.php';
 require_once '../../config/database.php';
 require_once '../../includes/functions.php';
 
@@ -12,7 +10,7 @@ $mensagem = '';
 
 // Valores padrão
 $tarefa = [
-    'contrato_id' => '', 'escopo' => 'cliente', 'prioridade' => 'media',
+    'cliente_id' => '', 'escopo' => 'cliente', 'prioridade' => 'media',
     'responsavel_id' => $_SESSION['usuario_id'], 'tema' => '', 'tipo' => '',
     'objetivo' => '', 'copy_legenda' => '', 'referencia_visual' => '', 'link_arte_final' => '',
     'formato' => '', 'roteiro_texto' => '', 'status_geral' => 'pendente',
@@ -28,16 +26,14 @@ if ($id) {
 
 // Processamento (Salvar)
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $escopo = $_POST['escopo'] ?? 'cliente';
-    $contrato_id = ($escopo == 'interno') ? null : ($_POST['contrato_id'] ?: null);
+    $cliente_id = $_POST['cliente_id'] ?? null;
+    $escopo = $cliente_id ? 'cliente' : 'interno';
     $status_final = $_POST['status_geral'] ?? 'pendente';
     $copy_legenda = trim($_POST['copy_legenda'] ?? '');
     $link_arte_final = trim($_POST['link_arte_final'] ?? '');
 
-    // Automações de SLA removidas para uso interno focado em To-Do List simples.
-
     $dados = [
-        $contrato_id, $escopo, $_POST['prioridade'] ?? 'media', $_POST['responsavel_id'] ?: null,
+        $cliente_id, $escopo, $_POST['prioridade'] ?? 'media', $_POST['responsavel_id'] ?: null,
         $_POST['tema'] ?? '', $_POST['tipo'] ?? '', $_POST['objetivo'] ?? '',
         $copy_legenda, $_POST['referencia_visual'] ?? '', $link_arte_final, $_POST['formato'] ?? '',
         $_POST['roteiro_texto'] ?? '', $status_final, $_POST['data_publicacao'] ?: null
@@ -46,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     try {
         if ($id) {
             $sql = "UPDATE planejamento SET 
-                    contrato_id=?, escopo=?, prioridade=?, responsavel_id=?, tema=?, tipo=?, 
+                    cliente_id=?, escopo=?, prioridade=?, responsavel_id=?, tema=?, tipo=?, 
                     objetivo=?, copy_legenda=?, referencia_visual=?, link_arte_final=?, formato=?, roteiro_texto=?, 
                     status_geral=?, data_publicacao=? WHERE id=?";
             $dados[] = $id;
@@ -60,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         } else {
             $sql = "INSERT INTO planejamento 
-                    (contrato_id, escopo, prioridade, responsavel_id, tema, tipo, objetivo, copy_legenda, referencia_visual, link_arte_final, formato, roteiro_texto, status_geral, data_publicacao, data_ultima_acao) 
+                    (cliente_id, escopo, prioridade, responsavel_id, tema, tipo, objetivo, copy_legenda, referencia_visual, link_arte_final, formato, roteiro_texto, status_geral, data_publicacao, data_ultima_acao) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
             $pdo->prepare($sql)->execute($dados);
             $novo_id = $pdo->lastInsertId();
@@ -76,7 +72,9 @@ if(isset($_GET['msg']) && $_GET['msg'] == 'sucesso') {
     $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Tarefa criada com sucesso!</div>";
 }
 
-$contratos = $pdo->query("SELECT c.id, c.codigo_agc, cli.nome FROM contratos c JOIN clientes cli ON c.cliente_id = cli.id WHERE c.status != 'finalizado' ORDER BY c.id DESC")->fetchAll();
+// Buscar CLIENTES diretamente da tabela clientes
+$clientes = $pdo->query("SELECT id, nome FROM clientes ORDER BY nome ASC")->fetchAll();
+
 $usuarios = $pdo->query("SELECT id, nome FROM usuarios ORDER BY nome ASC")->fetchAll();
 $categorias_existentes = $pdo->query("SELECT DISTINCT tipo FROM planejamento WHERE tipo IS NOT NULL AND tipo != '' ORDER BY tipo ASC")->fetchAll(PDO::FETCH_COLUMN);
 
@@ -122,7 +120,7 @@ require_once '../../includes/layout/sidebar.php';
             </div>
             <div class="form-group" style="margin-bottom: 0;">
                 <label>Escopo</label>
-                <select name="escopo" id="escopo_select" onchange="toggleContrato()" class="form-control" required>
+                <select name="escopo" id="escopo_select" onchange="toggleCliente()" class="form-control" required>
                     <option value="cliente" <?= $tarefa['escopo'] == 'cliente' ? 'selected' : '' ?>>🎯 Cliente</option>
                     <option value="interno" <?= $tarefa['escopo'] == 'interno' ? 'selected' : '' ?>>🏢 Interno</option>
                 </select>
@@ -130,12 +128,12 @@ require_once '../../includes/layout/sidebar.php';
         </div>
 
         <div class="dashboard-grid" style="grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px;">
-            <div class="form-group" id="campo_contrato" style="margin-bottom: 0; display: <?= $tarefa['escopo'] == 'interno' ? 'none' : 'block' ?>;">
+            <div class="form-group" id="campo_cliente" style="margin-bottom: 0; display: <?= $tarefa['escopo'] == 'interno' ? 'none' : 'block' ?>;">
                 <label>Cliente</label>
-                <select name="contrato_id" class="form-control">
+                <select name="cliente_id" class="form-control">
                     <option value="">Selecione...</option>
-                    <?php foreach($contratos as $c): ?>
-                        <option value="<?= $c['id'] ?>" <?= $c['id'] == $tarefa['contrato_id'] ? 'selected' : '' ?>><?= htmlspecialchars($c['nome']) ?></option>
+                    <?php foreach($clientes as $c): ?>
+                        <option value="<?= $c['id'] ?>" <?= $c['id'] == $tarefa['cliente_id'] ? 'selected' : '' ?>><?= htmlspecialchars($c['nome']) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -183,17 +181,17 @@ require_once '../../includes/layout/sidebar.php';
 </form>
 
 <script>
-function toggleContrato() {
+function toggleCliente() {
     var escopo = document.getElementById('escopo_select').value;
-    var campoContrato = document.getElementById('campo_contrato');
+    var campoCliente = document.getElementById('campo_cliente');
     if (escopo === 'interno') {
-        campoContrato.style.display = 'none';
-        document.querySelector('select[name="contrato_id"]').value = '';
+        campoCliente.style.display = 'none';
+        document.querySelector('select[name="cliente_id"]').value = '';
     } else {
-        campoContrato.style.display = 'block';
+        campoCliente.style.display = 'block';
     }
 }
-toggleContrato();
+toggleCliente();
 </script>
 
 <?php require_once '../../includes/layout/footer.php'; ?>

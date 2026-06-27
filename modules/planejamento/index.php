@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
         $campo = $_POST['campo'];
         $valor = empty($_POST['valor']) ? null : $_POST['valor'];
         
-        $campos = ['responsavel_id', 'prioridade', 'data_publicacao', 'status_geral', 'link_arte_final', 'tipo', 'contrato_id', 'tema'];
+        $campos = ['responsavel_id', 'prioridade', 'data_publicacao', 'status_geral', 'link_arte_final', 'tipo', 'cliente_id', 'tema'];
         if (in_array($campo, $campos)) {
             $pdo->prepare("UPDATE planejamento SET {$campo} = ?, data_ultima_acao = NOW() WHERE id = ?")->execute([$valor, $id]);
             echo "ok"; exit;
@@ -38,13 +38,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
 
     if ($_POST['acao'] == 'quick_add') {
         $tema = trim($_POST['tema']);
-        $contrato_id = empty($_POST['contrato_id']) ? null : $_POST['contrato_id'];
-        $escopo = $contrato_id ? 'cliente' : 'interno';
+        $cliente_id = empty($_POST['cliente_id']) ? null : $_POST['cliente_id'];
         
         if ($tema) {
-            $sql = "INSERT INTO planejamento (tema, contrato_id, escopo, prioridade, status_geral, data_publicacao) 
-                    VALUES (?, ?, ?, 'media', 'pendente', CURDATE())";
-            $pdo->prepare($sql)->execute([$tema, $contrato_id, $escopo]);
+            $sql = "INSERT INTO planejamento (tema, cliente_id, prioridade, status_geral, data_publicacao) 
+                    VALUES (?, ?, 'media', 'pendente', CURDATE())";
+            $pdo->prepare($sql)->execute([$tema, $cliente_id]);
         }
         header("Location: index.php"); exit;
     }
@@ -56,7 +55,9 @@ $usuarios_map = [];
 foreach($usuarios as $u) {
     $usuarios_map[$u['id']] = $u['nome'];
 }
-$contratos = $pdo->query("SELECT c.id, cli.nome FROM contratos c JOIN clientes cli ON c.cliente_id = cli.id WHERE c.status != 'finalizado' ORDER BY cli.nome ASC")->fetchAll();
+
+// Buscar CLIENTES diretamente da tabela clientes
+$clientes = $pdo->query("SELECT id, nome FROM clientes ORDER BY nome ASC")->fetchAll();
 
 $categorias_fixas = ['Carrossel', 'Video', 'Estático', 'Roteiro', 'Captação', 'Operacional', 'Social', 'Design', 'Email', 'Blog', 'Thumb', 'Orçamento', 'Pessoal'];
 
@@ -67,77 +68,19 @@ $status_lista = [
     'A fazer' => 'A fazer', 'Aguardar' => 'Aguardar', 'Postar' => 'Postar'
 ];
 
-// Busca principal — inclui legenda e inspiracao
-$tarefas = $pdo->query("SELECT p.*, cli.nome as cliente_nome 
-                        FROM planejamento p 
-                        LEFT JOIN contratos c ON p.contrato_id = c.id 
-                        LEFT JOIN clientes cli ON c.cliente_id = cli.id 
-                        ORDER BY p.data_publicacao ASC")->fetchAll();
+// Busca principal — agora com cliente_id diretamente da tabela clientes
+$tarefas = $pdo->query("
+    SELECT p.*, c.nome as cliente_nome 
+    FROM planejamento p 
+    LEFT JOIN clientes c ON p.cliente_id = c.id 
+    ORDER BY p.data_publicacao ASC
+")->fetchAll();
 
 require_once '../../includes/layout/header.php';
 require_once '../../includes/layout/sidebar.php';
 ?>
 
 <link rel="stylesheet" href="../../assets/css/planejamento.css">
-
-<style>
-    .notion-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
-    .notion-table th { text-align: left; padding: 12px 10px; color: var(--text-muted); font-weight: 500; border-bottom: 1px solid var(--border); font-size: 13px; }
-    .notion-table td { padding: 4px 10px; border-bottom: 1px solid var(--border-light); vertical-align: middle; position: relative; }
-    .notion-table tr.task-row:hover { background: rgba(255,255,255,0.02); }
-    
-    .silent-input, .silent-select { width: 100%; background: transparent; border: 1px solid transparent; border-radius: 4px; padding: 6px 8px; font-family: inherit; font-size: inherit; color: var(--text-primary); transition: all 0.2s; outline: none; }
-    .silent-input:hover, .silent-select:hover { background: rgba(255,255,255,0.05); border-color: var(--border-mid); }
-    .silent-input:focus, .silent-select:focus { background: rgba(0,0,0,0.2); border-color: var(--blue); color: var(--text-primary); box-shadow: 0 0 0 2px rgba(26,110,232,0.15); font-weight: 500; }
-    .silent-select:focus { background: #1a1a1a; border-color: var(--blue); }
-    .silent-select option { background: #1a1a1a; color: var(--text-primary); padding: 8px; }
-    
-    .pill { display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 16px; font-size: 13px; font-weight: 600; height: auto; line-height: 1.2; border: 1px solid transparent; width: 100%; }
-    .pill:focus { outline: 2px solid var(--blue); outline-offset: 1px; }
-    
-    .pill-status-pendente { background: rgba(255,255,255,0.1); color: #e5e7eb; }
-    .pill-status-roteiro_em_producao { background: rgba(59,130,246,0.2); color: #93c5fd; }
-    .pill-status-roteiro_aguardando_aprovacao { background: rgba(245,158,11,0.2); color: #fcd34d; }
-    .pill-status-roteiro_em_revisao { background: rgba(234,88,12,0.2); color: #fdba74; }
-    .pill-status-peca_em_producao { background: rgba(168,85,247,0.2); color: #d8b4fe; }
-    .pill-status-peca_aguardando_aprovacao { background: rgba(245,158,11,0.2); color: #fcd34d; }
-    .pill-status-peca_em_revisao { background: rgba(234,88,12,0.2); color: #fdba74; }
-    .pill-status-pronto_para_postar { background: rgba(99,102,241,0.2); color: #c7d2fe; }
-    .pill-status-finalizado { background: rgba(16,185,129,0.2); color: #6ee7b7; }
-    
-    .pill-prio-baixa { background: rgba(255,255,255,0.1); color: #9ca3af; }
-    .pill-prio-media { background: rgba(59,130,246,0.2); color: #93c5fd; }
-    .pill-prio-alta { background: rgba(249,115,22,0.2); color: #fdba74; }
-    .pill-prio-urgente { background: rgba(239,68,68,0.2); color: #fca5a5; }
-
-    .pill-resp-vazio { background: transparent; color: var(--text-muted); }
-    .pill-resp-atribuido { background: rgba(99,102,241,0.2); color: #c7d2fe; border-color: rgba(99,102,241,0.3); }
-
-    /* Badge de categoria */
-    .badge-cat { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(255,255,255,0.08); color: var(--text-secondary); }
-
-    .btn-expand-task { background: transparent; border: 1px solid transparent; color: var(--blue); font-size: 18px; cursor: pointer; padding: 6px 8px; border-radius: 4px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
-    .btn-expand-task:hover { background: rgba(255,255,255,0.05); border-color: var(--border-mid); transform: scale(1.1); }
-
-    .quick-add-btn { background: transparent; cursor: pointer; transition: all 0.2s; border: none; border-bottom: 1px solid var(--border-light); }
-    .quick-add-btn:hover { background: rgba(255,255,255,0.02); }
-    .quick-add-btn td { padding: 12px 10px; color: var(--text-muted); font-size: 13px; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 8px; }
-
-    .group-header td { background: var(--bg-surface); font-weight: 700; font-size: 14px; color: var(--text-primary); padding: 16px 10px 8px; border-bottom: 1px solid var(--border-mid); }
-    
-    .side-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; border-bottom: 1px solid var(--border-mid); padding: 24px 24px 20px; background: var(--bg-card); }
-    .side-modal-title-input { font-size: 20px; font-weight: 700; font-family: 'Inter', sans-serif; padding: 0; height: auto; border: none; background: transparent; width: 100%; color: var(--text-primary); outline: none; }
-    .side-modal-title-input:focus { background: rgba(255,255,255,0.05); border-radius: 4px; padding: 4px; margin: -4px; }
-
-    .side-section-label { font-weight: 700; display: block; margin-bottom: 8px; font-size: 13px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
-    .side-section { margin-top: 20px; }
-
-    .notion-table th.resizable { resize: horizontal; overflow: hidden; }
-    .notion-table th.sortable { cursor: pointer; user-select: none; transition: background 0.2s; white-space: nowrap; }
-    .notion-table th.sortable:hover { background: rgba(255,255,255,0.05); color: var(--text-primary); }
-    .notion-table td { white-space: nowrap; }
-    .notion-table td:nth-child(2) { white-space: normal; }
-</style>
 
 <div class="cabecalho">
     <div>
@@ -161,7 +104,7 @@ require_once '../../includes/layout/sidebar.php';
 <!-- Formulário real invisível para o quick add -->
 <form id="realQuickAddForm" method="POST" style="display:none;">
     <input type="hidden" name="acao" value="quick_add">
-    <input type="hidden" name="contrato_id" id="hiddenQuickContrato">
+    <input type="hidden" name="cliente_id" id="hiddenQuickCliente">
     <input type="hidden" name="tema" id="hiddenQuickTema">
 </form>
 
@@ -184,9 +127,9 @@ require_once '../../includes/layout/sidebar.php';
         <!-- Quick Add -->
         <tr id="rowNewTask" style="display: none; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-mid);">
             <td>
-                <select id="quickContratoId" class="silent-select" style="font-weight: 600; border: 1px solid var(--border-mid); background: transparent; color: var(--text-primary);">
+                <select id="quickClienteId" class="silent-select" style="font-weight: 600; border: 1px solid var(--border-mid); background: transparent; color: var(--text-primary);">
                     <option value="">Interno...</option>
-                    <?php foreach($contratos as $c): ?>
+                    <?php foreach($clientes as $c): ?>
                         <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['nome']) ?></option>
                     <?php endforeach; ?>
                 </select>
@@ -201,15 +144,16 @@ require_once '../../includes/layout/sidebar.php';
             $estilo_data = '';
             if($t['status_geral'] != 'finalizado') {
                 if($t['data_publicacao'] < $hoje) {
-                    $estilo_data = 'color: #fca5a5; font-weight: bold; background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.3);';
+                    $estilo_data = 'prazo-vencido';
                 } elseif($t['data_publicacao'] == $hoje) {
-                    $estilo_data = 'color: #fcd34d; font-weight: bold; background: rgba(245,158,11,0.2); border-color: rgba(245,158,11,0.3);';
+                    $estilo_data = 'prazo-hoje';
                 } else {
-                    $estilo_data = 'color: var(--text-primary);';
+                    $estilo_data = 'prazo-normal';
                 }
             }
             $resp_nome = ($t['responsavel_id'] && isset($usuarios_map[$t['responsavel_id']])) ? $usuarios_map[$t['responsavel_id']] : 'Sem Resp.';
             $categoria = $t['tipo'] ?? '';
+            $tem_link = !empty($t['link_arte_final']);
         ?>
         <tr class="task-row" 
             data-cliente="<?= htmlspecialchars($t['cliente_nome'] ?: 'Interno') ?>" 
@@ -222,10 +166,10 @@ require_once '../../includes/layout/sidebar.php';
 
             <!-- Cliente -->
             <td>
-                <select onchange="salvar(<?= $t['id'] ?>, 'contrato_id', this.value)" class="silent-select" style="font-weight: 600;">
+                <select onchange="salvar(<?= $t['id'] ?>, 'cliente_id', this.value)" class="silent-select" style="font-weight: 600;">
                     <option value="">Interno</option>
-                    <?php foreach($contratos as $c): ?>
-                        <option value="<?= $c['id'] ?>" <?= $t['contrato_id'] == $c['id'] ? 'selected' : '' ?>><?= htmlspecialchars($c['nome']) ?></option>
+                    <?php foreach($clientes as $c): ?>
+                        <option value="<?= $c['id'] ?>" <?= $t['cliente_id'] == $c['id'] ? 'selected' : '' ?>><?= htmlspecialchars($c['nome']) ?></option>
                     <?php endforeach; ?>
                 </select>
             </td>
@@ -253,7 +197,7 @@ require_once '../../includes/layout/sidebar.php';
             </td>
             
             <!-- Prazo -->
-            <td><input type="date" class="silent-input" value="<?= $t['data_publicacao'] ?? '' ?>" onchange="salvar(<?= $t['id'] ?>, 'data_publicacao', this.value)" style="<?= $estilo_data ?>"></td>
+            <td><input type="date" class="silent-input <?= $estilo_data ?>" value="<?= $t['data_publicacao'] ?? '' ?>" onchange="salvar(<?= $t['id'] ?>, 'data_publicacao', this.value)"></td>
 
             <!-- Prioridade -->
             <td>
@@ -286,8 +230,8 @@ require_once '../../includes/layout/sidebar.php';
 
             <!-- Abrir Side Modal -->
             <td style="text-align: center;">
-                <button onclick="abrirSide(<?= $t['id'] ?>)" class="btn-ghost" style="padding: 4px; color: <?= ($t['link_arte_final'] || $t['legenda']) ? '#1fa463' : 'var(--text-muted)' ?>; opacity: <?= ($t['link_arte_final'] || $t['legenda']) ? '1' : '0.6' ?>;" title="Abrir detalhes">
-                    <i class="<?= ($t['link_arte_final'] || $t['legenda']) ? 'ph-fill ph-check-circle' : 'ph ph-plus-circle' ?>" style="font-size: 22px;"></i>
+                <button onclick="abrirSide(<?= $t['id'] ?>)" class="btn-ghost" style="padding: 4px; color: <?= $tem_link ? '#1fa463' : 'var(--text-muted)' ?>; opacity: <?= $tem_link ? '1' : '0.6' ?>;" title="Abrir detalhes">
+                    <i class="<?= $tem_link ? 'ph-fill ph-check-circle' : 'ph ph-plus-circle' ?>" style="font-size: 22px;"></i>
                 </button>
             </td>
         </tr>
@@ -310,26 +254,31 @@ require_once '../../includes/layout/sidebar.php';
 
         <div class="side-section">
             <label class="side-section-label">Link de Entrega (Drive / Canva)</label>
-            <input type="text" id="sideLink" class="silent-input" placeholder="Cole o link aqui..." onchange="updateDrivePreview(this.value)" style="border: 1px solid var(--border-mid); background: rgba(0,0,0,0.2);">
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="text" id="sideLink" class="silent-input" placeholder="Cole o link aqui..." onchange="updateDrivePreview(this.value)" style="flex: 1; border: 1px solid var(--border-mid); background: rgba(0,0,0,0.2);">
+                <a id="btnAbrirLink" href="#" target="_blank" class="btn-abrir-link" style="flex-shrink: 0;">
+                    <i class="ph ph-arrow-square-out"></i> Abrir
+                </a>
+            </div>
             <div id="drivePreview"></div>
         </div>
 
         <div class="side-section">
             <label class="side-section-label">Descrição / Roteiro</label>
-            <textarea id="sideRoteiro" class="silent-input" style="height: 160px; border: 1px solid var(--border-mid); background: rgba(0,0,0,0.2); resize: vertical; padding: 12px;" placeholder="Roteiro, briefing ou instruções..."></textarea>
+            <textarea id="sideRoteiro" class="silent-input" style="height: 160px; border: 1px solid var(--border-mid); background: rgba(0,0,0,0.2); resize: vertical; padding: 12px; width: 100%; box-sizing: border-box;" placeholder="Roteiro, briefing ou instruções..."></textarea>
         </div>
 
         <div class="side-section">
             <label class="side-section-label">Legenda do Post</label>
-            <textarea id="sideLegenda" class="silent-input" style="height: 160px; border: 1px solid var(--border-mid); background: rgba(0,0,0,0.2); resize: vertical; padding: 12px;" placeholder="Texto da legenda para publicar..."></textarea>
+            <textarea id="sideLegenda" class="silent-input" style="height: 160px; border: 1px solid var(--border-mid); background: rgba(0,0,0,0.2); resize: vertical; padding: 12px; width: 100%; box-sizing: border-box;" placeholder="Texto da legenda para publicar..."></textarea>
         </div>
 
         <div class="side-section">
             <label class="side-section-label">Inspiração (links de referência)</label>
-            <textarea id="sideInspiracao" class="silent-input" style="height: 80px; border: 1px solid var(--border-mid); background: rgba(0,0,0,0.2); resize: vertical; padding: 12px;" placeholder="Links de posts de inspiração..."></textarea>
+            <textarea id="sideInspiracao" class="silent-input" style="height: 80px; border: 1px solid var(--border-mid); background: rgba(0,0,0,0.2); resize: vertical; padding: 12px; width: 100%; box-sizing: border-box;" placeholder="Links de posts de inspiração..."></textarea>
         </div>
     </div>
-    <div class="side-modal-footer" style="padding: 24px; border-top: 1px solid var(--border-mid); background: var(--bg-card);">
+    <div class="side-modal-footer">
         <button onclick="salvarTudoSide()" class="btn-save-lg">
             <i class="ph-fill ph-floppy-disk" style="font-size: 20px;"></i> 
             SALVAR TODAS AS ALTERAÇÕES
@@ -342,7 +291,7 @@ function quickAddSubmit() {
     const tema = document.getElementById('inputNewTema').value.trim();
     if(!tema) return;
     document.getElementById('hiddenQuickTema').value = tema;
-    document.getElementById('hiddenQuickContrato').value = document.getElementById('quickContratoId').value;
+    document.getElementById('hiddenQuickCliente').value = document.getElementById('quickClienteId').value;
     document.getElementById('inputNewTema').disabled = true;
     document.getElementById('inputNewTema').value = 'Adicionando...';
     document.getElementById('realQuickAddForm').submit();
@@ -366,13 +315,27 @@ function salvar(id, campo, valor) {
 }
 
 function abrirSide(id) {
+    const link = document.getElementById('hidden_link_'+id).value;
+    
     document.getElementById('sideId').value = id;
     document.getElementById('sideTituloInput').value = document.getElementById('hidden_tema_'+id).value;
     document.getElementById('sideRoteiro').value = document.getElementById('hidden_rot_'+id).value;
     document.getElementById('sideLegenda').value = document.getElementById('hidden_leg_'+id).value;
     document.getElementById('sideInspiracao').value = document.getElementById('hidden_ins_'+id).value;
-    document.getElementById('sideLink').value = document.getElementById('hidden_link_'+id).value;
-    updateDrivePreview(document.getElementById('hidden_link_'+id).value);
+    document.getElementById('sideLink').value = link;
+    
+    // Atualiza o botão de abrir link
+    const btnAbrir = document.getElementById('btnAbrirLink');
+    if(link && link.trim() !== '') {
+        btnAbrir.href = link;
+        btnAbrir.style.display = 'inline-flex';
+        btnAbrir.disabled = false;
+    } else {
+        btnAbrir.href = '#';
+        btnAbrir.style.display = 'none';
+    }
+    
+    updateDrivePreview(link);
 
     document.getElementById('overlay').classList.add('open');
     document.getElementById('sideModal').classList.add('open');
@@ -385,15 +348,24 @@ function fecharSide() {
 
 function updateDrivePreview(url) {
     const container = document.getElementById('drivePreview');
-    if(url && url.includes('drive.google.com')) {
-        container.innerHTML = `<div class="drive-card" style="margin-top: 8px;">
-            <i class="ph-fill ph-google-drive-logo drive-icon"></i>
-            <div>
-                <strong style="color: var(--text-main);">Arquivo no Google Drive</strong><br>
-                <a href="${url}" target="_blank" style="font-size: 11px; color: var(--blue);">Abrir em nova aba</a>
-            </div>
-        </div>`;
+    const btnAbrir = document.getElementById('btnAbrirLink');
+    
+    if(url && url.trim() !== '') {
+        btnAbrir.style.display = 'inline-flex';
+        btnAbrir.href = url;
+        btnAbrir.disabled = false;
+        
+        if(url.includes('drive.google.com')) {
+            container.innerHTML = `<div class="drive-card">
+                <i class="ph-fill ph-google-drive-logo drive-icon"></i>
+                <div class="drive-info">
+                    <strong>Arquivo no Google Drive</strong><br>
+                    <a href="${url}" target="_blank">Abrir em nova aba</a>
+                </div>
+            </div>`;
+        } 
     } else {
+        btnAbrir.style.display = 'none';
         container.innerHTML = '';
     }
 }
@@ -405,24 +377,20 @@ function salvarTudoSide() {
     const inspiracao = document.getElementById('sideInspiracao').value;
     const link = document.getElementById('sideLink').value;
 
-    // Salva link via atualizar_campo
     salvar(id, 'link_arte_final', link);
 
-    // Salva roteiro
     let fd1 = new FormData();
     fd1.append('acao', 'salvar_roteiro');
     fd1.append('id_tarefa', id);
     fd1.append('roteiro', roteiro);
     fetch('index.php', {method: 'POST', body: fd1});
 
-    // Salva legenda
     let fd2 = new FormData();
     fd2.append('acao', 'salvar_legenda');
     fd2.append('id_tarefa', id);
     fd2.append('legenda', legenda);
     fetch('index.php', {method: 'POST', body: fd2});
 
-    // Salva inspiracao e recarrega
     let fd3 = new FormData();
     fd3.append('acao', 'salvar_inspiracao');
     fd3.append('id_tarefa', id);
@@ -430,8 +398,15 @@ function salvarTudoSide() {
 
     const btn = document.querySelector('.btn-save-lg');
     btn.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size: 20px;"></i> SALVANDO...';
+    btn.disabled = true;
 
-    fetch('index.php', {method: 'POST', body: fd3}).then(() => window.location.reload());
+    Promise.all([
+        fetch('index.php', {method: 'POST', body: fd1}),
+        fetch('index.php', {method: 'POST', body: fd2}),
+        fetch('index.php', {method: 'POST', body: fd3})
+    ]).then(() => {
+        window.location.reload();
+    });
 }
 
 let currentSortCol = null;
