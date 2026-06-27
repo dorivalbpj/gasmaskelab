@@ -29,19 +29,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
     }
 }
 
-// Busca todas as parcelas (Alterado para LEFT JOIN para aceitar avulsos)
-$stmt = $pdo->query("SELECT p.*, c.codigo_agc, cli.nome as cliente_nome 
+// --- SISTEMA DE FILTROS ---
+$filtro_mesano = $_GET['mesano'] ?? date('Y-m');
+$filtro_status = $_GET['status'] ?? '';
+
+list($ano_filtro, $mes_filtro) = explode('-', $filtro_mesano);
+
+$where = ["YEAR(p.data_vencimento) = ? AND MONTH(p.data_vencimento) = ?"];
+$params = [$ano_filtro, $mes_filtro];
+
+if ($filtro_status) {
+    $where[] = "p.status = ?";
+    $params[] = $filtro_status;
+}
+
+$where_sql = implode(' AND ', $where);
+
+// Busca as parcelas aplicando os filtros
+$stmt = $pdo->prepare("SELECT p.*, c.codigo_agc, cli.nome as cliente_nome 
                      FROM parcelas p 
                      LEFT JOIN contratos c ON p.contrato_id = c.id 
                      LEFT JOIN clientes cli ON c.cliente_id = cli.id 
+                     WHERE $where_sql
                      ORDER BY p.data_vencimento ASC");
-$parcelas = $stmt->fetchAll();
-// Busca todas as parcelas com os dados do cliente e do contrato mas deixxa avulso
-$stmt = $pdo->query("SELECT p.*, c.codigo_agc, cli.nome as cliente_nome 
-                     FROM parcelas p 
-                     LEFT JOIN contratos c ON p.contrato_id = c.id 
-                     LEFT JOIN clientes cli ON c.cliente_id = cli.id 
-                     ORDER BY p.data_vencimento ASC");
+$stmt->execute($params);
 $parcelas = $stmt->fetchAll();
 
 $total_receber = 0;
@@ -88,6 +99,37 @@ require_once '../../includes/layout/sidebar.php';
         <div class="metric-label text-green">Já Recebido</div>
         <div class="metric-value"><?= money($total_recebido) ?></div>
     </div>
+</div>
+
+<!-- Filtros -->
+<div class="card" style="padding: 16px 22px; margin-bottom: 24px;">
+    <form method="GET" style="display: flex; gap: 16px; align-items: flex-end; margin: 0;">
+        <div class="form-group mb-0" style="flex: 1;">
+            <label>Competência</label>
+            <select name="mesano" class="form-control">
+                <?php
+                $meses_pt = ['01'=>'Janeiro', '02'=>'Fevereiro', '03'=>'Março', '04'=>'Abril', '05'=>'Maio', '06'=>'Junho', '07'=>'Julho', '08'=>'Agosto', '09'=>'Setembro', '10'=>'Outubro', '11'=>'Novembro', '12'=>'Dezembro'];
+                for ($i = -6; $i <= 3; $i++) {
+                    $time = strtotime("$i months");
+                    $val = date('Y-m', $time);
+                    $label = $meses_pt[date('m', $time)] . ' ' . date('Y', $time);
+                    $sel = ($val == $filtro_mesano) ? 'selected' : '';
+                    echo "<option value='$val' $sel>$label</option>";
+                }
+                ?>
+            </select>
+        </div>
+        <div class="form-group mb-0" style="flex: 1;">
+            <label>Status</label>
+            <select name="status" class="form-control">
+                <option value="">Todos os Status</option>
+                <option value="pendente" <?= $filtro_status == 'pendente' ? 'selected' : '' ?>>Pendente</option>
+                <option value="atrasado" <?= $filtro_status == 'atrasado' ? 'selected' : '' ?>>Atrasado</option>
+                <option value="pago" <?= $filtro_status == 'pago' ? 'selected' : '' ?>>Pago</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-h44"><i class="ph ph-funnel"></i> Filtrar</button>
+    </form>
 </div>
 
 <div class="card">
@@ -158,7 +200,7 @@ require_once '../../includes/layout/sidebar.php';
     <?php else: ?>
         <div class="empty-state">
             <div style="font-size: 30px; margin-bottom: 10px;">💸</div>
-            Nenhuma parcela registrada ainda. Elas são geradas automaticamente ao iniciar um contrato!
+            Nenhuma entrada encontrada para os filtros selecionados.
         </div>
     <?php endif; ?>
 </div>
