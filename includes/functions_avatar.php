@@ -2,67 +2,39 @@
 // includes/functions_avatar.php
 
 /**
- * Busca o avatar do Instagram usando unavatar.io
- * @param string $username - Nome de usuário do Instagram
- * @return string|null - URL do avatar ou null se não encontrar
+ * Gera uma URL de avatar por iniciais usando ui-avatars.com
+ * Usado como fallback quando não há avatar manual.
+ * @param string $nome - Nome do cliente
+ * @return string - URL do avatar com as iniciais
  */
-function buscarAvatarInstagram($username) {
-    if (empty($username)) {
-        return null;
-    }
-    
-    // Limpa o username (remove @ se tiver)
-    $username = ltrim($username, '@');
-    
-    // URL do unavatar.io
-    $url = "https://unavatar.io/instagram/{$username}";
-    
-    // Verifica se a imagem existe (apenas HEAD request)
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-    curl_setopt($ch, CURLOPT_NOBODY, true); // Só cabeçalho
-    
-    curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    // Se retornou 200, a imagem existe
-    if ($httpCode === 200) {
-        return $url;
-    }
-    
-    return null;
+function gerarAvatarIniciais($nome) {
+    $nome_encoded = urlencode(trim($nome));
+    return "https://ui-avatars.com/api/?name={$nome_encoded}&background=6366f1&color=fff&size=128&bold=true&format=png";
 }
 
 /**
- * Busca e salva o avatar no cadastro/edição
- * @param int $cliente_id - ID do cliente
- * @param string $username - Nome de usuário do Instagram
- * @param PDO $pdo - Conexão com o banco
- * @return bool - Se conseguiu salvar ou não
+ * Salva o avatar_url no banco.
+ * Se o cliente não tiver avatar manual, gera um por iniciais.
+ * @param int $cliente_id
+ * @param string $nome - Nome do cliente (usado para iniciais)
+ * @param PDO $pdo
+ * @return bool
  */
-function salvarAvatarCliente($cliente_id, $username, $pdo) {
-    if (empty($username)) {
-        // Se não tem username, remove o avatar
-        $stmt = $pdo->prepare("UPDATE clientes SET avatar_url = NULL WHERE id = ?");
-        $stmt->execute([$cliente_id]);
-        return false;
-    }
-    
-    $avatar_url = buscarAvatarInstagram($username);
-    
-    if ($avatar_url) {
-        $stmt = $pdo->prepare("UPDATE clientes SET avatar_url = ? WHERE id = ?");
-        $stmt->execute([$avatar_url, $cliente_id]);
+function salvarAvatarCliente($cliente_id, $nome, $pdo) {
+    // Busca se já existe um avatar manual salvo (upload físico)
+    $stmt = $pdo->prepare("SELECT avatar_url FROM clientes WHERE id = ?");
+    $stmt->execute([$cliente_id]);
+    $atual = $stmt->fetchColumn();
+
+    // Se já tem um avatar manual (caminho local), não sobrescreve
+    if (!empty($atual) && str_starts_with($atual, '/')) {
         return true;
-    } else {
-        // Se não encontrou, remove o avatar
-        $stmt = $pdo->prepare("UPDATE clientes SET avatar_url = NULL WHERE id = ?");
-        $stmt->execute([$cliente_id]);
-        return false;
     }
+
+    // Gera URL por iniciais e salva
+    $url = gerarAvatarIniciais($nome);
+    $stmt = $pdo->prepare("UPDATE clientes SET avatar_url = ? WHERE id = ?");
+    $stmt->execute([$url, $cliente_id]);
+    return true;
 }
 ?>

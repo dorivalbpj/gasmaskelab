@@ -1,5 +1,5 @@
 <?php
-// modules/clientes/visualizar.php - VERSÃO COMPLETA
+// modules/clientes/visualizar.php
 
 require_once '../../config/session.php';
 require_once '../../config/database.php';
@@ -15,24 +15,33 @@ $cliente = $stmt->fetch();
 
 if (!$cliente) die("Cliente não encontrado.");
 
+// Se não tem avatar salvo, gera por iniciais e salva para próximas visitas
+if (empty($cliente['avatar_url'])) {
+    salvarAvatarCliente($cliente['id'], $cliente['nome'], $pdo);
+    $cliente['avatar_url'] = gerarAvatarIniciais($cliente['nome']);
+}
+
+// Busca contratos vinculados ao cliente
+$stmt_contratos = $pdo->prepare("
+    SELECT id, codigo_agc, valor, status, data_inicio, duracao_meses, link_drive, criado_em
+    FROM contratos
+    WHERE cliente_id = ?
+    ORDER BY criado_em DESC
+");
+$stmt_contratos->execute([$id]);
+$contratos = $stmt_contratos->fetchAll();
+
 require_once '../../includes/layout/header.php';
 require_once '../../includes/layout/sidebar.php';
 ?>
 
-<!-- CSS ESPECÍFICO DA PÁGINA -->
 <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/clientes.css">
 
 <div class="cabecalho">
     <div class="cabecalho-cliente">
-        <?php if (!empty($cliente['avatar_url'])): ?>
-            <img src="<?= htmlspecialchars($cliente['avatar_url']) ?>" 
-                 alt="Avatar do Instagram" 
-                 class="avatar-cliente">
-        <?php else: ?>
-            <div class="avatar-placeholder">
-                <i class="ph ph-user"></i>
-            </div>
-        <?php endif; ?>
+        <img src="<?= htmlspecialchars($cliente['avatar_url']) ?>"
+             alt="Avatar de <?= htmlspecialchars($cliente['nome']) ?>"
+             class="avatar-cliente">
         <div>
             <h2 class="page-title">Visualizar Cliente</h2>
             <p class="page-subtitle"><?= htmlspecialchars($cliente['nome'] ?? '') ?></p>
@@ -51,6 +60,7 @@ require_once '../../includes/layout/sidebar.php';
 <div class="grid-2col">
     <!-- Coluna Esquerda -->
     <div style="display: flex; flex-direction: column; gap: 24px;">
+
         <!-- Card: Dados do Cliente -->
         <div class="card">
             <div class="card-header">
@@ -63,18 +73,23 @@ require_once '../../includes/layout/sidebar.php';
                 </div>
                 <div class="info-row">
                     <span class="info-label">E-mail</span>
-                    <span class="info-value"><a href="mailto:<?= htmlspecialchars($cliente['email'] ?? '') ?>"><?= htmlspecialchars($cliente['email'] ?? '') ?></a></span>
+                    <span class="info-value">
+                        <?php if (!empty($cliente['email'])): ?>
+                            <a href="mailto:<?= htmlspecialchars($cliente['email']) ?>"><?= htmlspecialchars($cliente['email']) ?></a>
+                        <?php else: ?>
+                            <span style="color: var(--text-secondary);">Não informado</span>
+                        <?php endif; ?>
+                    </span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Telefone / WhatsApp</span>
                     <span class="info-value" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                         <span><?= htmlspecialchars($cliente['telefone'] ?? '') ?></span>
                         <?php if (!empty($cliente['telefone'])): ?>
-                            <a href="https://wa.me/55<?= preg_replace('/[^0-9]/', '', $cliente['telefone']) ?>" 
-                               target="_blank" 
+                            <a href="https://wa.me/55<?= preg_replace('/[^0-9]/', '', $cliente['telefone']) ?>"
+                               target="_blank"
                                class="btn-whatsapp">
                                 <i class="ph ph-whatsapp-logo" style="font-size: 16px;"></i>
-                                
                             </a>
                         <?php endif; ?>
                     </span>
@@ -158,10 +173,12 @@ require_once '../../includes/layout/sidebar.php';
                 </div>
             </div>
         </div>
+
     </div>
 
     <!-- Coluna Direita -->
     <div style="display: flex; flex-direction: column; gap: 24px;">
+
         <!-- Card: Escopo Operacional -->
         <div class="card">
             <div class="card-header">
@@ -199,24 +216,12 @@ require_once '../../includes/layout/sidebar.php';
             </div>
         </div>
 
-        <!-- Card: Links & Observações -->
+        <!-- Card: Links & Observações (sem Drive) -->
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title"><i class="ph ph-link"></i> Links & Observações</h3>
             </div>
             <div class="card-body">
-                <div class="info-row">
-                    <span class="info-label"><i class="ph ph-folder"></i> Drive</span>
-                    <span class="info-value">
-                        <?php if (!empty($cliente['link_drive'])): ?>
-                            <a href="<?= htmlspecialchars($cliente['link_drive']) ?>" target="_blank">
-                                <i class="ph ph-arrow-square-out"></i> Acessar Pasta
-                            </a>
-                        <?php else: ?>
-                            <span style="color: var(--text-secondary);">Não informado</span>
-                        <?php endif; ?>
-                    </span>
-                </div>
                 <div class="info-row">
                     <span class="info-label"><i class="ph ph-book"></i> Referências</span>
                     <span class="info-value">
@@ -235,7 +240,88 @@ require_once '../../includes/layout/sidebar.php';
                 </div>
             </div>
         </div>
+
     </div>
+</div>
+
+<!-- Card: Contratos do Cliente (largura total) -->
+<div class="card" style="margin-top: 24px;">
+    <div class="card-header">
+        <h3 class="card-title"><i class="ph ph-scroll"></i> Contratos</h3>
+        <span class="badge badge-gray"><?= count($contratos) ?> Registro<?= count($contratos) !== 1 ? 's' : '' ?></span>
+    </div>
+
+    <?php if (count($contratos) > 0): ?>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Data</th>
+                        <th>Duração</th>
+                        <th>Valor</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Drive</th>
+                        <th class="text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($contratos as $c): ?>
+                        <?php
+                            $badge_class = 'badge-gray';
+                            if ($c['status'] == 'aguardando_aceite_cliente') $badge_class = 'badge-yellow';
+                            if ($c['status'] == 'aguardando_pagamento')      $badge_class = 'badge-blue';
+                            if ($c['status'] == 'em_andamento')              $badge_class = 'badge-green';
+                            if ($c['status'] == 'finalizado')                $badge_class = 'badge-purple';
+                        ?>
+                        <tr>
+                            <td>
+                                <span class="txt-name-main"><?= htmlspecialchars($c['codigo_agc']) ?></span>
+                            </td>
+                            <td>
+                                <span class="txt-date-sm"><?= dataBR($c['criado_em']) ?></span>
+                            </td>
+                            <td>
+                                <span class="txt-contact-main"><?= (int)$c['duracao_meses'] ?> meses</span>
+                            </td>
+                            <td>
+                                <span class="txt-contact-main">R$ <?= number_format($c['valor'], 2, ',', '.') ?></span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge <?= $badge_class ?>">
+                                    <?= str_replace('_', ' ', $c['status']) ?>
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <?php if (!empty($c['link_drive'])): ?>
+                                    <a href="<?= htmlspecialchars($c['link_drive']) ?>" target="_blank" class="btn btn-ghost btn-sm btn-icon-table" title="Abrir pasta no Drive">
+                                        <i class="ph ph-folder-open"></i>
+                                    </a>
+                                <?php else: ?>
+                                    <span style="color: var(--text-secondary);">—</span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="text-center">
+                                <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+                                    <a href="<?= BASE_URL ?>modules/contratos/detalhes.php?id=<?= $c['id'] ?>" class="btn btn-secondary btn-sm btn-icon-table" title="Ver Detalhes">
+                                        <i class="ph ph-eye"></i>
+                                    </a>
+                                    <a href="<?= BASE_URL ?>modules/contratos/form.php?id=<?= $c['id'] ?>" class="btn btn-ghost btn-sm btn-icon-table" title="Editar Contrato">
+                                        <i class="ph ph-pencil-simple"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php else: ?>
+        <div class="empty-state empty-state-padded">
+            <i class="ph ph-scroll empty-state-icon"></i>
+            Nenhum contrato vinculado a este cliente.
+        </div>
+    <?php endif; ?>
 </div>
 
 <?php require_once '../../includes/layout/footer.php'; ?>

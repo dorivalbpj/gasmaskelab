@@ -1,5 +1,5 @@
 <?php
-// modules/clientes/index.php - VERSÃO COMPLETA
+// modules/clientes/index.php
 
 require_once '../../config/session.php';
 require_once '../../config/database.php';
@@ -13,52 +13,45 @@ if (!isAdmin()) {
 
 $mensagem = '';
 
-// Função para tratar valores nulos no htmlspecialchars
 function safeHtml($value, $default = '') {
     return htmlspecialchars($value ?? $default);
 }
 
 // Lógica de Novo Cliente
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['acao'] == 'novo') {
-    $nome = trim($_POST['nome'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $telefone = trim($_POST['telefone'] ?? '');
-    $cpf_cnpj = trim($_POST['cpf_cnpj'] ?? '');
+    $nome      = trim($_POST['nome'] ?? '');
+    $email     = trim($_POST['email'] ?? '');
+    $telefone  = trim($_POST['telefone'] ?? '');
+    $cpf_cnpj  = trim($_POST['cpf_cnpj'] ?? '');
     $user_insta = trim($_POST['user_insta'] ?? '');
 
     if (!empty($nome)) {
         try {
-            // 1. INSERE O CLIENTE COM user_insta
-            $stmt = $pdo->prepare("INSERT INTO clientes (nome, email, telefone, cpf_cnpj, user_insta) VALUES (:nome, :email, :telefone, :cpf_cnpj, :user_insta)");
+            $stmt = $pdo->prepare("INSERT INTO clientes (nome, email, telefone, cpf_cnpj, user_insta, avatar_url) VALUES (:nome, :email, :telefone, :cpf_cnpj, :user_insta, :avatar_url)");
             $stmt->execute([
-                'nome' => $nome,
-                'email' => $email,
-                'telefone' => $telefone,
-                'cpf_cnpj' => $cpf_cnpj,
-                'user_insta' => $user_insta
+                'nome'       => $nome,
+                'email'      => $email,
+                'telefone'   => $telefone,
+                'cpf_cnpj'   => $cpf_cnpj,
+                'user_insta' => $user_insta,
+                'avatar_url' => gerarAvatarIniciais($nome),
             ]);
-            
+
             $cliente_id = $pdo->lastInsertId();
-            
-            // 2. BUSCA E SALVA O AVATAR DO INSTAGRAM
-            if (!empty($user_insta)) {
-                salvarAvatarCliente($cliente_id, $user_insta, $pdo);
-            }
-            
-            // 3. CRIA USUÁRIO SE TIVER EMAIL
+
             if (!empty($email)) {
                 $senha_padrao = password_hash($email, PASSWORD_DEFAULT);
                 $stmt_user = $pdo->prepare("INSERT INTO usuarios (nome, email, senha, perfil, cliente_id) VALUES (:nome, :email, :senha, 'cliente', :cliente_id)");
                 $stmt_user->execute([
-                    'nome' => $nome,
-                    'email' => $email,
-                    'senha' => $senha_padrao,
+                    'nome'       => $nome,
+                    'email'      => $email,
+                    'senha'      => $senha_padrao,
                     'cliente_id' => $cliente_id
                 ]);
             }
-            
+
             $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Cliente cadastrado com sucesso!</div>";
-            
+
         } catch (PDOException $e) {
             if ($e->getCode() == 23000) {
                 $mensagem = "<div class='alert alert-danger'><i class='ph-fill ph-warning-circle'></i> Erro: Já existe um usuário cadastrado com este e-mail.</div>";
@@ -69,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
     }
 }
 
-// BUSCA TODOS OS CLIENTES
+// Busca todos os clientes
 $stmt = $pdo->query("SELECT * FROM clientes ORDER BY nome ASC");
 $clientes = $stmt->fetchAll();
 
@@ -77,7 +70,6 @@ require_once '../../includes/layout/header.php';
 require_once '../../includes/layout/sidebar.php';
 ?>
 
-<!-- CSS ESPECÍFICO DA PÁGINA -->
 <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/clientes.css">
 
 <div class="cabecalho">
@@ -93,7 +85,7 @@ require_once '../../includes/layout/sidebar.php';
 <?= $mensagem ?>
 
 <div class="card">
-    
+
     <div class="filter-bar-container">
         <div class="filter-col-lg">
             <label class="filter-label">Buscar por Nome, Documento ou Contato</label>
@@ -126,31 +118,29 @@ require_once '../../includes/layout/sidebar.php';
                 </thead>
                 <tbody>
                     <?php foreach ($clientes as $c): ?>
-                        <?php 
+                        <?php
+                        $avatar = !empty($c['avatar_url'])
+                            ? $c['avatar_url']
+                            : gerarAvatarIniciais($c['nome']);
+
                         $texto_busca = strtolower(
-                            ($c['nome'] ?? '') . " " . 
-                            ($c['email'] ?? '') . " " . 
-                            ($c['cpf_cnpj'] ?? '') . " " . 
+                            ($c['nome'] ?? '') . " " .
+                            ($c['email'] ?? '') . " " .
+                            ($c['cpf_cnpj'] ?? '') . " " .
                             ($c['telefone'] ?? '')
-                        ); 
+                        );
                         ?>
                         <tr class="linha-cliente" data-busca="<?= safeHtml($texto_busca) ?>">
                             <td>
                                 <a href="visualizar.php?id=<?= $c['id'] ?>" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit;">
-                                    <?php if (!empty($c['avatar_url'])): ?>
-                                        <img src="<?= htmlspecialchars($c['avatar_url']) ?>" 
-                                             alt="Avatar" 
-                                             style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); flex-shrink: 0;">
-                                    <?php else: ?>
-                                        <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text-secondary); flex-shrink: 0;">
-                                            <i class="ph ph-user"></i>
-                                        </div>
-                                    <?php endif; ?>
+                                    <img src="<?= htmlspecialchars($avatar) ?>"
+                                         alt="Avatar"
+                                         style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); flex-shrink: 0;">
                                     <div>
                                         <span class="txt-name-main"><?= safeHtml($c['nome']) ?></span>
                                         <span class="txt-meta-sm">CNPJ/CPF: <?= safeHtml($c['cpf_cnpj'] ?? 'Não informado') ?></span>
                                     </div>
-                                </div>
+                                </a>
                             </td>
                             <td>
                                 <span class="txt-contact-main"><?= safeHtml($c['email'] ?? '') ?></span>
@@ -170,7 +160,7 @@ require_once '../../includes/layout/sidebar.php';
                     <?php endforeach; ?>
                 </tbody>
             </table>
-            
+
             <div id="msgSemResultados" class="empty-state empty-state-padded" style="display: none;">
                 <i class="ph ph-magnifying-glass empty-state-icon"></i>
                 Nenhum cliente encontrado para estes filtros.
@@ -189,7 +179,7 @@ require_once '../../includes/layout/sidebar.php';
     <div class="modal-box">
         <button type="button" class="modal-close-btn" onclick="fecharModalCliente()"><i class="ph ph-x"></i></button>
         <h3 style="margin: 0 0 20px 0; font-size: 20px; color: var(--text-primary);">Cadastrar Novo Cliente</h3>
-        
+
         <form method="POST" action="">
             <input type="hidden" name="acao" value="novo">
             <div class="form-group">
@@ -197,8 +187,8 @@ require_once '../../includes/layout/sidebar.php';
                 <input type="text" name="nome" class="form-control" required placeholder="Ex: Gasmaske Ltda">
             </div>
             <div class="form-group">
-                <label>E-mail (*)</label>
-                <input type="email" name="email" class="form-control" required placeholder="E-mail principal">
+                <label>E-mail</label>
+                <input type="email" name="email" class="form-control" placeholder="E-mail principal">
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div class="form-group">
@@ -241,16 +231,9 @@ function filtrarClientes() {
 
     linhas.forEach(linha => {
         const texto = linha.getAttribute('data-busca');
-        
-        let mostra = true;
-        if (filtroTexto !== '' && !texto.includes(filtroTexto)) mostra = false;
-
-        if (mostra) {
-            linha.style.display = '';
-            visiveis++;
-        } else {
-            linha.style.display = 'none';
-        }
+        const mostra = filtroTexto === '' || texto.includes(filtroTexto);
+        linha.style.display = mostra ? '' : 'none';
+        if (mostra) visiveis++;
     });
 
     document.getElementById('contadorRegistros').innerText = visiveis + ' Registros';
@@ -263,7 +246,6 @@ function limparFiltros() {
     filtrarClientes();
 }
 
-// Fechar modal ao clicar fora
 document.getElementById('modalNovoCliente').addEventListener('click', function(e) {
     if (e.target === this) fecharModalCliente();
 });
