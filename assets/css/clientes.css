@@ -517,11 +517,7 @@ textarea.form-control {
 
 /* ===== RESPONSIVO ===== */
 @media (max-width: 768px) {
-    .cabecalho {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
+       
     .cabecalho-cliente {
         flex-direction: column;
         align-items: flex-start;
@@ -557,5 +553,18 @@ textarea.form-control {
     #tabelaClientes thead th,
     #tabelaClientes tbody td {
         padding: 8px 10px;
+    }
+
+    #tabelaClientes th:nth-child(2),
+    #tabelaClientes td:nth-child(2),
+    #tabelaClientes th:nth-child(3),
+    #tabelaClientes td:nth-child(3) {
+        display: none;
+    }
+
+    /* Dá o espaço máximo para o nome e imagem */
+    #tabelaClientes td:first-child {
+        width: 100%;
+        padding: 16px 12px; /* Dá um respiro melhor para tocar na tela */
     }
 }

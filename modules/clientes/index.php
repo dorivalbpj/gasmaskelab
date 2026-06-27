@@ -136,7 +136,7 @@ require_once '../../includes/layout/sidebar.php';
                         ?>
                         <tr class="linha-cliente" data-busca="<?= safeHtml($texto_busca) ?>">
                             <td>
-                                <div style="display: flex; align-items: center; gap: 12px;">
+                                <a href="visualizar.php?id=<?= $c['id'] ?>" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit;">
                                     <?php if (!empty($c['avatar_url'])): ?>
                                         <img src="<?= htmlspecialchars($c['avatar_url']) ?>" 
                                              alt="Avatar" 
