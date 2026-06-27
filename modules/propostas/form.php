@@ -224,7 +224,19 @@ require_once '../../includes/layout/sidebar.php';
 </div>
 
 <?php if ($exibir_modal_ninja): ?>
-    <?php $link_proposta = "http://localhost/publico/proposta.php?token=" . $token_ninja; ?>
+    <?php 
+        // 1. Verifica se a conexão atual é segura (HTTPS) ou se está atrás de um proxy
+        $is_https = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') || 
+                    (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+        
+        $protocolo = $is_https ? "https" : "http";
+        
+        // 2. Captura o domínio automaticamente (ex: 'localhost' ou 'erp.gasmaskelab.com.br')
+        $dominio = $_SERVER['HTTP_HOST']; 
+        
+        // 3. Monta o link dinâmico
+        $link_proposta = $protocolo . "://" . $dominio . "/publico/proposta.php?token=" . $token_ninja; 
+    ?>
     <div id="modalNinja" class="modal-ninja-overlay">
         <div class="modal-ninja-box">
             <div class="modal-ninja-header">Proposta Pronta! 🚀</div>
