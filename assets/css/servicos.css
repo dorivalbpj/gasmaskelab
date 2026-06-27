@@ -1,0 +1,122 @@
+/* ===========================================
+   SERVIÇOS — Design System v3
+   =========================================== */
+
+/* ===== TABS ===== */
+.tabs-container {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+    padding: 0 2px;
+}
+
+.tab-link {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-2);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: var(--r-sm) var(--r-sm) 0 0;
+}
+
+.tab-link:hover {
+    color: var(--text);
+    background: var(--bg-hover);
+    opacity: 1;
+}
+
+.tab-link.active {
+    color: var(--red);
+    border-bottom-color: var(--red);
+    background: rgba(255, 63, 52, 0.04);
+}
+
+/* ===== FORMULÁRIO DE USUÁRIO ===== */
+.user-form-card {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.user-form-card .form-group {
+    margin-bottom: 18px;
+}
+
+.user-form-card .form-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-2);
+    margin-bottom: 4px;
+}
+
+.user-form-card .form-group .form-control {
+    width: 100%;
+}
+
+.senha-box {
+    background: var(--bg-elevated);
+    padding: 16px 18px;
+    border-radius: var(--r-md);
+    border: 1px dashed var(--border-mid);
+    margin: 6px 0 4px;
+}
+
+.senha-box label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-2);
+    display: block;
+    margin-bottom: 6px;
+}
+
+.senha-box .form-control {
+    width: 100%;
+}
+
+/* ===== BOTÕES DE AÇÃO NA TABELA ===== */
+.btn-actions-wrapper {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+}
+
+/* ===== RESPONSIVO ===== */
+@media (max-width: 768px) {
+    .tabs-container {
+        flex-direction: column;
+        gap: 2px;
+        border-bottom: none;
+    }
+    
+    .tab-link {
+        border-bottom: 1px solid var(--border);
+        border-radius: var(--r-sm);
+        margin-bottom: 0;
+    }
+    
+    .tab-link.active {
+        border-bottom-color: var(--red);
+        background: rgba(255, 63, 52, 0.06);
+    }
+    
+    .user-form-card {
+        max-width: 100%;
+    }
+    
+    .btn-actions-wrapper {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+}
