@@ -92,15 +92,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $pdo->prepare("UPDATE contratos SET status = 'em_andamento', data_inicio = ?, dia_vencimento = ?, link_drive = ? WHERE id = ?")->execute([$data_pagamento, $dia_vencimento, $link_drive, $id]);
             
             $pdo->prepare("DELETE FROM parcelas WHERE contrato_id = ?")->execute([$id]);
-            $stmt_parcela = $pdo->prepare("INSERT INTO parcelas (contrato_id, descricao, valor, data_vencimento, status, data_pagamento) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt_parcela = $pdo->prepare("INSERT INTO parcelas (contrato_id, numero_parcela, descricao, valor, data_vencimento, status, data_pagamento) VALUES (?, ?, ?, ?, ?, ?, ?)");
             for ($i = 1; $i <= $duracao; $i++) {
                 $desc = "Parcela $i/" . $duracao . " - " . $contrato['codigo_agc'];
                 if ($i == 1) {
-                    $stmt_parcela->execute([$id, $desc, $valor_parcela, $data_pagamento, 'pago', $data_pagamento]);
+                    $stmt_parcela->execute([$id, $i, $desc, $valor_parcela, $data_pagamento, 'pago', $data_pagamento]);
                 } else {
                     $meses_add = $i - 1;
                     $vencimento = date('Y-m-d', strtotime("+$meses_add months", strtotime($data_pagamento)));
-                    $stmt_parcela->execute([$id, $desc, $valor_parcela, $vencimento, 'pendente', null]);
+                    $stmt_parcela->execute([$id, $i, $desc, $valor_parcela, $vencimento, 'pendente', null]);
                 }
             }
             $pdo->prepare("INSERT INTO contrato_log (contrato_id, usuario_id, descricao) VALUES (?, ?, ?)")->execute([$id, $usuario_id_log, "Pagamento confirmado$msg_drive."]);

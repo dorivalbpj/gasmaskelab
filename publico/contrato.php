@@ -43,7 +43,7 @@ function validaCNPJ($cnpj) {
     return $cnpj[13] == ($resto < 2 ? 0 : 11 - $resto);
 }
 
-$token = $_GET['token'] ?? '';
+$token = $_GET['token'] ?? $_POST['token'] ?? '';
 $mensagem = '';
 
 if (empty($token)) {
@@ -65,7 +65,7 @@ $meses_duracao  = (isset($contrato['duracao_meses']) && $contrato['duracao_meses
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assinar_contrato']) && $contrato['status'] == 'aguardando_aceite_cliente') {
     $cpf_cnpj         = $_POST['cpf_cnpj'] ?? '';
-    $endereco_completo = $_POST['endereco_completo'] ?? '';
+    $endereco = $_POST['endereco'] ?? '';
     $ip               = $_SERVER['REMOTE_ADDR'];
     $cpf_cnpj_limpo   = preg_replace('/[^0-9]/', '', $cpf_cnpj);
 
@@ -83,14 +83,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assinar_contrato']) &&
                 $pdo->beginTransaction();
                 $pdo->prepare("UPDATE contratos SET status = 'aguardando_pagamento', cpf_cnpj_aceite = ?, aceito_em = NOW(), aceito_ip = ? WHERE id = ?")->execute([$cpf_cnpj, $ip, $contrato['id']]);
                 $pdo->prepare("INSERT INTO contrato_log (contrato_id, usuario_id, descricao) VALUES (?, NULL, ?)")->execute([$contrato['id'], "Contrato assinado digitalmente. Doc: $cpf_cnpj | IP: $ip"]);
-                $pdo->prepare("UPDATE clientes SET cpf_cnpj = ?, endereco_completo = ? WHERE id = ?")->execute([$cpf_cnpj, $endereco_completo, $contrato['cliente_id']]);
+                $pdo->prepare("UPDATE clientes SET cpf_cnpj = ?, endereco = ? WHERE id = ?")->execute([$cpf_cnpj, $endereco, $contrato['cliente_id']]);
                 $pdo->prepare("DELETE FROM parcelas WHERE contrato_id = ?")->execute([$contrato['id']]);
 
                 for ($i = 0; $i < $meses_duracao; $i++) {
                     $data_vencimento = date('Y-m-d', strtotime("+$i months"));
                     $num_parcela = $i + 1;
-                    $pdo->prepare("INSERT INTO parcelas (contrato_id, descricao, valor, data_vencimento, status) VALUES (?, ?, ?, ?, 'pendente')")
-                        ->execute([$contrato['id'], "Mensalidade $num_parcela/$meses_duracao - " . $contrato['codigo_agc'], $valor_parcela, $data_vencimento]);
+                    $pdo->prepare("INSERT INTO parcelas (contrato_id, numero_parcela, descricao, valor, data_vencimento, status) VALUES (?, ?, ?, ?, ?, 'pendente')")
+    ->execute([$contrato['id'], $num_parcela, "Mensalidade $num_parcela/$meses_duracao - " . $contrato['codigo_agc'], $valor_parcela, $data_vencimento]);
                 }
 
                 $pdo->commit();
@@ -98,9 +98,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assinar_contrato']) &&
                 $contrato['cpf_cnpj_aceite'] = $cpf_cnpj;
                 $mensagem = 'sucesso';
             } catch (PDOException $e) {
-                $pdo->rollBack();
-                $mensagem = 'erro';
-            }
+                    $pdo->rollBack();
+                    die("ERRO REAL: " . $e->getMessage());
+                }
         }
     }
 }
@@ -129,7 +129,7 @@ if ($contrato['status'] == 'aguardando_pagamento') {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="../assets/css/public.css">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/dist/iife/index.js"></script>
 </head>
 <body class="public-body">
 
@@ -261,10 +261,11 @@ if ($contrato['status'] == 'aguardando_pagamento') {
                     <div class="card-body">
                         <div id="viewer_contrato" class="contract-viewer"></div>
 
-                        <form method="POST" action="" style="margin-top:20px;">
+                        <form method="POST" action="">
+                            <input type="hidden" name="token" value="<?= htmlspecialchars($contrato['token']) ?>">
                             <input type="hidden" name="assinar_contrato" value="1">
                             <input type="hidden" name="cpf_cnpj" id="final_doc">
-                            <input type="hidden" name="endereco_completo" id="final_end">
+                            <input type="hidden" name="endereco" id="final_end">
 
                             <div class="sign-consent" style="margin-bottom:16px;">
                                 <input type="checkbox" id="consent-check" required>
