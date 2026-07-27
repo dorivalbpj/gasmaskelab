@@ -150,13 +150,133 @@ require_once '../../includes/layout/sidebar.php';
 
 <?= $mensagem ?>
 
-<div class="grid-2col">
+<style>
+    /* Estilos do Layout Principal */
+    .layout-dashboard {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+    .grid-top {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 24px;
+    }
+    .grid-bottom {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 24px;
+    }
 
-    <!-- Coluna Esquerda -->
-    <div style="display: flex; flex-direction: column; gap: 24px;">
+    /* ==== NOVO: Grid do Resumo (Blocos internos) ==== */
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 16px;
+        margin-top: 8px;
+    }
+    .summary-item {
+        background: var(--bg-surface, #f8f9fc);
+        border: 1px solid var(--border-color, #e2e8f0);
+        border-radius: 8px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .summary-label {
+        font-size: 11px;
+        color: var(--text-muted, #f8f9fc);
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .summary-label i {
+        font-size: 14px;
+    }
+    .summary-value {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-main, #f8f9fc);
+        word-break: break-word;
+    }
 
-        <!-- Card: Resumo -->
-        <div class="card">
+    /* ==== NOVO: Dashboard de Parcelas (Totalizadores e Tabela) ==== */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    .stat-box {
+        background: var(--bg-surface, #f8f9fc);
+        border: 1px solid var(--border-color, #e2e8f0);
+        border-radius: 8px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    .stat-number {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 4px;
+    }
+    .stat-label {
+        font-size: 12px;
+        color: var(--text-muted, #f8f9fc);
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+    
+    .modern-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .modern-table th {
+        background: var(--bg-surface, #f8f9fc);
+        padding: 12px 16px;
+        font-size: 12px;
+        color: var(--text-muted, #f8f9fc);
+        text-transform: uppercase;
+        font-weight: 600;
+        text-align: left;
+        border-bottom: 2px solid var(--border-color, #e2e8f0);
+    }
+    .modern-table th.text-center { text-align: center; }
+    .modern-table td {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border-color, #e2e8f0);
+        vertical-align: middle;
+        font-size: 14px;
+    }
+    .modern-table tr:last-child td {
+        border-bottom: none;
+    }
+    .modern-table tbody tr:hover {
+        background: var(--bg-hover, #f1f5f9);
+    }
+
+    /* Responsividade */
+    @media (max-width: 992px) {
+        .grid-bottom {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="layout-dashboard">
+    
+    <!-- ================= LINHA SUPERIOR ================= -->
+    <div class="grid-top">
+        
+        <!-- Card: Resumo (Agora com Grid Interno) -->
+        <div class="card" style="margin-bottom: 0;">
             <div class="card-header">
                 <h3 class="card-title"><i class="ph ph-info"></i> Resumo do Acordo</h3>
                 <?php
@@ -169,138 +289,61 @@ require_once '../../includes/layout/sidebar.php';
                 ?>
                 <span class="badge <?= $badge_status ?>"><?= str_replace('_', ' ', $contrato['status']) ?></span>
             </div>
+            
             <div class="card-body">
-                <div class="info-row">
-                    <span class="info-label">Cliente</span>
-                    <span class="info-value">
-                        <a href="<?= BASE_URL ?>modules/clientes/visualizar.php?id=<?= $contrato['cliente_id'] ?>">
-                            <?= htmlspecialchars($contrato['cliente_nome']) ?>
-                        </a>
-                    </span>
+                <div class="summary-grid">
+                    <div class="summary-item" style="grid-column: 1 / -1;">
+                        <span class="summary-label"><i class="ph ph-user"></i> Cliente</span>
+                        <span class="summary-value">
+                            <a href="<?= BASE_URL ?>modules/clientes/visualizar.php?id=<?= $contrato['cliente_id'] ?>">
+                                <?= htmlspecialchars($contrato['cliente_nome']) ?>
+                            </a>
+                        </span>
+                    </div>
+                    
+                    <div class="summary-item">
+                        <span class="summary-label"><i class="ph ph-calendar-blank"></i> Duração</span>
+                        <span class="summary-value"><?= $duracao ?> meses</span>
+                    </div>
+                    
+                    <div class="summary-item">
+                        <span class="summary-label"><i class="ph ph-currency-dollar"></i> Valor / Parcela</span>
+                        <span class="summary-value"><?= money($valor_parcela) ?></span>
+                    </div>
+                    
+                    <div class="summary-item">
+                        <span class="summary-label"><i class="ph ph-coins"></i> Total do Contrato</span>
+                        <span class="summary-value text-red"><?= money($valor_contrato) ?></span>
+                    </div>
+
+                    <?php if (!empty($contrato['data_inicio'])): ?>
+                    <div class="summary-item">
+                        <span class="summary-label"><i class="ph ph-play-circle"></i> Início</span>
+                        <span class="summary-value"><?= dataBR($contrato['data_inicio']) ?></span>
+                    </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($contrato['dia_vencimento'])): ?>
+                    <div class="summary-item">
+                        <span class="summary-label"><i class="ph ph-calendar-check"></i> Vencimento</span>
+                        <span class="summary-value">Dia <?= $contrato['dia_vencimento'] ?></span>
+                    </div>
+                    <?php endif; ?>
                 </div>
-                <div class="info-row">
-                    <span class="info-label">Duração</span>
-                    <span class="info-value"><?= $duracao ?> meses</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Valor / Parcela</span>
-                    <span class="info-value"><?= money($valor_parcela) ?></span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Total do Contrato</span>
-                    <span class="info-value text-red"><?= money($valor_contrato) ?></span>
-                </div>
-                <?php if (!empty($contrato['data_inicio'])): ?>
-                <div class="info-row">
-                    <span class="info-label">Início</span>
-                    <span class="info-value"><?= dataBR($contrato['data_inicio']) ?></span>
-                </div>
-                <?php endif; ?>
-                <?php if (!empty($contrato['dia_vencimento'])): ?>
-                <div class="info-row">
-                    <span class="info-label">Vencimento</span>
-                    <span class="info-value">Todo dia <?= $contrato['dia_vencimento'] ?></span>
-                </div>
-                <?php endif; ?>
+
                 <?php if (!empty($contrato['link_drive'])): ?>
-                <div class="info-row">
-                    <span class="info-label"><i class="ph ph-folder"></i> Drive</span>
-                    <span class="info-value">
-                        <a href="<?= htmlspecialchars($contrato['link_drive']) ?>" target="_blank" class="btn btn-secondary btn--sm">
-                            <i class="ph ph-folder-open"></i> Abrir Pasta
-                        </a>
-                    </span>
+                <div style="margin-top: 16px;">
+                    <a href="<?= htmlspecialchars($contrato['link_drive']) ?>" target="_blank" class="btn btn-secondary w-100" style="justify-content: center;">
+                        <i class="ph ph-folder-open"></i> Acessar Pasta no Drive
+                    </a>
                 </div>
                 <?php endif; ?>
             </div>
         </div>
 
-        <!-- Card: Parcelas -->
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title"><i class="ph ph-currency-circle-dollar"></i> Parcelas</h3>
-                <span class="badge badge-gray"><?= count($parcelas) ?> parcela<?= count($parcelas) !== 1 ? 's' : '' ?></span>
-            </div>
-
-            <?php if (count($parcelas) > 0): ?>
-
-                <!-- Mini resumo financeiro -->
-                <div class="stats-grid" style="margin-bottom: 16px;">
-                    <div class="stat-box">
-                        <div class="stat-number text-green"><?= money($total_pago) ?></div>
-                        <div class="stat-label">Recebido</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-number text-yellow"><?= money($total_aberto) ?></div>
-                        <div class="stat-label">Em Aberto</div>
-                    </div>
-                </div>
-
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Vencimento</th>
-                                <th>Valor</th>
-                                <th>Pagamento</th>
-                                <th class="text-center">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($parcelas as $p): ?>
-                                <?php
-                                    $badge_p = 'badge-gray';
-                                    if ($p['status'] === 'pago')     $badge_p = 'badge-green';
-                                    if ($p['status'] === 'atrasado') $badge_p = 'badge-red';
-                                    if ($p['status'] === 'pendente') $badge_p = 'badge-yellow';
-                                ?>
-                                <tr>
-                                    <td>
-                                        <span class="txt-name-main"><?= $p['numero_parcela'] ?>/<?= $duracao ?></span>
-                                    </td>
-                                    <td>
-                                        <span class="txt-date-sm"><?= dataBR($p['data_vencimento']) ?></span>
-                                    </td>
-                                    <td>
-                                        <span class="txt-contact-main"><?= money($p['valor']) ?></span>
-                                    </td>
-                                    <td>
-                                        <?php if (!empty($p['data_pagamento'])): ?>
-                                            <span class="txt-date-sm text-green"><?= dataBR($p['data_pagamento']) ?></span>
-                                        <?php else: ?>
-                                            <span class="txt-meta-sm">—</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="badge <?= $badge_p ?>"><?= $p['status'] ?></span>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-
-                <p class="txt-meta-sm" style="margin-top: 12px;">
-                    <i class="ph ph-info"></i> Para registrar pagamentos, acesse o módulo
-                    <a href="<?= BASE_URL ?>modules/financeiro/">Financeiro</a>.
-                </p>
-
-            <?php else: ?>
-                <div class="empty-state">
-                    <i class="ph ph-currency-circle-dollar empty-state-icon"></i>
-                    Parcelas geradas ao confirmar o primeiro pagamento.
-                </div>
-            <?php endif; ?>
-        </div>
-
-    </div>
-
-    <!-- Coluna Direita -->
-    <div style="display: flex; flex-direction: column; gap: 24px;">
-
-        <!-- Card: Painel de Controle -->
-        <div class="card">
+        <!-- Card: Painel de Controle (Oculto se ativo ou finalizado) -->
+        <?php if (!in_array($contrato['status'], ['em_andamento', 'finalizado'])): ?>
+        <div class="card" style="margin-bottom: 0;">
             <div class="card-header">
                 <h3 class="card-title"><i class="ph ph-sliders"></i> Painel de Controle</h3>
             </div>
@@ -341,41 +384,114 @@ require_once '../../includes/layout/sidebar.php';
                             <i class="ph ph-whatsapp-logo"></i> Copiar Zap
                         </button>
                     </div>
-
-                <?php elseif ($contrato['status'] == 'em_andamento'): ?>
-                    <div class="empty-state">
-                        <i class="ph-fill ph-check-circle empty-state-icon text-green"></i>
-                        <strong class="text-green">Contrato Ativo</strong>
-                    </div>
-
-                <?php elseif ($contrato['status'] == 'finalizado'): ?>
-                    <div class="empty-state">
-                        <i class="ph-fill ph-flag empty-state-icon text-secondary"></i>
-                        <strong>Contrato Finalizado</strong>
-                    </div>
                 <?php endif; ?>
 
             </div>
         </div>
+        <?php endif; ?>
+
+    </div>
+
+    <!-- ================= LINHA INFERIOR ================= -->
+    <div class="grid-bottom">
+        
+        <!-- Card: Parcelas -->
+        <div class="card" style="margin-bottom: 0;">
+            <div class="card-header">
+                <h3 class="card-title"><i class="ph ph-currency-circle-dollar"></i> Parcelas</h3>
+                <span class="badge badge-gray"><?= count($parcelas) ?> parcela<?= count($parcelas) !== 1 ? 's' : '' ?></span>
+            </div>
+
+            <div class="card-body">
+                <?php if (count($parcelas) > 0): ?>
+                    <div class="stats-grid">
+                        <div class="stat-box" style="border-bottom: 3px solid var(--green);">
+                            <div class="stat-number text-green"><?= money($total_pago) ?></div>
+                            <div class="stat-label">Recebido</div>
+                        </div>
+                        <div class="stat-box" style="border-bottom: 3px solid var(--yellow);">
+                            <div class="stat-number text-yellow"><?= money($total_aberto) ?></div>
+                            <div class="stat-label">Em Aberto</div>
+                        </div>
+                    </div>
+
+                    <div style="overflow-x: auto;">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Vencimento</th>
+                                    <th>Valor</th>
+                                    <th>Pagamento</th>
+                                    <th class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($parcelas as $p): ?>
+                                    <?php
+                                        $badge_p = 'badge-gray';
+                                        if ($p['status'] === 'pago')     $badge_p = 'badge-green';
+                                        if ($p['status'] === 'atrasado') $badge_p = 'badge-red';
+                                        if ($p['status'] === 'pendente') $badge_p = 'badge-yellow';
+                                    ?>
+                                    <tr>
+                                        <td><strong><?= $p['numero_parcela'] ?>/<?= $duracao ?></strong></td>
+                                        <td><?= dataBR($p['data_vencimento']) ?></td>
+                                        <td><strong><?= money($p['valor']) ?></strong></td>
+                                        <td>
+                                            <?php if (!empty($p['data_pagamento'])): ?>
+                                                <span class="text-green"><i class="ph ph-check"></i> <?= dataBR($p['data_pagamento']) ?></span>
+                                            <?php else: ?>
+                                                <span class="txt-meta-sm">—</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge <?= $badge_p ?>"><?= $p['status'] ?></span>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <p class="txt-meta-sm" style="margin-top: 16px; text-align: center;">
+                        <i class="ph ph-info"></i> Para registrar pagamentos, acesse o módulo
+                        <a href="<?= BASE_URL ?>modules/financeiro/" style="text-decoration: underline;">Financeiro</a>.
+                    </p>
+
+                <?php else: ?>
+                    <div class="empty-state">
+                        <i class="ph ph-currency-circle-dollar empty-state-icon"></i>
+                        Parcelas geradas ao confirmar o primeiro pagamento.
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
 
         <!-- Card: Histórico -->
-        <div class="card">
+        <div class="card" style="margin-bottom: 0;">
             <div class="card-header">
                 <h3 class="card-title"><i class="ph ph-clock-countdown"></i> Histórico</h3>
             </div>
             <div class="card-body">
                 <?php if (!empty($logs)): ?>
-                    <?php foreach ($logs as $log): ?>
-                        <div class="info-row">
-                            <span class="info-label txt-date-sm"><?= date('d/m/Y H:i', strtotime($log['criado_em'])) ?></span>
-                            <span class="info-value">
-                                <span class="txt-contact-main"><?= htmlspecialchars($log['descricao']) ?></span>
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                        <?php foreach ($logs as $log): ?>
+                            <div style="border-left: 2px solid var(--border-color, #e2e8f0); padding-left: 12px;">
+                                <div style="font-size: 11px; color: var(--text-muted, #f8f9fc); margin-bottom: 2px;">
+                                    <i class="ph ph-calendar-blank"></i> <?= date('d/m/Y H:i', strtotime($log['criado_em'])) ?>
+                                </div>
+                                <div style="font-size: 14px; font-weight: 500; color: var(--text-main, #f8f9fc);">
+                                    <?= htmlspecialchars($log['descricao']) ?>
+                                </div>
                                 <?php if (!empty($log['usuario_nome'])): ?>
-                                    <span class="txt-meta-sm"><?= htmlspecialchars($log['usuario_nome']) ?></span>
+                                    <div style="font-size: 12px; color: var(--text-muted, #f8f9fc); margin-top: 4px;">
+                                        <i class="ph ph-user"></i> <?= htmlspecialchars($log['usuario_nome']) ?>
+                                    </div>
                                 <?php endif; ?>
-                            </span>
-                        </div>
-                    <?php endforeach; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
                 <?php else: ?>
                     <p class="txt-meta-sm">Nenhum registro encontrado.</p>
                 <?php endif; ?>
