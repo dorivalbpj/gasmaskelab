@@ -12,7 +12,7 @@ if (!defined('BASE_URL')) {
     // Verifica se está rodando localmente (seu PC)
     if ($host === 'localhost' || $host === '127.0.0.1') {
         // Ambiente Local: adiciona a pasta do projeto
-        define('BASE_URL', $protocolo . '://' . $host . '/gasmaske/');
+        define('BASE_URL', $protocolo . '://' . $host . '/ERP/');
     } else {
         // Ambiente de Produção (ex: erp.gasmaskelab.com.br): roda direto na raiz
         define('BASE_URL', $protocolo . '://' . $host . '/');

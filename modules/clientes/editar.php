@@ -95,12 +95,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     // Atualiza todos os dados
+    $status_post = ($_POST['status'] ?? 'ativo') === 'inativo' ? 'inativo' : 'ativo';
+
     $sql = "UPDATE clientes SET 
             nome = ?, 
             email = ?, 
             telefone = ?, 
             cpf_cnpj = ?, 
             endereco = ?, 
+            status = ?,
             user_insta = ?, 
             user_fb = ?, 
             user_tt = ?, 
@@ -124,6 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_POST['telefone'] ?? '', 
         $_POST['cpf_cnpj'] ?? '', 
         $_POST['endereco'] ?? '',
+        $status_post,
         $_POST['user_insta'] ?? '', 
         $_POST['user_fb'] ?? '', 
         $_POST['user_tt'] ?? '', 
@@ -184,44 +188,6 @@ require_once '../../includes/layout/sidebar.php';
 <!-- CSS ESPECÍFICO DA PÁGINA -->
 <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/clientes.css">
 
-<style>
-.avatar-upload-area {
-    display: flex;
-    gap: 16px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-.avatar-preview-box {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 3px solid var(--border-color);
-    flex-shrink: 0;
-    background: var(--bg-secondary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.avatar-preview-box img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-.avatar-preview-box i {
-    font-size: 40px;
-    color: var(--text-secondary);
-}
-.avatar-upload-actions {
-    flex: 1;
-}
-.avatar-upload-actions .btn-group {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-</style>
-
 <div class="cabecalho">
     <div class="cabecalho-cliente">
         <div class="avatar-preview-box" id="avatarPreviewContainer">
@@ -234,27 +200,34 @@ require_once '../../includes/layout/sidebar.php';
             <?php endif; ?>
         </div>
         <div>
-            <h2 class="page-title">Editar Cliente</h2>
+            <h2 class="page-title">
+                Editar Cliente
+                <?php if (($cliente['status'] ?? 'ativo') === 'inativo'): ?>
+                    <span class="badge badge-status-inativo">Inativo</span>
+                <?php else: ?>
+                    <span class="badge badge-status-ativo">Ativo</span>
+                <?php endif; ?>
+            </h2>
             <p class="page-subtitle"><?= htmlspecialchars($cliente['nome'] ?? '') ?></p>
         </div>
     </div>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <a href="visualizar.php?id=<?= $id ?>" class="btn btn-secondary">
-            <i class="ph ph-eye"></i> Visualizar
-        </a>
         <a href="index.php" class="btn btn-secondary">
             <i class="ph ph-arrow-left"></i> Voltar
+        </a>
+        <a href="visualizar.php?id=<?= $id ?>" class="btn btn-secondary">
+            <i class="ph ph-eye"></i> Visualizar
         </a>
     </div>
 </div>
 
 <?php if (isset($_GET['erro_avatar'])): ?>
-    <div class="alert alert-danger" style="margin-bottom: 20px;">
+    <div class="alert alert-danger">
         <i class="ph-fill ph-warning-circle"></i> <?= htmlspecialchars($_GET['erro_avatar']) ?>
     </div>
 <?php endif; ?>
 <?php if (isset($_GET['mensagem'])): ?>
-    <div class="alert alert-success" style="margin-bottom: 20px;">
+    <div class="alert alert-success">
         <i class="ph-fill ph-check-circle"></i> <?= htmlspecialchars($_GET['mensagem']) ?>
     </div>
 <?php endif; ?>
@@ -264,67 +237,84 @@ require_once '../../includes/layout/sidebar.php';
         
         <!-- Coluna Esquerda -->
         <div style="display: flex; flex-direction: column; gap: 24px;">
-            <!-- Card: Dados do Cliente -->
+
+            <!-- Card: Foto do Cliente -->
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title"><i class="ph ph-user"></i> Dados do Cliente</h3>
+                    <h3 class="card-title"><i class="ph ph-image"></i> Foto do Cliente</h3>
                 </div>
                 <div class="card-body">
-                    <!-- Área de Upload do Avatar -->
-                    <div class="form-group">
-                        <label>Avatar / Foto do Cliente</label>
-                        <div class="avatar-upload-area">
-                            <div class="avatar-preview-box" id="avatarPreviewContainer2">
-                                <?php if (!empty($cliente['avatar_url'])): ?>
-                                    <img src="<?= htmlspecialchars($cliente['avatar_url']) ?>" 
-                                         alt="Avatar" 
-                                         id="avatarPreview2">
-                                <?php else: ?>
-                                    <i class="ph ph-user" id="avatarPreview2"></i>
-                                <?php endif; ?>
-                            </div>
-                            <div class="avatar-upload-actions">
-                                <div class="btn-group">
-                                    <label for="avatar_upload" class="btn btn-secondary" style="cursor: pointer; margin: 0;">
-                                        <i class="ph ph-upload"></i> Enviar Foto
-                                    </label>
-                                    <input type="file" 
-                                           id="avatar_upload" 
-                                           name="avatar_upload" 
-                                           accept="image/*" 
-                                           style="display: none;"
-                                           onchange="previewAvatarUpload(this)">
-                                    <button type="button" class="btn btn-ghost" onclick="removerAvatar()">
-                                        <i class="ph ph-x"></i> Remover
-                                    </button>
-                                </div>
-                                <small style="color: var(--text-secondary); display: block; margin-top: 4px;">
-                                    <i class="ph ph-info"></i> Formatos: JPG, PNG, GIF, WEBP. Máx: 5MB
-                                </small>
-                                <small style="color: var(--text-secondary); display: block;">
-                                    Se não enviar foto, o sistema buscará do Instagram automaticamente
-                                </small>
-                            </div>
+                    <div class="avatar-upload-area">
+                        <div class="avatar-preview-box" id="avatarPreviewContainer2">
+                            <?php if (!empty($cliente['avatar_url'])): ?>
+                                <img src="<?= htmlspecialchars($cliente['avatar_url']) ?>" 
+                                     alt="Avatar" 
+                                     id="avatarPreview2">
+                            <?php else: ?>
+                                <i class="ph ph-user" id="avatarPreview2"></i>
+                            <?php endif; ?>
                         </div>
-                        <input type="hidden" name="remover_avatar" id="removerAvatarInput" value="0">
+                        <div class="avatar-upload-actions">
+                            <div class="btn-group">
+                                <label for="avatar_upload" class="btn btn-secondary" style="cursor: pointer; margin: 0;">
+                                    <i class="ph ph-upload"></i> Enviar Foto
+                                </label>
+                                <input type="file" 
+                                       id="avatar_upload" 
+                                       name="avatar_upload" 
+                                       accept="image/*" 
+                                       style="display: none;"
+                                       onchange="previewAvatarUpload(this)">
+                                <button type="button" class="btn btn-ghost" onclick="removerAvatar()">
+                                    <i class="ph ph-x"></i> Remover
+                                </button>
+                            </div>
+                            <small class="form-hint">
+                                <i class="ph ph-info"></i> JPG, PNG, GIF ou WEBP. Máximo 5MB.
+                            </small>
+                            <small class="form-hint">
+                                Se não enviar foto, o sistema busca automaticamente do Instagram.
+                            </small>
+                        </div>
                     </div>
-                    
+                    <input type="hidden" name="remover_avatar" id="removerAvatarInput" value="0">
+                </div>
+            </div>
+
+            <!-- Card: Dados do Cliente -->
+            <div class="card">
+                <div class="card-header"><h3 class="card-title"><i class="ph ph-user"></i> Dados do Cliente</h3></div>
+                <div class="card-body">
                     <div class="form-group">
                         <label>Empresa / Nome *</label>
                         <input type="text" name="nome" class="form-control" value="<?= htmlspecialchars($cliente['nome'] ?? '') ?>" required>
                     </div>
-                    <div class="form-group">
-                        <label>E-mail *</label>
-                        <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($cliente['email'] ?? '') ?>" required>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>E-mail *</label>
+                            <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($cliente['email'] ?? '') ?>" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Telefone</label>
+                            <input type="text" name="telefone" class="form-control" value="<?= htmlspecialchars($cliente['telefone'] ?? '') ?>">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Telefone</label>
-                        <input type="text" name="telefone" class="form-control" value="<?= htmlspecialchars($cliente['telefone'] ?? '') ?>">
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>CPF / CNPJ</label>
+                            <input type="text" name="cpf_cnpj" class="form-control" value="<?= htmlspecialchars($cliente['cpf_cnpj'] ?? '') ?>">
+                        </div>
+                        <div class="form-group">
+                            <label>Status do Cliente</label>
+                            <select name="status" class="form-control">
+                                <option value="ativo" <?= ($cliente['status'] ?? 'ativo') === 'ativo' ? 'selected' : '' ?>>Ativo</option>
+                                <option value="inativo" <?= ($cliente['status'] ?? 'ativo') === 'inativo' ? 'selected' : '' ?>>Inativo</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>CPF / CNPJ</label>
-                        <input type="text" name="cpf_cnpj" class="form-control" value="<?= htmlspecialchars($cliente['cpf_cnpj'] ?? '') ?>">
-                    </div>
+
                     <div class="form-group">
                         <label>Endereço</label>
                         <textarea name="endereco" class="form-control" rows="3"><?= htmlspecialchars($cliente['endereco'] ?? '') ?></textarea>
@@ -334,11 +324,9 @@ require_once '../../includes/layout/sidebar.php';
 
             <!-- Card: Redes Sociais -->
             <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title"><i class="ph ph-share-network"></i> Redes Sociais (@)</h3>
-                </div>
+                <div class="card-header"><h3 class="card-title"><i class="ph ph-share-network"></i> Redes Sociais (@)</h3></div>
                 <div class="card-body">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-grid-2">
                         <div class="form-group">
                             <label><i class="ph ph-instagram-logo" style="color: #E4405F;"></i> Instagram</label>
                             <input type="text" name="user_insta" class="form-control" placeholder="@usuario" value="<?= htmlspecialchars($cliente['user_insta'] ?? '') ?>">
@@ -355,7 +343,7 @@ require_once '../../includes/layout/sidebar.php';
                             <label><i class="ph ph-linkedin-logo" style="color: #0A66C2;"></i> LinkedIn</label>
                             <input type="text" name="user_li" class="form-control" placeholder="@usuario" value="<?= htmlspecialchars($cliente['user_li'] ?? '') ?>">
                         </div>
-                        <div class="form-group" style="grid-column: 1 / -1;">
+                        <div class="form-group form-grid-2-full">
                             <label><i class="ph ph-youtube-logo" style="color: #FF0000;"></i> YouTube</label>
                             <input type="text" name="user_yt" class="form-control" placeholder="@usuario" value="<?= htmlspecialchars($cliente['user_yt'] ?? '') ?>">
                         </div>
@@ -372,7 +360,7 @@ require_once '../../includes/layout/sidebar.php';
                     <h3 class="card-title"><i class="ph ph-chart-bar"></i> Escopo Operacional Mensal</h3>
                 </div>
                 <div class="card-body">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-grid-2">
                         <div class="form-group">
                             <label>Posts / Semana</label>
                             <input type="number" name="posts_semanais" class="form-control" min="0" value="<?= htmlspecialchars($cliente['posts_semanais'] ?? 0) ?>">
@@ -418,20 +406,21 @@ require_once '../../includes/layout/sidebar.php';
                         <label><i class="ph ph-book"></i> Link de Referências</label>
                         <input type="url" name="link_referencias" class="form-control" placeholder="https://..." value="<?= htmlspecialchars($cliente['link_referencias'] ?? '') ?>">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="margin-bottom: 0;">
                         <label><i class="ph ph-note"></i> Observações</label>
                         <textarea name="observacoes" class="form-control" rows="4"><?= htmlspecialchars($cliente['observacoes'] ?? '') ?></textarea>
                     </div>
                 </div>
             </div>
-
-            <!-- Botão Salvar -->
-            <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                <button type="submit" class="btn btn-primary" style="padding: 0 32px; height: 44px;">
-                    <i class="ph ph-check"></i> Salvar Alterações
-                </button>
-            </div>
         </div>
+    </div>
+
+    <!-- Barra de Ações -->
+    <div class="form-actions-bar">
+        <a href="visualizar.php?id=<?= $id ?>" class="btn btn-ghost">Cancelar</a>
+        <button type="submit" class="btn btn-primary">
+            <i class="ph ph-check"></i> Salvar Alterações
+        </button>
     </div>
 </form>
 

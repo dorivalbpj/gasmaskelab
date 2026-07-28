@@ -9,11 +9,30 @@ require_once '../../includes/functions_avatar.php';
 requireLogin();
 
 $id = $_GET['id'] ?? 0;
+
+// Alternar status (ativo/inativo) direto da tela de visualização
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['acao'] == 'alternar_status') {
+    $stmt = $pdo->prepare("SELECT status FROM clientes WHERE id = ?");
+    $stmt->execute([$id]);
+    $status_atual = $stmt->fetchColumn();
+
+    if ($status_atual !== false) {
+        $novo_status = ($status_atual === 'ativo') ? 'inativo' : 'ativo';
+        $stmt = $pdo->prepare("UPDATE clientes SET status = ? WHERE id = ?");
+        $stmt->execute([$novo_status, $id]);
+    }
+
+    header("Location: visualizar.php?id=" . $id);
+    exit;
+}
+
 $stmt = $pdo->prepare("SELECT * FROM clientes WHERE id = ?");
 $stmt->execute([$id]);
 $cliente = $stmt->fetch();
 
 if (!$cliente) die("Cliente não encontrado.");
+
+$status_cliente = ($cliente['status'] ?? 'ativo') === 'inativo' ? 'inativo' : 'ativo';
 
 // Se não tem avatar salvo, gera por iniciais e salva para próximas visitas
 if (empty($cliente['avatar_url'])) {
@@ -43,7 +62,14 @@ require_once '../../includes/layout/sidebar.php';
              alt="Avatar de <?= htmlspecialchars($cliente['nome']) ?>"
              class="avatar-cliente">
         <div>
-            <h2 class="page-title">Visualizar Cliente</h2>
+            <h2 class="page-title">
+                Visualizar Cliente
+                <?php if ($status_cliente === 'inativo'): ?>
+                    <span class="badge badge-status-inativo">Inativo</span>
+                <?php else: ?>
+                    <span class="badge badge-status-ativo">Ativo</span>
+                <?php endif; ?>
+            </h2>
             <p class="page-subtitle"><?= htmlspecialchars($cliente['nome'] ?? '') ?></p>
         </div>
     </div>
@@ -54,6 +80,18 @@ require_once '../../includes/layout/sidebar.php';
         <a href="editar.php?id=<?= $cliente['id'] ?>" class="btn btn-primary">
             <i class="ph ph-pencil-simple"></i> Editar
         </a>
+        <form method="POST" action="" style="display: contents;" onsubmit="return confirm('<?= $status_cliente === 'ativo' ? 'Desativar' : 'Ativar' ?> este cliente?');">
+            <input type="hidden" name="acao" value="alternar_status">
+            <?php if ($status_cliente === 'ativo'): ?>
+                <button type="submit" class="btn btn-ghost btn-icon-toggle-off">
+                    <i class="ph ph-toggle-right"></i> Desativar
+                </button>
+            <?php else: ?>
+                <button type="submit" class="btn btn-ghost btn-icon-toggle-on">
+                    <i class="ph ph-toggle-left"></i> Ativar
+                </button>
+            <?php endif; ?>
+        </form>
     </div>
 </div>
 
