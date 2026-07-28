@@ -12,51 +12,53 @@ $id = $_GET['id'] ?? 0;
 
 // Função de upload sem GD - apenas move o arquivo original
 function uploadAvatar($file, $cliente_id) {
-    // Detecta o caminho base do projeto
-    $base_path = dirname(__DIR__, 2); // Sobe dois níveis a partir de modules/clientes
-    $upload_dir = $base_path . '/uploads/avatars/';
-    
-    // Cria o diretório se não existir
+    // Caminho FÍSICO real no disco: sempre relativo à posição deste arquivo
+    // (modules/clientes/editar.php -> sobe 2 níveis = raiz do projeto),
+    // não depende de DOCUMENT_ROOT nem de onde o projeto está hospedado.
+    $base_path   = dirname(__DIR__, 2);
+    $upload_dir  = $base_path . '/uploads/avatars/';
+
+    // Cria o diretório se não existir e valida se conseguiu criar/gravar
     if (!is_dir($upload_dir)) {
-        mkdir($upload_dir, 0755, true);
+        if (!mkdir($upload_dir, 0755, true) && !is_dir($upload_dir)) {
+            return ['success' => false, 'error' => 'Não foi possível criar o diretório de upload. Verifique as permissões da pasta no servidor.'];
+        }
     }
-    
+    if (!is_writable($upload_dir)) {
+        return ['success' => false, 'error' => 'Diretório de upload sem permissão de escrita no servidor.'];
+    }
+
     // Validações...
     $check = @getimagesize($file['tmp_name']);
     if ($check === false) {
         return ['success' => false, 'error' => 'Arquivo não é uma imagem válida.'];
     }
-    
+
     $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!in_array($file['type'], $allowed_types)) {
         return ['success' => false, 'error' => 'Tipo de arquivo não permitido. Use JPG, PNG, GIF ou WEBP.'];
     }
-    
+
     if ($file['size'] > 5 * 1024 * 1024) {
         return ['success' => false, 'error' => 'Arquivo muito grande. Máximo: 5MB.'];
     }
-    
+
     // Gera nome único
-    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-    $filename = 'avatar_' . $cliente_id . '_' . time() . '.' . $extension;
-    $filepath = $upload_dir . $filename;
-    
+    $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    $filename  = 'avatar_' . $cliente_id . '_' . time() . '.' . $extension;
+    $filepath  = $upload_dir . $filename;
+
     // Move o arquivo
     if (move_uploaded_file($file['tmp_name'], $filepath)) {
-        // Constrói a URL correta
-        $doc_root = $_SERVER['DOCUMENT_ROOT'];
-        $relative_path = str_replace($doc_root, '', $filepath);
-        $relative_path = str_replace('\\', '/', $relative_path);
-        
-        // Se o caminho começa com /, mantém
-        if (substr($relative_path, 0, 1) !== '/') {
-            $relative_path = '/' . $relative_path;
-        }
-        
+        // URL PÚBLICA: construída de forma fixa e relativa à raiz do projeto,
+        // igual em qualquer ambiente (local ou produção), sem depender de
+        // DOCUMENT_ROOT bater com a estrutura de pastas do servidor.
+        $relative_path = '/uploads/avatars/' . $filename;
+
         return ['success' => true, 'url' => $relative_path];
     }
-    
-    return ['success' => false, 'error' => 'Erro ao fazer upload do arquivo.'];
+
+    return ['success' => false, 'error' => 'Erro ao fazer upload do arquivo. Verifique as permissões da pasta uploads/avatars no servidor.'];
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -81,8 +83,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cliente = $stmt->fetch();
         
         if ($cliente && !empty($cliente['avatar_url'])) {
-            // Remove o arquivo físico se for um upload manual
-            $file_path = $_SERVER['DOCUMENT_ROOT'] . $cliente['avatar_url'];
+            // Remove o arquivo físico se for um upload manual.
+            // Usa a mesma referência de caminho físico do upload (dirname(__DIR__, 2)),
+            // e não o DOCUMENT_ROOT, para funcionar igual em local e produção.
+            $base_path = dirname(__DIR__, 2);
+            $file_path = $base_path . $cliente['avatar_url'];
             if (strpos($cliente['avatar_url'], '/uploads/avatars/') !== false && file_exists($file_path)) {
                 unlink($file_path);
             }

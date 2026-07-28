@@ -124,14 +124,14 @@ require_once '../../includes/layout/sidebar.php';
             </div>
         </div>
         <div class="status-tabs">
-            <button type="button" class="status-tab active" data-status="todos" onclick="filtrarPorStatus('todos', this)">
-                Todos <span class="status-tab-count"><?= count($clientes) ?></span>
-            </button>
-            <button type="button" class="status-tab" data-status="ativo" onclick="filtrarPorStatus('ativo', this)">
+            <button type="button" class="status-tab active" data-status="ativo" onclick="filtrarPorStatus('ativo', this)">
                 Ativos <span class="status-tab-count"><?= $total_ativos ?></span>
             </button>
             <button type="button" class="status-tab" data-status="inativo" onclick="filtrarPorStatus('inativo', this)">
                 Inativos <span class="status-tab-count"><?= $total_inativos ?></span>
+            </button>
+            <button type="button" class="status-tab" data-status="todos" onclick="filtrarPorStatus('todos', this)">
+                Todos <span class="status-tab-count"><?= count($clientes) ?></span>
             </button>
         </div>
         <div>
