@@ -1,28 +1,61 @@
 <?php
 // modules/briefing/index.php
 
+// ============================================
+// INCLUSÃO DAS CONFIGURAÇÕES
+// ============================================
 require_once '../../config/session.php';
-require_once '../../config/database.php';
 require_once '../../includes/functions.php';
 
+// ============================================
+// VERIFICAÇÃO DE PERMISSÃO
+// ============================================
 requireLogin();
 if (!isAdmin()) {
     die("<div class='empty-state'><h2>Acesso negado</h2><p>Apenas administradores podem acessar.</p></div>");
 }
 
-$stmt = $pdo->query("SELECT * FROM briefings ORDER BY criado_em DESC");
-$briefings = $stmt->fetchAll();
+// ============================================
+// BUSCA DOS BRIEFINGS
+// ============================================
+try {
+    $stmt = $pdo->query("SELECT * FROM briefings ORDER BY criado_em DESC");
+    $briefings = $stmt->fetchAll();
+} catch (PDOException $e) {
+    $briefings = [];
+    // Em desenvolvimento, mostra o erro
+    if (APP_DEBUG) {
+        echo "Erro ao buscar briefings: " . $e->getMessage();
+    }
+}
 
-// Monta a base da URL para o link do WhatsApp
-$protocolo = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
-$dominio = $_SERVER['HTTP_HOST'];
-$link_publico_briefing = $protocolo . "://" . $dominio . "/publico/briefing.php";
+// ============================================
+// CONFIGURAÇÃO DO LINK DO BRIEFING
+// ============================================
+// Usando a função helper url() para gerar o link correto
+$link_publico_briefing = url('publico/briefing.php');
 
+// ============================================
+// INCLUSÃO DO HEADER E SIDEBAR
+// ============================================
 require_once '../../includes/layout/header.php';
 require_once '../../includes/layout/sidebar.php';
 ?>
 
+<!-- ============================================ -->
+<!-- DEBUG (apenas em desenvolvimento) -->
+<!-- ============================================ -->
+<?php if (APP_DEBUG): ?>
+<!-- 
+    Ambiente: <?= AMBIENTE_ATUAL ?> 
+    BASE_URL: <?= BASE_URL ?> 
+    Link Briefing: <?= $link_publico_briefing ?>
+-->
+<?php endif; ?>
 
+<!-- ============================================ -->
+<!-- CABEÇALHO DA PÁGINA -->
+<!-- ============================================ -->
 <div class="cabecalho">
     <div>
         <h2 class="page-title">Caixa de Entrada (Briefings)</h2>
@@ -33,8 +66,14 @@ require_once '../../includes/layout/sidebar.php';
     </button>
 </div>
 
+<!-- ============================================ -->
+<!-- CARD PRINCIPAL -->
+<!-- ============================================ -->
 <div class="card">
     
+    <!-- ========================================== -->
+    <!-- BARRA DE FILTROS -->
+    <!-- ========================================== -->
     <div class="filter-bar-container">
         <div class="filter-col-lg">
             <label class="filter-label">Buscar Cliente / Empresa</label>
@@ -63,11 +102,17 @@ require_once '../../includes/layout/sidebar.php';
         </div>
     </div>
 
+    <!-- ========================================== -->
+    <!-- TÍTULO DA TABELA -->
+    <!-- ========================================== -->
     <div class="card-header" style="border-bottom: none; padding-bottom: 0;">
         <h3 class="card-title">Briefings Recebidos</h3>
         <span class="badge badge-gray" id="contadorRegistros"><?= count($briefings) ?> Registros</span>
     </div>
 
+    <!-- ========================================== -->
+    <!-- TABELA DE BRIEFINGS -->
+    <!-- ========================================== -->
     <?php if (count($briefings) > 0): ?>
         <div class="table-wrapper">
             <table id="tabelaBriefings">
@@ -147,6 +192,9 @@ require_once '../../includes/layout/sidebar.php';
     <?php endif; ?>
 </div>
 
+<!-- ============================================ -->
+<!-- SCRIPTS -->
+<!-- ============================================ -->
 <script>
 function copiarLinkBriefing(link, btn) {
     const msg = `Olá! Tudo bem?\n\nPara podermos desenhar uma proposta sob medida e alinhar perfeitamente o escopo do seu projeto, peço que preencha rapidamente o nosso Briefing Comercial no link abaixo:\n\n🔗 ${link}\n\nLeva menos de 3 minutinhos e nos ajuda a sermos muito mais assertivos. Qualquer dúvida, estou por aqui!`;
@@ -157,12 +205,16 @@ function copiarLinkBriefing(link, btn) {
         btn.classList.add('btn-wpp-green');
         setTimeout(() => {
             btn.innerHTML = original;
+            btn.classList.remove('btn-wpp-green');
         }, 2000);
+    }).catch(() => {
+        // Fallback para navegadores que não suportam clipboard API
+        alert('Copie o link manualmente:\n\n' + link);
     });
 }
 
 function filtrarTabelaAoVivo() {
-    const filtroTexto = document.getElementById('filtroTexto').value.toLowerCase();
+    const filtroTexto = document.getElementById('filtroTexto').value.toLowerCase().trim();
     const filtroData = document.getElementById('filtroData').value;
     const filtroStatus = document.getElementById('filtroStatus').value;
     
@@ -170,9 +222,9 @@ function filtrarTabelaAoVivo() {
     let visiveis = 0;
 
     linhas.forEach(linha => {
-        const texto = linha.getAttribute('data-busca');
-        const data = linha.getAttribute('data-data');
-        const status = linha.getAttribute('data-status');
+        const texto = linha.getAttribute('data-busca') || '';
+        const data = linha.getAttribute('data-data') || '';
+        const status = linha.getAttribute('data-status') || '';
         
         let mostra = true;
 
@@ -188,9 +240,21 @@ function filtrarTabelaAoVivo() {
         }
     });
 
-    document.getElementById('contadorRegistros').innerText = visiveis + ' Registros';
-    document.getElementById('msgSemResultados').style.display = visiveis === 0 ? 'block' : 'none';
-    document.getElementById('tabelaBriefings').style.display = visiveis === 0 ? 'none' : 'table';
+    const contador = document.getElementById('contadorRegistros');
+    const msgSemResultados = document.getElementById('msgSemResultados');
+    const tabela = document.getElementById('tabelaBriefings');
+
+    if (contador) {
+        contador.innerText = visiveis + ' Registros';
+    }
+    
+    if (msgSemResultados) {
+        msgSemResultados.style.display = visiveis === 0 ? 'block' : 'none';
+    }
+    
+    if (tabela) {
+        tabela.style.display = visiveis === 0 ? 'none' : 'table';
+    }
 }
 
 function limparFiltros() {
@@ -199,6 +263,11 @@ function limparFiltros() {
     document.getElementById('filtroStatus').value = '';
     filtrarTabelaAoVivo();
 }
+
+// Executa o filtro ao carregar a página (garante consistência)
+document.addEventListener('DOMContentLoaded', function() {
+    filtrarTabelaAoVivo();
+});
 </script>
 
 <?php require_once '../../includes/layout/footer.php'; ?>
