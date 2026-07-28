@@ -192,7 +192,7 @@ PROMPT;
 // ==================== REQUISIÇÃO PARA A API GEMINI ====================
 try {
     // URL da API Gemini com chave
-    $gemini_url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' . urlencode(GEMINI_API_KEY);
+    $gemini_url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=' . urlencode(GEMINI_API_KEY);
     
     // Monta payload para o Gemini
     $payload = [

@@ -27,7 +27,7 @@ if (!defined('GEMINI_API_KEY')) {
 // Blindagem da API Key
 $api_key = trim(GEMINI_API_KEY);
 $host = "https://generativelanguage.googleapis.com";
-$endpoint = "/v1beta/models/gemini-2.5-flash:generateContent";
+$endpoint = "/v1beta/models/gemini-3.6-flash:generateContent";
 $url_suja = $host . $endpoint . "?key=" . $api_key;
 $url_limpa = preg_replace('/[\s\x00-\x1F\x7F]/', '', $url_suja);
 

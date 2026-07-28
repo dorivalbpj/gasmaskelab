@@ -54,8 +54,8 @@ if ($quantitativos !== "") {
 }
 // --- FIM DA INJEÇÃO ---
 
-$api_key = preg_replace('/[^a-zA-Z0-9_-]/', '', trim(GEMINI_API_KEY));
-$url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $api_key;
+$api_key = trim(GEMINI_API_KEY);
+$url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=" . $api_key;
 
 $nome_cliente = $dados_cliente['nome'] ?? '';
 $doc_cliente = $dados_cliente['cpf_cnpj'] ?? 'Será preenchido na assinatura';
