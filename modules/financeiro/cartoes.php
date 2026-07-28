@@ -73,9 +73,58 @@ $stmt = $pdo->query("
 ");
 $cartoes = $stmt->fetchAll();
 
+// --- 4. RESUMO GERAL ---
+// Totais de limite/uso somando todos os cartões ativos
+$total_limite = 0;
+$total_usado = 0;
+foreach ($cartoes as $c) {
+    $total_limite += (float)$c['limite'];
+    $total_usado += (float)$c['limite_usado'];
+}
+$total_disponivel = $total_limite - $total_usado;
+
+// Quanto cai de fatura esse mês: soma dos lançamentos de faturas cujo vencimento
+// (data_vencimento) cai no mês/ano atual, considerando todos os cartões ativos
+$stmt_resumo = $pdo->query("
+    SELECT 
+        COALESCE(SUM(l.valor), 0) as total_mes,
+        COUNT(DISTINCT f.id) as qtd_faturas,
+        COALESCE(SUM(CASE WHEN f.status = 'paga' THEN l.valor ELSE 0 END), 0) as total_pago,
+        COALESCE(SUM(CASE WHEN f.status != 'paga' THEN l.valor ELSE 0 END), 0) as total_pendente
+    FROM fin_faturas f
+    JOIN fin_cartoes c ON f.cartao_id = c.id
+    LEFT JOIN fin_lancamentos l ON l.fatura_id = f.id
+    WHERE c.ativo = 1
+      AND MONTH(f.data_vencimento) = MONTH(CURRENT_DATE)
+      AND YEAR(f.data_vencimento) = YEAR(CURRENT_DATE)
+");
+$resumo_mes = $stmt_resumo->fetch();
+
+// Mapeia a bandeira para uma classe visual (ícone/cor)
+function bandeiraClasse($bandeira) {
+    $b = strtolower(trim($bandeira));
+    if (strpos($b, 'master') !== false) return 'mastercard';
+    if (strpos($b, 'visa') !== false) return 'visa';
+    if (strpos($b, 'elo') !== false) return 'elo';
+    if (strpos($b, 'amex') !== false || strpos($b, 'american') !== false) return 'amex';
+    return 'outra';
+}
+function bandeiraIcone($classe) {
+    $icones = [
+        'mastercard' => 'ph-fill ph-circles-three',
+        'visa'       => 'ph-fill ph-credit-card',
+        'elo'        => 'ph-fill ph-circle',
+        'amex'       => 'ph-fill ph-credit-card',
+        'outra'      => 'ph ph-credit-card',
+    ];
+    return $icones[$classe] ?? 'ph ph-credit-card';
+}
+
 require_once '../../includes/layout/header.php';
 require_once '../../includes/layout/sidebar.php';
 ?>
+
+<link rel="stylesheet" href="../../assets/css/cartoes.css">
 
 <div class="cabecalho">
     <div>
@@ -87,8 +136,51 @@ require_once '../../includes/layout/sidebar.php';
 
 <?= $mensagem ?>
 
+<!-- ============ RESUMO GERAL ============ -->
+<div class="resumo-geral-grid">
+    <div class="resumo-card accent-blue">
+        <div class="resumo-card-top">
+            <span class="resumo-label">Limite Total</span>
+            <span class="resumo-icon accent-blue"><i class="ph-fill ph-wallet"></i></span>
+        </div>
+        <div class="resumo-value"><?= money($total_limite) ?></div>
+        <div class="resumo-sub"><?= count($cartoes) ?> cartão<?= count($cartoes) != 1 ? 'ões' : '' ?> ativo<?= count($cartoes) != 1 ? 's' : '' ?></div>
+    </div>
+
+    <div class="resumo-card accent-yellow">
+        <div class="resumo-card-top">
+            <span class="resumo-label">Limite Usado</span>
+            <span class="resumo-icon accent-yellow"><i class="ph-fill ph-chart-line-up"></i></span>
+        </div>
+        <div class="resumo-value"><?= money($total_usado) ?></div>
+        <div class="resumo-sub"><?= $total_limite > 0 ? number_format(($total_usado / $total_limite) * 100, 0) : 0 ?>% do limite total</div>
+    </div>
+
+    <div class="resumo-card accent-green">
+        <div class="resumo-card-top">
+            <span class="resumo-label">Disponível</span>
+            <span class="resumo-icon accent-green"><i class="ph-fill ph-check-circle"></i></span>
+        </div>
+        <div class="resumo-value"><?= money($total_disponivel) ?></div>
+        <div class="resumo-sub">Somando todos os cartões</div>
+    </div>
+
+    <div class="resumo-card accent-red">
+        <div class="resumo-card-top">
+            <span class="resumo-label">A Pagar Este Mês</span>
+            <span class="resumo-icon accent-red"><i class="ph-fill ph-calendar-check"></i></span>
+        </div>
+        <div class="resumo-value"><?= money($resumo_mes['total_mes']) ?></div>
+        <div class="resumo-sub">
+            <span><?= (int)$resumo_mes['qtd_faturas'] ?> fatura<?= $resumo_mes['qtd_faturas'] != 1 ? 's' : '' ?></span>
+            <span>Pago: <strong><?= money($resumo_mes['total_pago']) ?></strong></span>
+            <span>Pendente: <strong><?= money($resumo_mes['total_pendente']) ?></strong></span>
+        </div>
+    </div>
+</div>
+
 <?php if (count($cartoes) > 0): ?>
-    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
+    <div class="cartoes-grid">
         <?php foreach ($cartoes as $c): ?>
             <?php
                 $limite = (float)$c['limite'];
@@ -101,42 +193,59 @@ require_once '../../includes/layout/sidebar.php';
                 
                 // Cores de atenção na barra de progresso
                 $bar_color = ($pct > 85) ? 'var(--red)' : (($pct > 65) ? 'var(--yellow)' : 'var(--blue)');
+
+                $classe_bandeira = bandeiraClasse($c['bandeira']);
+                $icone_bandeira = bandeiraIcone($classe_bandeira);
             ?>
-            <div class="card" style="margin-bottom: 0;">
-                <div class="card-header" style="border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 15px;">
-                    <h3 class="card-title" style="color: var(--text);"><i class="ph ph-credit-card" style="font-size: 16px; margin-right: 5px;"></i> <?= htmlspecialchars($c['nome']) ?> <span style="color: var(--text-3); font-weight: 500;">(<?= htmlspecialchars($c['bandeira']) ?>)</span></h3>
-                    <form method="POST" style="margin: 0; display: inline-block;" onsubmit="return confirm('Excluir este cartão? O histórico financeiro será mantido intacto.');">
-                        <input type="hidden" name="acao" value="excluir_cartao">
-                        <input type="hidden" name="cartao_id" value="<?= $c['id'] ?>">
-                        <button type="submit" style="background: none; border: none; color: var(--text-3); cursor: pointer;" title="Excluir Cartão"><i class="ph ph-trash" style="font-size: 18px;"></i></button>
-                    </form>
-                </div>
-                
-                <div style="font-size: 12px; color: var(--text-2); margin-bottom: 2px;">Limite Disponível</div>
-                <div style="font-size: 26px; font-weight: 700; color: var(--green);"><?= money($disponivel) ?></div>
-                
-                <div style="width: 100%; height: 6px; background: var(--bg-hover); border-radius: 3px; margin: 12px 0;">
-                    <div style="width: <?= $pct ?>%; height: 100%; background: <?= $bar_color ?>; border-radius: 3px;"></div>
-                </div>
-                
-                <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-3); margin-bottom: 16px;">
-                    <span>Usado: <strong style="color: var(--text-primary);"><?= money($usado) ?></strong></span>
-                    <span>Total: <?= money($limite) ?></span>
-                </div>
-                
-                <div style="background: var(--bg-hover); padding: 12px; border-radius: var(--r-md); display: flex; justify-content: space-between; font-size: 12px; color: var(--text-2); margin-bottom: 16px;">
-                    <div style="text-align: center;"><span style="display: block; font-size: 10px; text-transform: uppercase;">Fechamento</span> <strong>Dia <?= htmlspecialchars($c['dia_fechamento']) ?></strong></div>
-                    <div style="width: 1px; background: var(--border-mid);"></div>
-                    <div style="text-align: center;"><span style="display: block; font-size: 10px; text-transform: uppercase;">Vencimento</span> <strong>Dia <?= htmlspecialchars($c['dia_vencimento']) ?></strong></div>
-                </div>
-                
-                <div style="display: flex; gap: 8px;">
-                    <button type="button" class="btn btn-secondary" style="flex: 1; justify-content: center;" onclick="abrirModalCartao(<?= $c['id'] ?>, '<?= addslashes(htmlspecialchars($c['nome'])) ?>', '<?= addslashes(htmlspecialchars($c['bandeira'])) ?>', <?= $c['limite'] ?>, <?= $c['dia_fechamento'] ?>, <?= $c['dia_vencimento'] ?>)">
-                        <i class="ph ph-pencil-simple"></i> Editar
-                    </button>
-                    <a href="fatura.php?cartao_id=<?= $c['id'] ?>" class="btn btn-primary" style="flex: 1; justify-content: center;">
-                        <i class="ph ph-file-text"></i> Ver Faturas
-                    </a>
+            <div class="cartao-card">
+                <div class="cartao-card-accent" style="background: <?= $bar_color ?>;"></div>
+                <div class="cartao-card-body">
+                    <div class="cartao-card-header">
+                        <div class="cartao-card-header-left">
+                            <div class="bandeira-badge bandeira-<?= $classe_bandeira ?>"><i class="<?= $icone_bandeira ?>"></i></div>
+                            <div class="cartao-card-titulos">
+                                <div class="cartao-card-nome"><?= htmlspecialchars($c['nome']) ?></div>
+                                <div class="cartao-card-bandeira"><?= htmlspecialchars($c['bandeira']) ?></div>
+                            </div>
+                        </div>
+                        <form method="POST" style="margin: 0;" onsubmit="return confirm('Excluir este cartão? O histórico financeiro será mantido intacto.');">
+                            <input type="hidden" name="acao" value="excluir_cartao">
+                            <input type="hidden" name="cartao_id" value="<?= $c['id'] ?>">
+                            <button type="submit" class="btn-icon-ghost" title="Excluir Cartão"><i class="ph ph-trash"></i></button>
+                        </form>
+                    </div>
+
+                    <div class="cartao-disponivel-label">Limite Disponível</div>
+                    <div class="cartao-disponivel-valor"><?= money($disponivel) ?></div>
+
+                    <div class="cartao-progress-track">
+                        <div class="cartao-progress-fill" style="width: <?= $pct ?>%; background: <?= $bar_color ?>;"></div>
+                    </div>
+
+                    <div class="cartao-usado-total">
+                        <span>Usado: <strong><?= money($usado) ?></strong></span>
+                        <span>Total: <?= money($limite) ?></span>
+                    </div>
+
+                    <div class="cartao-datas">
+                        <div class="cartao-data-item">
+                            <span class="cartao-data-label"><i class="ph ph-lock-simple"></i> Fechamento</span>
+                            <span class="cartao-data-valor">Dia <?= htmlspecialchars($c['dia_fechamento']) ?></span>
+                        </div>
+                        <div class="cartao-data-item">
+                            <span class="cartao-data-label"><i class="ph ph-calendar"></i> Vencimento</span>
+                            <span class="cartao-data-valor">Dia <?= htmlspecialchars($c['dia_vencimento']) ?></span>
+                        </div>
+                    </div>
+
+                    <div class="cartao-acoes">
+                        <button type="button" class="btn btn-secondary" onclick="abrirModalCartao(<?= $c['id'] ?>, '<?= addslashes(htmlspecialchars($c['nome'])) ?>', '<?= addslashes(htmlspecialchars($c['bandeira'])) ?>', <?= $c['limite'] ?>, <?= $c['dia_fechamento'] ?>, <?= $c['dia_vencimento'] ?>)">
+                            <i class="ph ph-pencil-simple"></i> Editar
+                        </button>
+                        <a href="fatura.php?cartao_id=<?= $c['id'] ?>" class="btn btn-primary">
+                            <i class="ph ph-file-text"></i> Ver Faturas
+                        </a>
+                    </div>
                 </div>
             </div>
         <?php endforeach; ?>

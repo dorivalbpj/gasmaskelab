@@ -1,0 +1,311 @@
+/* ===========================================
+   CARTÕES & FATURAS — estilos específicos
+   Usa as variáveis globais definidas em style.css
+   =========================================== */
+
+/* ---------- RESUMO GERAL (topo da tela de cartões) ---------- */
+.resumo-geral-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.resumo-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.resumo-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+}
+.resumo-card.accent-blue::before   { background: var(--blue); }
+.resumo-card.accent-yellow::before { background: var(--yellow); }
+.resumo-card.accent-green::before  { background: var(--green); }
+.resumo-card.accent-red::before    { background: var(--red); }
+
+.resumo-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.resumo-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: var(--r-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+.resumo-icon.accent-blue   { background: rgba(59,130,246,.14);  color: var(--blue); }
+.resumo-icon.accent-yellow { background: rgba(245,158,11,.14);  color: var(--yellow); }
+.resumo-icon.accent-green  { background: rgba(34,197,94,.14);   color: var(--green); }
+.resumo-icon.accent-red    { background: rgba(255,63,52,.14);   color: var(--red); }
+
+.resumo-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-3);
+}
+
+.resumo-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+}
+
+.resumo-sub {
+    font-size: 11px;
+    color: var(--text-3);
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.resumo-sub strong { color: var(--text-2); font-weight: 600; }
+
+/* ---------- GRID DE CARTÕES ---------- */
+.cartoes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 18px;
+}
+
+.cartao-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: border-color .15s;
+}
+.cartao-card:hover { border-color: var(--border-mid); }
+
+.cartao-card-accent {
+    height: 3px;
+    width: 100%;
+}
+
+.cartao-card-body { padding: 18px 20px 20px; }
+
+.cartao-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.cartao-card-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.bandeira-badge {
+    width: 42px;
+    height: 42px;
+    border-radius: var(--r-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    color: #0c0c0c;
+    font-weight: 700;
+}
+.bandeira-mastercard { background: linear-gradient(135deg, #f79e1b, #eb001b); color: #fff; }
+.bandeira-visa       { background: linear-gradient(135deg, #3b82f6, #1a1f71); color: #fff; }
+.bandeira-elo        { background: linear-gradient(135deg, #ffcb05, #eb001b); color: #1a1a1a; }
+.bandeira-amex       { background: linear-gradient(135deg, #2e77bb, #1c4e80); color: #fff; }
+.bandeira-outra      { background: var(--bg-elevated); color: var(--text-2); }
+
+.cartao-card-titulos { min-width: 0; }
+.cartao-card-nome {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cartao-card-bandeira {
+    font-size: 11px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.btn-icon-ghost {
+    background: none;
+    border: none;
+    color: var(--text-3);
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--r-sm);
+    font-size: 17px;
+    flex-shrink: 0;
+    transition: background .12s, color .12s;
+}
+.btn-icon-ghost:hover { background: var(--bg-hover); color: var(--red); }
+
+.cartao-disponivel-label { font-size: 11px; color: var(--text-3); margin-bottom: 3px; }
+.cartao-disponivel-valor { font-size: 26px; font-weight: 700; color: var(--green); line-height: 1.1; margin-bottom: 12px; }
+
+.cartao-progress-track {
+    width: 100%;
+    height: 6px;
+    background: var(--bg-hover);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+.cartao-progress-fill { height: 100%; border-radius: 3px; transition: width .2s; }
+
+.cartao-usado-total {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-3);
+    margin-bottom: 16px;
+}
+.cartao-usado-total strong { color: var(--text); }
+
+.cartao-datas {
+    background: var(--bg-hover);
+    border-radius: var(--r-md);
+    display: flex;
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+.cartao-data-item {
+    flex: 1;
+    text-align: center;
+    padding: 10px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.cartao-data-item + .cartao-data-item { border-left: 1px solid var(--border-mid); }
+.cartao-data-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    color: var(--text-3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+.cartao-data-valor { font-size: 13px; font-weight: 700; color: var(--text); }
+
+.cartao-acoes { display: flex; gap: 8px; }
+.cartao-acoes .btn { flex: 1; justify-content: center; }
+
+/* ---------- FATURA: PROJEÇÃO FUTURA ---------- */
+.projecao-strip {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+.projecao-strip::-webkit-scrollbar { height: 4px; }
+.projecao-strip::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 2px; }
+
+.projecao-tile {
+    flex: 0 0 auto;
+    min-width: 108px;
+    background: var(--bg-hover);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 12px 14px;
+    text-align: center;
+    text-decoration: none;
+    transition: border-color .12s, background .12s;
+}
+.projecao-tile:hover { border-color: var(--border-mid); background: var(--bg-elevated); }
+.projecao-tile.atual { border-color: var(--blue); background: rgba(59,130,246,.08); }
+
+.projecao-mes {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    color: var(--text-3);
+    margin-bottom: 6px;
+}
+.projecao-tile.atual .projecao-mes { color: var(--blue); }
+
+.projecao-valor {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+    line-height: 1;
+}
+
+.projecao-status-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    font-weight: 700;
+}
+.projecao-status-dot::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+}
+.projecao-status-dot.st-aberta::before  { background: var(--yellow); }
+.projecao-status-dot.st-fechada::before { background: var(--blue); }
+.projecao-status-dot.st-paga::before    { background: var(--green); }
+.projecao-status-dot.st-aberta  { color: var(--yellow); }
+.projecao-status-dot.st-fechada { color: var(--blue); }
+.projecao-status-dot.st-paga    { color: var(--green); }
+
+.projecao-total-futuro {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-2);
+}
+.projecao-total-futuro strong { color: var(--text); font-size: 15px; }
+
+/* ---------- RESPONSIVO ---------- */
+@media (max-width: 900px) {
+    .resumo-geral-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+    .resumo-geral-grid { grid-template-columns: 1fr; }
+    .cartoes-grid { grid-template-columns: 1fr; }
+}

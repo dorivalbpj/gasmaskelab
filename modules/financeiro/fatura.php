@@ -13,19 +13,18 @@ $cartao_id = (int)($_GET['cartao_id'] ?? 0);
 $mes = (int)($_GET['mes'] ?? 0);
 $ano = (int)($_GET['ano'] ?? 0);
 
-// Se recebeu um ID de cartão mas não de fatura, busca a fatura mais recente deste cartão
+// Se recebeu um ID de cartão mas não de fatura, busca a fatura deste cartão
+// Padrão: sempre abre no mês/ano ATUAL quando nada for especificado
 if (!$id && $cartao_id) {
-    if ($mes && $ano) {
-        // Busca a fatura do mês/ano específico
-        $stmt_busca = $pdo->prepare("SELECT id FROM fin_faturas WHERE cartao_id = ? AND mes = ? AND ano = ? LIMIT 1");
-        $stmt_busca->execute([$cartao_id, $mes, $ano]);
-        $fatura_encontrada = $stmt_busca->fetchColumn();
-    } else {
-        // Ordena priorizando faturas abertas e depois as mais recentes
-        $stmt_busca = $pdo->prepare("SELECT id FROM fin_faturas WHERE cartao_id = ? ORDER BY status = 'aberta' DESC, ano DESC, mes DESC LIMIT 1");
-        $stmt_busca->execute([$cartao_id]);
-        $fatura_encontrada = $stmt_busca->fetchColumn();
+    if (!$mes && !$ano) {
+        $mes = (int)date('n');
+        $ano = (int)date('Y');
     }
+
+    // Busca a fatura do mês/ano (atual, por padrão, ou o informado via GET)
+    $stmt_busca = $pdo->prepare("SELECT id FROM fin_faturas WHERE cartao_id = ? AND mes = ? AND ano = ? LIMIT 1");
+    $stmt_busca->execute([$cartao_id, $mes, $ano]);
+    $fatura_encontrada = $stmt_busca->fetchColumn();
     
     if ($fatura_encontrada) {
         header("Location: fatura.php?id=" . $fatura_encontrada);
@@ -149,11 +148,40 @@ if ($prev_mes < 1) { $prev_mes = 12; $prev_ano--; }
 $next_mes = $fatura['mes'] + 1; $next_ano = $fatura['ano'];
 if ($next_mes > 12) { $next_mes = 1; $next_ano++; }
 
+// --- PROJEÇÃO FUTURA ---
+// Mostra as próximas faturas já lançadas para este cartão (parcelamentos futuros, recorrências, etc)
+// a partir do mês/ano atual (calendário real), não necessariamente da fatura que está sendo vista
+$mes_atual_real = (int)date('n');
+$ano_atual_real = (int)date('Y');
+
+$stmt_proj = $pdo->prepare("
+    SELECT f.id, f.mes, f.ano, f.status,
+           COALESCE(SUM(l.valor), 0) as total
+    FROM fin_faturas f
+    LEFT JOIN fin_lancamentos l ON l.fatura_id = f.id
+    WHERE f.cartao_id = ?
+      AND ( (f.ano > ?) OR (f.ano = ? AND f.mes >= ?) )
+    GROUP BY f.id, f.mes, f.ano, f.status
+    ORDER BY f.ano ASC, f.mes ASC
+    LIMIT 6
+");
+$stmt_proj->execute([$fatura['cartao_id'], $ano_atual_real, $ano_atual_real, $mes_atual_real]);
+$projecao = $stmt_proj->fetchAll();
+
+$total_futuro = 0;
+foreach ($projecao as $p) {
+    // soma apenas o que ainda não foi pago (a pagar dali pra frente)
+    if ($p['status'] != 'paga') $total_futuro += (float)$p['total'];
+}
+
+$meses_abrev_pt = ['01'=>'Jan','02'=>'Fev','03'=>'Mar','04'=>'Abr','05'=>'Mai','06'=>'Jun','07'=>'Jul','08'=>'Ago','09'=>'Set','10'=>'Out','11'=>'Nov','12'=>'Dez'];
+
 require_once '../../includes/layout/header.php';
 require_once '../../includes/layout/sidebar.php';
 ?>
 
 <link rel="stylesheet" href="../../assets/css/planejamento.css">
+<link rel="stylesheet" href="../../assets/css/cartoes.css">
 
 <div class="cabecalho">
     <div>
@@ -292,6 +320,35 @@ require_once '../../includes/layout/sidebar.php';
         <?php endif; ?>
     </div>
 </div>
+
+<!-- ============ PROJEÇÃO FUTURA ============ -->
+<?php if (count($projecao) > 0): ?>
+<div class="card" style="margin-top: 50px;">
+    <div class="card-header">
+        <h3 class="card-title">Projeção Futura</h3>
+        <span class="badge badge-gray">Próximos meses</span>
+    </div>
+
+    <div class="projecao-strip">
+        <?php foreach ($projecao as $p): ?>
+            <?php
+                $eh_atual = ($p['mes'] == $mes_atual_real && $p['ano'] == $ano_atual_real);
+                $eh_fatura_aberta_view = ($p['id'] == $fatura['id']);
+            ?>
+            <a href="fatura.php?id=<?= $p['id'] ?>" class="projecao-tile <?= $eh_atual ? 'atual' : '' ?>" title="<?= $eh_fatura_aberta_view ? 'Fatura em visualização' : 'Ver esta fatura' ?>">
+                <div class="projecao-mes"><?= $meses_abrev_pt[str_pad($p['mes'], 2, '0', STR_PAD_LEFT)] ?>/<?= substr($p['ano'], 2, 2) ?></div>
+                <div class="projecao-valor"><?= money($p['total']) ?></div>
+                <span class="projecao-status-dot st-<?= $p['status'] ?>"><?= ucfirst($p['status']) ?></span>
+            </a>
+        <?php endforeach; ?>
+    </div>
+
+    <div class="projecao-total-futuro">
+        <span>Total a pagar de <?= $meses_abrev_pt[str_pad($projecao[0]['mes'], 2, '0', STR_PAD_LEFT)] ?>/<?= $projecao[0]['ano'] ?> em diante</span>
+        <strong><?= money($total_futuro) ?></strong>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- ============ MODAL DE UPLOAD PDF ============ -->
 <div id="modalUploadPDF" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;">
