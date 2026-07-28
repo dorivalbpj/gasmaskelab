@@ -98,7 +98,7 @@ if (!defined('APP_ENV')) {
 }
 
 if (!defined('AMBIENTE_NOME')) {
-    define('AMBIENTE_NOME', $ambiente === 'local' ? '🧪 Desenvolvimento' : '🚀 Produção');
+    define('AMBIENTE_NOME', $ambiente === 'local' ? 'Desenvolvimento' : 'Produção');
 }
 
 if (!defined('AMBIENTE_COR')) {
