@@ -1,11 +1,11 @@
 <?php
 /**
  * ENDPOINT: ler_fatura_ia.php
- * Lê um PDF de fatura de cartão de crédito usando a API do Gemini Vision
+ * Lê um PDF ou CSV de fatura de cartão de crédito usando a API do Gemini Vision/Text
  * Retorna um JSON com os lançamentos extraídos para revisão
  * 
  * REQUISITOS:
- * - Recebe um arquivo PDF via multipart/form-data
+ * - Recebe um arquivo (PDF ou CSV) via multipart/form-data (campo 'pdf')
  * - Recebe o ID da fatura atual via $_POST['fatura_id']
  * - Retorna JSON com: [{"descricao", "valor", "categoria_id", "data_compra"}, ...]
  */
@@ -45,22 +45,21 @@ if (!$fatura_id) {
     exit;
 }
 
-// Valida se arquivo foi enviado
+// Valida se arquivo foi enviado (o front-end continua enviando a key como 'pdf' no FormData)
 if (!isset($_FILES['pdf']) || $_FILES['pdf']['error'] !== UPLOAD_ERR_OK) {
     http_response_code(400);
-    echo json_encode(['erro' => 'Arquivo PDF não foi enviado corretamente']);
+    echo json_encode(['erro' => 'Arquivo da fatura não foi enviado corretamente']);
     exit;
 }
 
 $file = $_FILES['pdf'];
 
-// Valida extensão e tipo MIME
+// Valida extensão e tipo
 $extensao = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-$mime = mime_content_type($file['tmp_name']);
 
-if ($extensao !== 'pdf' || $mime !== 'application/pdf') {
+if ($extensao !== 'pdf' && $extensao !== 'csv') {
     http_response_code(400);
-    echo json_encode(['erro' => 'O arquivo deve ser um PDF válido']);
+    echo json_encode(['erro' => 'O arquivo deve ser um PDF ou CSV válido']);
     exit;
 }
 
@@ -113,40 +112,14 @@ try {
     exit;
 }
 
-// ==================== LEITURA E CODIFICAÇÃO DO PDF ====================
-try {
-    $conteudo_pdf = file_get_contents($file['tmp_name']);
-    if ($conteudo_pdf === false) {
-        throw new Exception('Não foi possível ler o arquivo PDF');
-    }
-    
-    $pdf_base64 = base64_encode($conteudo_pdf);
-    
-} catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['erro' => 'Erro ao processar PDF: ' . $e->getMessage()]);
-    exit;
-}
-
 // ==================== CONSTRUÇÃO DO PROMPT PARA GEMINI ====================
-/**
- * ENGINEERING DE PROMPT CRÍTICO:
- * O prompt deve ser EXTREMAMENTE RESTRITIVO para garantir que:
- * 1. Ignora linhas de ruído (pagamentos, estornos, juros, etc)
- * 2. Retorna APENAS um JSON válido (sem explicações)
- * 3. Lê apenas a parcela do mês atual
- * 4. Extrai apenas: descricao, valor, categoria_id, data_compra
- * 
- * NOTA: O Gemini 1.5 Flash tem visão de imagens/PDFs, não precisa de conversão prévia
- */
-
 $prompt = <<<PROMPT
 VOCÊ É UM LEITOR DE FATURAS DE CARTÃO DE CRÉDITO COM MÁXIMA PRECISÃO.
 
 CONTEXTO:
-- Analise a fatura de cartão de crédito do arquivo PDF em anexo
-- A fatura é referente ao mês {$fatura_id} (Fatura ID: {$fatura_id})
-- Identifique TODOS os gastos reais desta fatura
+- Analise a fatura de cartão de crédito anexada (pode ser imagem/PDF ou texto/CSV).
+- A fatura é referente ao mês {$fatura_id} (Fatura ID: {$fatura_id}).
+- Identifique TODOS os gastos reais desta fatura.
 
 INSTRUÇÕES CRÍTICAS - IGNORE COMPLETAMENTE:
 ❌ Linhas com "Pagamento de fatura"
@@ -162,9 +135,9 @@ INSTRUÇÕES CRÍTICAS - IGNORE COMPLETAMENTE:
 ❌ Mensagens de rodapé ou informações administrativas
 
 REGRA DE PARCELAMENTO:
-- Se o gasto aparece como "Item 2/4" ou "Parcela 2/4", significa que é uma COMPRA PARCELADA
-- Identifique a 'parcela_atual' e o 'total_parcelas'. Ex: 2/4 -> parcela_atual = 2, total_parcelas = 4
-- O valor extraído deve ser EXATAMENTE o valor de apenas uma parcela (a que aparece na fatura)
+- Se o gasto aparece como "Item 2/4" ou "Parcela 2/4", significa que é uma COMPRA PARCELADA.
+- Identifique a 'parcela_atual' e o 'total_parcelas'. Ex: 2/4 -> parcela_atual = 2, total_parcelas = 4.
+- O valor extraído deve ser EXATAMENTE o valor de apenas uma parcela (a que aparece na fatura).
 - Retorne a descrição SEM a numeração da parcela. Ex: Se está "Apple 2/4", retorne descricao "Apple".
 
 CATEGORIAS DISPONÍVEIS NO SISTEMA:
@@ -189,36 +162,59 @@ Retorne APENAS um JSON válido, sem qualquer texto antes ou depois. Exemplo:
 ⚠️ ERRO CRÍTICO: Se o JSON for inválido ou contiver texto extra, o sistema não funcionará. Retorne APENAS JSON.
 PROMPT;
 
+// ==================== PREPARAÇÃO DOS DADOS PARA O GEMINI ====================
+$parts = [];
+$parts[] = ['text' => $prompt];
+
+try {
+    if ($extensao === 'pdf') {
+        // Se for PDF, envia como arquivo visual em base64
+        $conteudo_pdf = file_get_contents($file['tmp_name']);
+        if ($conteudo_pdf === false) throw new Exception('Não foi possível ler o arquivo PDF');
+        
+        $parts[] = [
+            'inlineData' => [
+                'mimeType' => 'application/pdf',
+                'data' => base64_encode($conteudo_pdf)
+            ]
+        ];
+    } else if ($extensao === 'csv') {
+        // Se for CSV, lê como texto puro e injeta direto no prompt
+        $conteudo_csv = file_get_contents($file['tmp_name']);
+        if ($conteudo_csv === false) throw new Exception('Não foi possível ler o arquivo CSV');
+        
+        // Pega apenas as primeiras 500 linhas para não estourar o limite de tokens
+        $linhas = explode("\n", $conteudo_csv);
+        $linhas_reduzidas = implode("\n", array_slice($linhas, 0, 500));
+        
+        $parts[] = ['text' => "\n\nCONTEÚDO DA FATURA (CSV):\n" . $linhas_reduzidas];
+    }
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['erro' => 'Erro ao processar arquivo: ' . $e->getMessage()]);
+    exit;
+}
+
+// Monta payload final para o Gemini
+$payload = [
+    'contents' => [
+        [
+            'parts' => $parts
+        ]
+    ],
+    'generationConfig' => [
+        'temperature' => 0.1, 
+        'topP' => 0.8,
+        'topK' => 40,
+        'maxOutputTokens' => 8192,
+        'responseMimeType' => 'application/json'
+    ]
+];
+
 // ==================== REQUISIÇÃO PARA A API GEMINI ====================
 try {
     // URL da API Gemini com chave
     $gemini_url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=' . urlencode(GEMINI_API_KEY);
-    
-    // Monta payload para o Gemini
-    $payload = [
-        'contents' => [
-            [
-                'parts' => [
-                    [
-                        'text' => $prompt
-                    ],
-                    [
-                        'inlineData' => [
-                            'mimeType' => 'application/pdf',
-                            'data' => $pdf_base64
-                        ]
-                    ]
-                ]
-            ]
-        ],
-        'generationConfig' => [
-            'temperature' => 0.1,  // Baixa temperatura para respostas mais determinísticas
-            'topP' => 0.8,
-            'topK' => 40,
-            'maxOutputTokens' => 8192,
-            'responseMimeType' => 'application/json'
-        ]
-    ];
     
     $payload_json = json_encode($payload);
     

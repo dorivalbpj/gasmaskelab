@@ -153,6 +153,8 @@ require_once '../../includes/layout/header.php';
 require_once '../../includes/layout/sidebar.php';
 ?>
 
+<link rel="stylesheet" href="../../assets/css/planejamento.css">
+
 <div class="cabecalho">
     <div>
         <h2 class="page-title" style="display: flex; align-items: center; gap: 10px;">
@@ -164,7 +166,7 @@ require_once '../../includes/layout/sidebar.php';
     </div>
     <div style="display: flex; gap: 10px;">
         <button type="button" class="btn btn-secondary" style="border-color: var(--purple); color: var(--purple);" onclick="abrirModalUploadPDF()" title="Análise com IA do Gemini">
-            <i class="ph ph-upload"></i> Importar PDF (Gemini)
+            <i class="ph ph-upload"></i> Importar PDF ou CSV (Gemini)
         </button>
         <a href="saidas.php" class="btn btn-secondary"><i class="ph ph-arrow-left"></i> Voltar</a>
     </div>
@@ -295,17 +297,17 @@ require_once '../../includes/layout/sidebar.php';
 <div id="modalUploadPDF" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;">
     <div class="card" style="width: 100%; max-width: 500px; margin: 20px;">
         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 class="card-title">Importar Fatura em PDF</h3>
+            <h3 class="card-title">Importar Fatura em PDF ou CSV</h3>
             <button type="button" onclick="fecharModalUploadPDF()" style="background: none; border: none; cursor: pointer; font-size: 20px; color: var(--text-3);">✕</button>
         </div>
         
         <div style="padding: 20px;">
             <div class="form-group">
-                <label><i class="ph ph-file-pdf"></i> Selecione o arquivo PDF da fatura</label>
-                <input type="file" id="inputPDF" class="form-control" accept=".pdf" required>
-                <small style="color: var(--text-3); display: block; margin-top: 5px;">
-                    Máximo: 10MB | Formato: PDF
-                </small>
+                            <label><i class="ph ph-file"></i> Selecione a fatura (PDF ou CSV)</label>
+            <input type="file" id="inputFatura" class="form-control" accept=".pdf, .csv" required>
+            <small style="color: var(--text-3); display: block; margin-top: 5px;">
+                Máximo: 10MB | Formatos aceitos: PDF ou CSV
+            </small>
             </div>
             
             <button type="button" class="btn btn-primary w-100" id="btnAnalisarIA" style="justify-content: center; height: 44px;">
@@ -316,7 +318,7 @@ require_once '../../includes/layout/sidebar.php';
         <!-- Indicador de Carregamento -->
         <div id="indicadorCarregamento" style="display: none; padding: 20px; text-align: center;">
             <div style="display: inline-block; width: 30px; height: 30px; border: 3px solid rgba(59,130,246,0.2); border-top-color: var(--blue); border-radius: 50%; animation: spin 1s linear infinite;"></div>
-            <p style="margin-top: 10px; color: var(--text-2);">Analisando PDF com Gemini...</p>
+            <p style="margin-top: 10px; color: var(--text-2);">Analisando com Gemini... calma ai!</p>
         </div>
     </div>
 </div>
@@ -324,29 +326,30 @@ require_once '../../includes/layout/sidebar.php';
 <!-- ============ TELA DE REVISÃO DINÂMICA ============ -->
 <div id="telaRevisao" style="display: none; margin-top: 30px;">
     <div class="card">
-        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-mid); padding-bottom: 15px;">
             <div>
-                <h3 class="card-title">Revisão de Lançamentos</h3>
-                <small style="color: var(--text-3);">Edite, valide e selecione os gastos para importar</small>
+                <h3 class="card-title" style="font-size: 20px;">Revisão de Lançamentos</h3>
+                <small style="color: var(--text-3);">Revise e classifique os gastos detectados pela IA antes de importar</small>
             </div>
-            <button type="button" onclick="fecharTelaRevisao()" class="btn btn-secondary" style="font-size: 12px;">
-                <i class="ph ph-x"></i> Cancelar
+            <button type="button" onclick="fecharTelaRevisao()" class="btn btn-secondary" style="font-size: 13px;">
+                <i class="ph ph-x"></i> Cancelar Importação
             </button>
         </div>
         
         <div style="overflow-x: auto;">
-            <table id="tabelaRevisao" style="width: 100%;">
+            <!-- Aplicando a classe .notion-table do seu CSS -->
+            <table id="tabelaRevisao" class="notion-table">
                 <thead>
                     <tr>
                         <th style="width: 40px; text-align: center;">
-                            <input type="checkbox" id="checkboxTodos" onchange="toggleTodosCheked(this)">
+                            <input type="checkbox" id="checkboxTodos" onchange="toggleTodosCheked(this)" style="cursor: pointer;">
                         </th>
-                        <th style="width: 100px;">Data</th>
-                        <th style="width: 30%;">Descrição</th>
+                        <th style="width: 120px;">Data</th>
+                        <th style="width: 25%;">Descrição</th>
                         <th style="width: 20%;">Categoria</th>
                         <th style="width: 15%;">Tipo</th>
-                        <th style="width: 100px; text-align: right;">Valor</th>
-                        <th style="width: 80px; text-align: center;">Ação</th>
+                        <th style="width: 120px; text-align: right;">Valor</th>
+                        <th style="width: 60px; text-align: center;"></th>
                     </tr>
                 </thead>
                 <tbody id="corpoTabelaRevisao">
@@ -355,15 +358,16 @@ require_once '../../includes/layout/sidebar.php';
             </table>
         </div>
         
-        <div style="padding: 20px; border-top: 1px solid var(--border-mid); display: flex; justify-content: space-between; align-items: center;">
+        <div style="padding: 24px; background: var(--bg-hover); border-top: 1px solid var(--border-mid); display: flex; justify-content: space-between; align-items: center; border-radius: 0 0 8px 8px;">
             <div>
-                <strong>Total de <span id="contadorSelecionados">0</span> itens selecionados:</strong>
-                <span style="font-size: 20px; font-weight: 700; color: var(--blue); margin-left: 10px;">
+                <span style="font-size: 13px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.5px;">Selecionados (<span id="contadorSelecionados">0</span>)</span>
+                <div style="font-size: 24px; font-weight: 700; color: var(--gn-blue); line-height: 1;">
                     <span id="valorTotalSelecionados">R$ 0,00</span>
-                </span>
+                </div>
             </div>
-            <button type="button" class="btn btn-primary" onclick="salvarLancamentosSelecionados()" id="btnSalvarLancamentos">
-                <i class="ph ph-check-circle"></i> Salvar Lançamentos
+            <!-- Aplicando o botão bombado do seu CSS -->
+            <button type="button" class="btn-save-lg" onclick="salvarLancamentosSelecionados()" id="btnSalvarLancamentos" style="width: auto; padding: 12px 30px;">
+                <i class="ph ph-check-circle" style="font-size: 20px;"></i> Confirmar e Salvar
             </button>
         </div>
     </div>
@@ -477,22 +481,23 @@ function abrirModalUploadPDF() {
 
 function fecharModalUploadPDF() {
     document.getElementById('modalUploadPDF').style.display = 'none';
-    document.getElementById('inputPDF').value = '';
+    document.getElementById('inputFatura').value = ''; // AQUI: mudou de inputPDF para inputFatura
     document.getElementById('indicadorCarregamento').style.display = 'none';
 }
 
 document.getElementById('btnAnalisarIA').addEventListener('click', async () => {
-    const inputPDF = document.getElementById('inputPDF');
-    const arquivo = inputPDF.files[0];
+    const inputFatura = document.getElementById('inputFatura');
+    const arquivo = inputFatura.files[0];
     
     // Validações
     if (!arquivo) {
-        alert('Selecione um arquivo PDF');
+        alert('Selecione um arquivo');
         return;
     }
     
-    if (arquivo.type !== 'application/pdf') {
-        alert('O arquivo deve ser um PDF válido');
+    // Libera PDF ou CSV
+    if (arquivo.type !== 'application/pdf' && arquivo.type !== 'text/csv' && !arquivo.name.endsWith('.csv')) {
+        alert('O arquivo deve ser um PDF ou CSV válido');
         return;
     }
     
@@ -572,16 +577,16 @@ function fecharTelaRevisao() {
     document.getElementById('telaRevisao').style.display = 'none';
     lancamentosRevisao = [];
 }
-
 function renderizarTabelaRevisao() {
     const corpo = document.getElementById('corpoTabelaRevisao');
     corpo.innerHTML = '';
     
     lancamentosRevisao.forEach((item, idx) => {
         const tr = document.createElement('tr');
+        tr.className = 'task-row'; // Classe do seu CSS para hover na linha
         
         if (item.duplicado) {
-            tr.className = 'linha-duplicidade';
+            tr.classList.add('linha-duplicidade');
         }
         
         const dataFormatada = new Date(item.data_compra).toLocaleDateString('pt-BR');
@@ -590,22 +595,25 @@ function renderizarTabelaRevisao() {
         tr.innerHTML = `
             <td style="text-align: center;">
                 <input type="checkbox" class="checkbox-linha" ${item.selecionado ? 'checked' : ''} 
-                       data-idx="${idx}" onchange="atualizarContadores()">
+                       data-idx="${idx}" onchange="atualizarContadores()" style="cursor: pointer; width: 16px; height: 16px;">
             </td>
             <td>
-                <input type="date" class="input-revisao" value="${item.data_compra}" 
+                <!-- Usando silent-input -->
+                <input type="date" class="silent-input" value="${item.data_compra}" 
                        data-idx="${idx}" onchange="atualizarItem(${idx}, 'data_compra', this.value)">
             </td>
             <td>
-                <div>
-                    <input type="text" class="input-revisao" value="${escapeHtml(item.descricao)}" 
-                           data-idx="${idx}" onchange="atualizarItem(${idx}, 'descricao', this.value)">
-                    ${item.total_parcelas > 1 ? `<div style="font-size:10px; color:var(--blue); margin-top:2px;">Parcela ${item.parcela_atual}/${item.total_parcelas}</div>` : ''}
-                    ${item.duplicado ? '<div class="aviso-duplicidade">⚠️ Possível Duplicidade</div>' : ''}
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <!-- Usando silent-input -->
+                    <input type="text" class="silent-input" value="${escapeHtml(item.descricao)}" 
+                           data-idx="${idx}" onchange="atualizarItem(${idx}, 'descricao', this.value)" style="font-weight: 600;">
+                    ${item.total_parcelas > 1 ? `<span class="pill pill-prio-media" style="font-size: 10px; width: fit-content; padding: 2px 6px;">Parc ${item.parcela_atual}/${item.total_parcelas}</span>` : ''}
+                    ${item.duplicado ? '<span class="pill pill-prio-urgente" style="font-size: 10px; width: fit-content; padding: 2px 6px;">⚠️ Possível Duplicidade</span>' : ''}
                 </div>
             </td>
             <td>
-                <select class="select-revisao" data-idx="${idx}" onchange="atualizarItem(${idx}, 'categoria_id', this.value)">
+                <!-- Usando gn-select (Combobox bonitão) -->
+                <select class="gn-select" data-idx="${idx}" onchange="atualizarItem(${idx}, 'categoria_id', this.value)" style="padding-top: 6px; padding-bottom: 6px;">
                     <option value="">Sem categoria</option>
                     ${CATEGORIAS_DISPONIVEIS.map(cat => 
                         `<option value="${cat.id}" ${cat.id == item.categoria_id ? 'selected' : ''}>
@@ -615,18 +623,23 @@ function renderizarTabelaRevisao() {
                 </select>
             </td>
             <td>
-                <select class="select-revisao" data-idx="${idx}" onchange="atualizarItem(${idx}, 'tipo', this.value)">
+                <!-- Usando gn-select -->
+                <select class="gn-select" data-idx="${idx}" onchange="atualizarItem(${idx}, 'tipo', this.value)" style="padding-top: 6px; padding-bottom: 6px;">
                     <option value="pessoal" ${item.tipo === 'pessoal' ? 'selected' : ''}>Pessoal</option>
                     <option value="empresa" ${item.tipo === 'empresa' ? 'selected' : ''}>Empresa</option>
                 </select>
             </td>
             <td style="text-align: right;">
-                <input type="number" class="input-revisao" step="0.01" value="${item.valor}" 
-                       data-idx="${idx}" onchange="atualizarItem(${idx}, 'valor', parseFloat(this.value))"
-                       style="text-align: right;">
+                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 4px;">
+                    <span style="color: var(--text-muted); font-size: 13px; font-weight: 600;">R$</span>
+                    <input type="number" class="silent-input" step="0.01" value="${parseFloat(item.valor).toFixed(2)}" 
+                           data-idx="${idx}" onchange="atualizarItem(${idx}, 'valor', parseFloat(this.value))"
+                           style="text-align: right; font-weight: 700; color: var(--text-primary); width: 90px; padding: 6px 4px;">
+                </div>
             </td>
             <td style="text-align: center;">
-                <button type="button" class="btn-acao" onclick="removerLinha(${idx})" title="Remover">
+                <!-- Usando btn-expand-task vermelho para lixeira -->
+                <button type="button" class="btn-expand-task" style="color: var(--gn-red);" onclick="removerLinha(${idx})" title="Remover">
                     <i class="ph ph-trash"></i>
                 </button>
             </td>
@@ -635,6 +648,7 @@ function renderizarTabelaRevisao() {
         corpo.appendChild(tr);
     });
 }
+
 
 function atualizarItem(idx, campo, valor) {
     if (campo === 'valor') {
