@@ -29,6 +29,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
     }
 }
 
+// --- DAR BAIXA EM PARCELA ---
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['acao'] == 'dar_baixa') {
+    $parcela_id = $_POST['parcela_id'] ?? 0;
+    $data_pagamento = $_POST['data_pagamento'] ?? date('Y-m-d');
+
+    try {
+        $pdo->prepare("UPDATE parcelas SET status = 'pago', data_pagamento = ? WHERE id = ?")
+            ->execute([$data_pagamento, $parcela_id]);
+
+        header("Location: index.php?" . http_build_query($_GET) . "&msg=sucesso");
+        exit;
+    } catch (Exception $e) {
+        $mensagem = "<div class='alert alert-danger'><i class='ph-fill ph-warning-circle'></i> Erro ao dar baixa: " . $e->getMessage() . "</div>";
+    }
+}
+
 // --- SISTEMA DE FILTROS ---
 $filtro_mesano = $_GET['mesano'] ?? date('Y-m');
 $filtro_status = $_GET['status'] ?? '';
