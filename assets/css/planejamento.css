@@ -551,20 +551,6 @@
     outline-offset: 1px;
 }
 
-/* Status cores */
-.pill-status-pendente { background: rgba(255,255,255,0.1); color: #e5e7eb; }
-.pill-status-roteiro_em_producao { background: rgba(59,130,246,0.2); color: #93c5fd; }
-.pill-status-roteiro_aguardando_aprovacao { background: rgba(245,158,11,0.2); color: #fcd34d; }
-.pill-status-roteiro_em_revisao { background: rgba(234,88,12,0.2); color: #fdba74; }
-.pill-status-peca_em_producao { background: rgba(168,85,247,0.2); color: #d8b4fe; }
-.pill-status-peca_aguardando_aprovacao { background: rgba(245,158,11,0.2); color: #fcd34d; }
-.pill-status-peca_em_revisao { background: rgba(234,88,12,0.2); color: #fdba74; }
-.pill-status-pronto_para_postar { background: rgba(99,102,241,0.2); color: #c7d2fe; }
-.pill-status-finalizado { background: rgba(16,185,129,0.2); color: #6ee7b7; }
-.pill-status-A_fazer { background: rgba(255,255,255,0.05); color: #9ca3af; }
-.pill-status-Aguardar { background: rgba(245,158,11,0.15); color: #fbbf24; }
-.pill-status-Postar { background: rgba(99,102,241,0.2); color: #a5b4fc; }
-
 /* Prioridade pills */
 .pill-prio-baixa { background: rgba(255,255,255,0.1); color: #9ca3af; }
 .pill-prio-media { background: rgba(59,130,246,0.2); color: #93c5fd; }
@@ -1076,3 +1062,16 @@
 .group-header.collapsed .icone-colapso {
     transform: rotate(-90deg);
 }
+
+/* =========================================
+   CORES DOS STATUS (PLANEJAMENTO)
+   ========================================= */
+.pill-status-a_fazer { background-color: #94a3b8; color: #fff; }          /* Cinza neutro */
+.pill-status-em_execucao { background-color: #0ea5e9; color: #fff; }      /* Azul vibrante */
+.pill-status-revisao_interna { background-color: #f59e0b; color: #fff; }  /* Laranja/Amarelo */
+.pill-status-revisao_externa { background-color: #f97316; color: #fff; }  /* Laranja mais forte */
+.pill-status-aguardar_interno { background-color: #8b5cf6; color: #fff; } /* Roxo */
+.pill-status-aguardar_cliente { background-color: #d946ef; color: #fff; } /* Rosa */
+.pill-status-postar { background-color: #22c55e; color: #fff; }           /* Verde confirmação */
+.pill-status-finalizado { background-color: #14b8a6; color: #fff; }       /* Verde/Teal finalizado */
+.pill-status-arquivado { background-color: #475569; color: #fff; }        /* Cinza escuro */

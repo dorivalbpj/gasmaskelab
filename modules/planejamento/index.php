@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
         
         if ($tema) {
             $sql = "INSERT INTO planejamento (tema, cliente_id, prioridade, status_geral, data_publicacao) 
-                    VALUES (?, ?, 'media', 'pendente', CURDATE())";
+        VALUES (?, ?, 'media', 'a_fazer', CURDATE())";
             $pdo->prepare($sql)->execute([$tema, $cliente_id]);
         }
         header("Location: index.php"); exit;
@@ -56,16 +56,50 @@ foreach($usuarios as $u) {
     $usuarios_map[$u['id']] = $u['nome'];
 }
 
+// --- GERADOR DINÂMICO DE CORES PARA OS RESPONSÁVEIS ---
+echo '<style>';
+// Uma paleta de 10 cores sólidas e modernas
+$paleta = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#0284c7'];
+$c_index = 0;
+foreach($usuarios as $u) {
+    $cor = $paleta[$c_index % count($paleta)];
+    // Cria uma classe CSS para cada ID de usuário (ex: .pill-resp-1, .pill-resp-2)
+    echo ".pill-resp-{$u['id']} { background-color: {$cor} !important; color: #fff !important; border-color: transparent !important; } \n";
+    $c_index++;
+}
+echo '</style>';
+
 // Buscar CLIENTES diretamente da tabela clientes
 $clientes = $pdo->query("SELECT id, nome FROM clientes ORDER BY nome ASC")->fetchAll();
+
+// ---GERADOR DINÂMICO DE CORES PARA OS CLIENTES ---
+echo '<style>';
+// Paleta estendida com 15 cores modernas para dar mais variação
+$paleta_clientes = ['#059669', '#2563eb', '#7c3aed', '#db2777', '#dc2626', '#d97706', '#65a30d', '#0d9488', '#0284c7', '#4f46e5', '#c026d3', '#e11d48', '#ea580c', '#ca8a04', '#4d7c0f'];
+$c_index_cli = 0;
+
+// Cor padrão para os projetos internos (quando não tem cliente)
+echo ".pill-cliente-interno { background-color: #334155 !important; color: #fff !important; border-color: transparent !important; } \n";
+
+foreach($clientes as $c) {
+    $cor_cli = $paleta_clientes[$c_index_cli % count($paleta_clientes)];
+    echo ".pill-cliente-{$c['id']} { background-color: {$cor_cli} !important; color: #fff !important; border-color: transparent !important; } \n";
+    $c_index_cli++;
+}
+echo '</style>';
 
 $categorias_fixas = ['Carrossel', 'Video', 'Estático', 'Roteiro', 'Captação', 'Operacional', 'Social', 'Design', 'Email', 'Blog', 'Thumb', 'Orçamento', 'Pessoal'];
 
 $status_lista = [
-    'pendente' => 'Pendente', 'roteiro_em_producao' => 'Roteiro', 'roteiro_aguardando_aprovacao' => 'Aguard. Roteiro',
-    'roteiro_em_revisao' => 'Ajuste Roteiro', 'peca_em_producao' => 'Arte', 'peca_aguardando_aprovacao' => 'Aguard. Arte',
-    'peca_em_revisao' => 'Ajuste Arte', 'pronto_para_postar' => 'Agendar', 'finalizado' => 'Finalizado',
-    'A fazer' => 'A fazer', 'Aguardar' => 'Aguardar', 'Postar' => 'Postar'
+    'a_fazer' => 'A fazer',
+    'em_execucao' => 'Em execução',
+    'revisao_interna' => 'Revisão Interna',
+    'revisao_externa' => 'Revisão externa',
+    'aguardar_interno' => 'Aguardar Interno',
+    'aguardar_cliente' => 'Aguardar Cliente',
+    'postar' => 'Postar',
+    'finalizado' => 'Finalizado',
+    'arquivado' => 'Arquivado'
 ];
 
 // Busca principal — agora com cliente_id diretamente da tabela clientes
@@ -127,7 +161,7 @@ require_once '../../includes/layout/sidebar.php';
         <!-- Quick Add -->
         <tr id="rowNewTask" style="display: none; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-mid);">
             <td>
-                <select id="quickClienteId" class="silent-select" style="font-weight: 600; border: 1px solid var(--border-mid); background: transparent; color: var(--text-primary);">
+                <select id="quickClienteId" onchange="this.className='silent-select pill '+(this.value ? 'pill-cliente-'+this.value : 'pill-cliente-interno')" class="silent-select pill pill-cliente-interno" style="font-weight: 600; border: 1px solid var(--border-mid); color: #fff;">
                     <option value="">Interno...</option>
                     <?php foreach($clientes as $c): ?>
                         <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['nome']) ?></option>
@@ -166,7 +200,7 @@ require_once '../../includes/layout/sidebar.php';
 
             <!-- Cliente -->
             <td>
-                <select onchange="salvar(<?= $t['id'] ?>, 'cliente_id', this.value)" class="silent-select" style="font-weight: 600;">
+                <select onchange="salvar(<?= $t['id'] ?>, 'cliente_id', this.value); this.className='silent-select pill '+(this.value ? 'pill-cliente-'+this.value : 'pill-cliente-interno')" class="silent-select pill <?= $t['cliente_id'] ? 'pill-cliente-'.$t['cliente_id'] : 'pill-cliente-interno' ?>" style="font-weight: 600;">
                     <option value="">Interno</option>
                     <?php foreach($clientes as $c): ?>
                         <option value="<?= $c['id'] ?>" <?= $t['cliente_id'] == $c['id'] ? 'selected' : '' ?>><?= htmlspecialchars($c['nome']) ?></option>
@@ -211,7 +245,7 @@ require_once '../../includes/layout/sidebar.php';
 
             <!-- Responsável -->
             <td>
-                <select onchange="salvar(<?= $t['id'] ?>, 'responsavel_id', this.value); this.className='silent-select pill '+(this.value ? 'pill-resp-atribuido' : 'pill-resp-vazio')" class="silent-select pill <?= $t['responsavel_id'] ? 'pill-resp-atribuido' : 'pill-resp-vazio' ?>">
+                <select onchange="salvar(<?= $t['id'] ?>, 'responsavel_id', this.value); this.className='silent-select pill '+(this.value ? 'pill-resp-'+this.value : 'pill-resp-vazio')" class="silent-select pill <?= $t['responsavel_id'] ? 'pill-resp-'.$t['responsavel_id'] : 'pill-resp-vazio' ?>">
                     <option value="">-</option>
                     <?php foreach($usuarios as $u): ?>
                         <option value="<?= $u['id'] ?>" <?= $t['responsavel_id']==$u['id']?'selected':'' ?>><?= htmlspecialchars($u['nome']) ?></option>
