@@ -287,7 +287,7 @@ function fecharModalCliente() {
     setTimeout(() => modal.style.display = 'none', 300);
 }
 
-let statusFiltroAtual = 'todos';
+let statusFiltroAtual = 'ativo';
 
 function filtrarClientes() {
     const filtroTexto = document.getElementById('filtroTexto').value.toLowerCase();
@@ -333,6 +333,21 @@ function limparFiltros() {
 document.getElementById('modalNovoCliente').addEventListener('click', function(e) {
     if (e.target === this) fecharModalCliente();
 });
+
+
+// Inicializa a página mostrando apenas clientes ativos
+document.addEventListener('DOMContentLoaded', function() {
+    // Garante que a tab "Ativos" está ativa
+    const tabAtiva = document.querySelector('.status-tab[data-status="ativo"]');
+    if (tabAtiva) {
+        document.querySelectorAll('.status-tab').forEach(tab => tab.classList.remove('active'));
+        tabAtiva.classList.add('active');
+    }
+    // Aplica o filtro
+    filtrarClientes();
+});
+
+
 </script>
 
 <?php require_once '../../includes/layout/footer.php'; ?>
