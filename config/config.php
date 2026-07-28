@@ -48,10 +48,21 @@ if (!defined('AMBIENTE_ATUAL')) {
 if (!defined('BASE_URL')) {
     if ($ambiente === 'local') {
         // ===== CONFIGURAÇÕES LOCAIS (DOCKER) =====
-        $protocolo = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        define('BASE_URL', $protocolo . '://' . $host . '/');
-        define('BASE_PATH', '');
+       $protocolo = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
+// Raiz do projeto no disco (config.php está em /config, então o projeto é um nível acima)
+$projeto_dir = str_replace('\\', '/', dirname(__DIR__));
+$doc_root    = str_replace('\\', '/', rtrim($_SERVER['DOCUMENT_ROOT'] ?? '', '/'));
+
+// Subtrai o DOCUMENT_ROOT do caminho do projeto pra achar a subpasta pública (ex: /gasmaske)
+$base_path = str_replace($doc_root, '', $projeto_dir);
+if ($base_path === $projeto_dir) {
+    $base_path = ''; // fallback: DOCUMENT_ROOT não bateu, assume raiz
+}
+
+define('BASE_URL', $protocolo . '://' . $host . $base_path . '/');
+define('BASE_PATH', $base_path);
         
         // Banco de dados LOCAL
         $db_host = 'db';
