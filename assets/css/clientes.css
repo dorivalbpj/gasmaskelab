@@ -748,7 +748,9 @@ textarea.form-control {
     #tabelaClientes th:nth-child(3),
     #tabelaClientes td:nth-child(3),
     #tabelaClientes th:nth-child(4),
-    #tabelaClientes td:nth-child(4) {
+    #tabelaClientes td:nth-child(4),
+    #tabelaClientes th:nth-child(5),
+    #tabelaClientes td:nth-child(5) {
         display: none;
     }
 
