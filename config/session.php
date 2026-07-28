@@ -14,8 +14,8 @@ if (!defined('BASE_URL')) {
         // Ambiente Local: adiciona a pasta do projeto
         define('BASE_URL', $protocolo . '://' . $host . '/ERP/');
     } else {
-        // Ambiente de Produção (ex: erp.gasmaskelab.com.br): roda direto na raiz
-        define('BASE_URL', $protocolo . '://' . $host . '/');
+        // Ambiente de Produção na subpasta erp
+        define('BASE_URL', $protocolo . '://' . $host . '/erp/');
     }
 }
 
