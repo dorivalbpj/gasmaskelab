@@ -34,6 +34,11 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </a>
         <?php endif; ?>
 
+        <div class="sidebar-section-label">Labs</div>
+        <a href="<?= BASE_URL ?>modules/ia/index.php" class="<?= ($current_dir == 'ia') ? 'active' : '' ?>">
+            <i class="ph ph-rocket" style="font-size: 18px;"></i> Gasmaske IA
+        </a>
+
         <div class="sidebar-section-label">Operação</div>
         <a href="<?= BASE_URL ?>modules/planejamento/index.php" class="<?= ($current_dir == 'planejamento') ? 'active' : '' ?>">
             <i class="ph ph-kanban" style="font-size: 18px;"></i> Tarefas
