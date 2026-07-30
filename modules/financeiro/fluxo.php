@@ -30,10 +30,23 @@ for ($i = 0; $i < 6; $i++) {
     $stmt_entradas->execute([$mes, $ano]);
     $entradas = (float)$stmt_entradas->fetchColumn();
 
-    // 2. Saídas Geradas (Lançamentos avulsos, parcelas de cartão e contas fixas já geradas)
-    $stmt_saidas = $pdo->prepare("SELECT SUM(valor) FROM fin_lancamentos WHERE MONTH(data_vencimento) = ? AND YEAR(data_vencimento) = ?");
+    // 2. Saídas Normais (Lançamentos avulsos e contas fixas já geradas - IGNORANDO CARTÃO)
+    $stmt_saidas = $pdo->prepare("SELECT SUM(valor) FROM fin_lancamentos WHERE MONTH(data_vencimento) = ? AND YEAR(data_vencimento) = ? AND forma_pagamento != 'cartao'");
     $stmt_saidas->execute([$mes, $ano]);
-    $saidas_geradas = (float)$stmt_saidas->fetchColumn();
+    $saidas_normais = (float)$stmt_saidas->fetchColumn();
+
+    // 2.1. Saídas de Cartão de Crédito (Soma os lançamentos atrelados às faturas que VENCEM neste mês)
+    $stmt_faturas = $pdo->prepare("
+        SELECT COALESCE(SUM(l.valor), 0)
+        FROM fin_faturas f
+        JOIN fin_lancamentos l ON l.fatura_id = f.id
+        WHERE MONTH(f.data_vencimento) = ? AND YEAR(f.data_vencimento) = ?
+    ");
+    $stmt_faturas->execute([$mes, $ano]);
+    $saidas_faturas = (float)$stmt_faturas->fetchColumn();
+
+    // Junta as saídas normais com o total das faturas de cartão
+    $saidas_geradas = $saidas_normais + $saidas_faturas;
 
     // 3. Recorrentes NÃO Geradas (A verdadeira projeção do custo fixo)
     // Soma todas as recorrentes ativas que ainda não possuem um lançamento com seu ID nesta competência
