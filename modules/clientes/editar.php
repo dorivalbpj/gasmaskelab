@@ -102,6 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Atualiza todos os dados
     $status_post = ($_POST['status'] ?? 'ativo') === 'inativo' ? 'inativo' : 'ativo';
 
+    // CÓDIGO ATUALIZADO:
     $sql = "UPDATE clientes SET 
             nome = ?, 
             email = ?, 
@@ -122,7 +123,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             trafego_pago = ?, 
             link_drive = ?, 
             link_referencias = ?, 
-            observacoes = ? 
+            observacoes = ?, 
+            briefing_ia = ?   /* <--- LINHA NOVA AQUI */
             WHERE id = ?";
     
     $stmt = $pdo->prepare($sql);
@@ -147,6 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_POST['link_drive'] ?? '', 
         $_POST['link_referencias'] ?? '', 
         $_POST['observacoes'] ?? '', 
+        $_POST['briefing_ia'] ?? '', /* <--- LINHA NOVA AQUI */
         $id
     ]);
 
@@ -355,6 +358,23 @@ require_once '../../includes/layout/sidebar.php';
                     </div>
                 </div>
             </div>
+
+            <!-- Card: Contexto para IA -->
+            <div class="card" style="border-top: 3px solid var(--purple);">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="ph ph-robot"></i> Contexto para IA (Briefing)</h3>
+                </div>
+                <div class="card-body">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Tom de voz, estilo, cores e regras (Aceita Markdown)</label>
+                        <textarea name="briefing_ia" class="form-control" rows="8" placeholder="Ex:&#10;- Tom de voz: Descontraído e direto.&#10;- Cores: #000000 e #FFFFFF.&#10;- Regra: Nunca usar emojis exagerados."><?= htmlspecialchars($cliente['briefing_ia'] ?? '') ?></textarea>
+                        <small class="form-hint" style="margin-top: 8px; display: block;">
+                            <i class="ph ph-info"></i> Este texto será usado como "cérebro" pela IA ao gerar posts e carrosséis para este cliente.
+                        </small>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
         <!-- Coluna Direita -->

@@ -280,6 +280,21 @@ require_once '../../includes/layout/sidebar.php';
         </div>
 
     </div>
+
+    <!-- Card: Contexto para IA (Briefing) -->
+<?php if (!empty($cliente['briefing_ia'])): ?>
+<div class="card" style="margin-top: 24px; border-left: 4px solid var(--purple);">
+    <div class="card-header">
+        <h3 class="card-title"><i class="ph ph-robot"></i> Contexto para IA (Briefing)</h3>
+    </div>
+    <div class="card-body">
+        <div style="white-space: pre-wrap; font-family: 'Space Mono', monospace; background: #fcfcfc; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; color: #1a1a1a; line-height: 1.6;">
+            <?= nl2br(htmlspecialchars($cliente['briefing_ia'])) ?>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 </div>
 
 <!-- Card: Contratos do Cliente (largura total) -->
