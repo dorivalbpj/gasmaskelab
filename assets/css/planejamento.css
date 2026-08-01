@@ -621,21 +621,19 @@
     gap: 8px;
 }
 
-/* Grupo cabeçalho */
 /* Grupo cabeçalho com destaque visual */
 .group-header td {
-    background: var(--bg-elevated, #222222); /* Fundo um pouco mais claro que o padrão */
-    border-left: 3px solid var(--red, #ff3f34); /* Borda lateral com a cor principal do sistema */
+    background: var(--bg-elevated, #222222);
+    border-left: 3px solid var(--red, #ff3f34);
     border-bottom: 1px solid var(--border-mid, #444);
     border-top: 1px solid var(--border, #333);
     font-weight: 700;
     font-size: 14px;
     color: var(--text-primary, #eee);
     padding: 14px 12px;
-    margin-top: 8px; /* Dá um respiro entre os grupos na versão mobile */
+    margin-top: 8px;
 }
 
-/* Efeito ao passar o mouse por cima do grupo */
 .group-header:hover td {
     background: var(--bg-hover, #2a2a2a);
 }
@@ -858,7 +856,7 @@
 .prazo-hoje { color: #fcd34d; font-weight: bold; background: rgba(245,158,11,0.2); border-color: rgba(245,158,11,0.3); }
 .prazo-normal { color: var(--text-primary, #eee); }
 
-/* Link de entrega dentro do side modal - botão de abrir */
+/* Link de entrega */
 .btn-abrir-link {
     display: inline-flex;
     align-items: center;
@@ -886,14 +884,8 @@
     cursor: not-allowed;
 }
 
-/* Badge indicando que tem link */
-.has-link-indicator {
-    color: var(--gn-green);
-}
-
-/* Responsividade */
+/* Responsividade Mobile - Lista/Card Toggable */
 @media (max-width: 768px) {
-    /* 1. CORRIGINDO O TOPO CORTANDO (Headers e Filtros) */
     .item-header, 
     .cabecalho, 
     .filter-bar-container {
@@ -903,46 +895,29 @@
     }
     
     .item-header h2 { margin-bottom: 10px; }
-    
-    .item-resumo .grid-info {
-        grid-template-columns: 1fr 1fr;
-    }
-    
-    .item-colunas {
-        flex-direction: column;
-    }
-    
-    .side-modal {
-        width: 100%;
-        right: -100%;
-    }
-    
-    .side-modal.open {
-        transform: translateX(-100%);
-    }
+    .item-resumo .grid-info { grid-template-columns: 1fr 1fr; }
+    .item-colunas { flex-direction: column; }
+    .side-modal { width: 100%; right: -100%; }
+    .side-modal.open { transform: translateX(-100%); }
 
-    /* 2. MATANDO A ROLAGEM HORIZONTAL DA TABELA */
     .table-wrapper, 
     .card {
         overflow-x: hidden !important;
         padding: 14px;
     }
 
-    /* 3. TRANSFORMANDO A TABELA EM CARDS */
     .notion-table, 
     .notion-table tbody, 
-    .notion-table tr, 
-    .notion-table td {
+    .notion-table tr {
         display: block;
         width: 100%;
     }
 
-    /* Esconde o cabeçalho original da tabela (ex: "Status", "Prioridade") */
     .notion-table thead {
         display: none; 
     }
 
-    /* Estilo de cada "Card" de tarefa (antiga linha da tabela) */
+    /* Linha base no Mobile */
     .notion-table tr.task-row {
         background: var(--bg-surface, #1a1a1a);
         border: 1px solid var(--border-mid, #444);
@@ -953,24 +928,73 @@
         display: flex;
         flex-direction: column;
         gap: 8px;
+        cursor: pointer;
+        position: relative;
+        transition: all 0.3s ease;
     }
 
-    /* Limpa os estilos das antigas células */
+    /* Indicador de expansão (setinha visual) */
+    .notion-table tr.task-row::after {
+        content: "▼";
+        position: absolute;
+        right: 15px;
+        top: 20px;
+        font-size: 12px;
+        color: var(--text-muted, #888);
+    }
+
+    .notion-table tr.task-row.expanded::after {
+        content: "▲";
+    }
+
     .notion-table td {
         border: none;
         padding: 0;
-        white-space: normal !important; /* Permite quebrar o texto se for grande */
+        white-space: normal !important;
+        display: none; /* Esconde tudo por padrão */
     }
 
-    /* Dá um destaque maior para o Título da Tarefa/Cliente (geralmente as primeiras colunas) */
-    .notion-table td:nth-child(1),
-    .notion-table td:nth-child(2) {
+    /* Mostra SEMPRE a Tarefa (col 3) e o Prazo (col 4) na visão de Lista */
+    .notion-table td:nth-child(3),
+    .notion-table td:nth-child(4) {
+        display: block;
+    }
+
+    /* Estilo diferenciado pro Título da Tarefa quando tá fechado */
+    .notion-table td:nth-child(3) input {
         font-size: 16px;
-        font-weight: 700;
-        color: #fff;
+        padding: 0;
+        pointer-events: none; /* Impede edição acidental com o card fechado */
     }
 
-    /* Destaca um pouco os selects e inputs para não sumirem no fundo do card */
+    /* Quando expandir a linha (virou Card), mostra todas as colunas úteis */
+    .notion-table tr.task-row.expanded td {
+        display: block;
+        margin-top: 10px;
+    }
+
+    .notion-table tr.task-row.expanded td:nth-child(3) input {
+        pointer-events: auto; /* Libera edição quando expandido */
+        padding: 8px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--border-light, #333);
+    }
+
+    /* Esconde os textareas ocultos do Side Modal pra não bugar o visual */
+    .notion-table td textarea,
+    .notion-table td input[type="hidden"] {
+        display: none !important;
+    }
+
+    /* Pseudo-Labels para identificar os campos quando virar Card */
+    .notion-table tr.task-row.expanded td:nth-child(1)::before { content: "Cliente:"; display: block; font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; font-weight: bold; }
+    .notion-table tr.task-row.expanded td:nth-child(2)::before { content: "Categoria:"; display: block; font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; font-weight: bold; }
+    .notion-table tr.task-row.expanded td:nth-child(4)::before { content: "Prazo:"; display: block; font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; font-weight: bold; }
+    .notion-table tr.task-row.expanded td:nth-child(5)::before { content: "Prioridade:"; display: block; font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; font-weight: bold; }
+    .notion-table tr.task-row.expanded td:nth-child(6)::before { content: "Responsável:"; display: block; font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; font-weight: bold; }
+    .notion-table tr.task-row.expanded td:nth-child(7)::before { content: "Status:"; display: block; font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; font-weight: bold; }
+
+    /* Componentes internos no modo card */
     .silent-input,
     .silent-select {
         background: rgba(255,255,255,0.03);
@@ -978,7 +1002,6 @@
         padding: 10px;
     }
 
-    /* O botão de expandir ganha destaque total no fundo do card */
     .btn-expand-task {
         background: rgba(0, 123, 255, 0.1);
         border: 1px solid var(--gn-blue);
@@ -1006,26 +1029,22 @@
     cursor: pointer;
     transition: border-color .15s, box-shadow .15s;
 
-    /* Mata o visual padrão e a seta branca do navegador */
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
 
-    /* Injeta a setinha customizada em SVG integrada ao tema */
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
     padding-right: 34px;
 }
 
-/* Efeito de Focus com o Glow Vermelho do sistema */
 .gn-select:focus {
     border-color: var(--red);
     box-shadow: 0 0 0 3px var(--red-glow);
     outline: none;
 }
 
-/* Garante que a caixinha de opções (dropdown) acompanhe o tema escuro */
 .gn-select option {
     background-color: var(--bg-surface);
     color: var(--text);
@@ -1036,7 +1055,6 @@
    SISTEMA DE COLAPSO DOS GRUPOS
    ============================================================ */
 
-/* Deixa claro que o cabeçalho é clicável */
 .group-header {
     cursor: pointer;
     user-select: none;
@@ -1047,12 +1065,10 @@
     background: var(--bg-hover, #2a2a2a);
 }
 
-/* Oculta as linhas quando o grupo estiver colapsado */
 .linha-colapsada {
     display: none !important;
 }
 
-/* Se você for adicionar um ícone de seta no HTML do cabeçalho, ele vai girar com isso */
 .group-header .icone-colapso {
     transition: transform 0.2s;
     display: inline-block;
@@ -1064,14 +1080,14 @@
 }
 
 /* =========================================
-   CORES DOS STATUS (PLANEJAMENTO)
+   CORES DOS STATUS
    ========================================= */
-.pill-status-a_fazer { background-color: #94a3b8; color: #fff; }          /* Cinza neutro */
-.pill-status-em_execucao { background-color: #0ea5e9; color: #fff; }      /* Azul vibrante */
-.pill-status-revisao_interna { background-color: #f59e0b; color: #fff; }  /* Laranja/Amarelo */
-.pill-status-revisao_externa { background-color: #f97316; color: #fff; }  /* Laranja mais forte */
-.pill-status-aguardar_interno { background-color: #8b5cf6; color: #fff; } /* Roxo */
-.pill-status-aguardar_cliente { background-color: #d946ef; color: #fff; } /* Rosa */
-.pill-status-postar { background-color: #22c55e; color: #fff; }           /* Verde confirmação */
-.pill-status-finalizado { background-color: #14b8a6; color: #fff; }       /* Verde/Teal finalizado */
-.pill-status-arquivado { background-color: #475569; color: #fff; }        /* Cinza escuro */
+.pill-status-a_fazer { background-color: #94a3b8; color: #fff; }
+.pill-status-em_execucao { background-color: #0ea5e9; color: #fff; }
+.pill-status-revisao_interna { background-color: #f59e0b; color: #fff; }
+.pill-status-revisao_externa { background-color: #f97316; color: #fff; }
+.pill-status-aguardar_interno { background-color: #8b5cf6; color: #fff; }
+.pill-status-aguardar_cliente { background-color: #d946ef; color: #fff; }
+.pill-status-postar { background-color: #22c55e; color: #fff; }
+.pill-status-finalizado { background-color: #14b8a6; color: #fff; }
+.pill-status-arquivado { background-color: #475569; color: #fff; }

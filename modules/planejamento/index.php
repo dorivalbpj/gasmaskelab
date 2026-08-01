@@ -63,7 +63,7 @@ $paleta = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#1
 $c_index = 0;
 foreach($usuarios as $u) {
     $cor = $paleta[$c_index % count($paleta)];
-    // Cria uma classe CSS para cada ID de usuário (ex: .pill-resp-1, .pill-resp-2)
+    // Cria uma classe CSS para cada ID de usuário
     echo ".pill-resp-{$u['id']} { background-color: {$cor} !important; color: #fff !important; border-color: transparent !important; } \n";
     $c_index++;
 }
@@ -102,7 +102,7 @@ $status_lista = [
     'arquivado' => 'Arquivado'
 ];
 
-// Busca principal — agora com cliente_id diretamente da tabela clientes
+// Busca principal
 $tarefas = $pdo->query("
     SELECT p.*, c.nome as cliente_nome 
     FROM planejamento p 
@@ -122,7 +122,14 @@ require_once '../../includes/layout/sidebar.php';
         <p class="page-subtitle">Gestão operacional de tarefas.</p>
     </div>
     
-    <div style="display: flex; gap: 10px;">
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <!-- CONTROLE DE ZOOM -->
+        <div class="zoom-control" style="display: flex; align-items: center; gap: 5px; margin-right: 10px;">
+            <i class="ph ph-magnifying-glass-minus" style="color: var(--text-muted); font-size: 18px;"></i>
+            <input type="range" id="tableZoom" min="60" max="130" value="100" oninput="document.getElementById('mainTable').style.zoom = this.value + '%';" style="width: 80px; cursor: pointer;">
+            <i class="ph ph-magnifying-glass-plus" style="color: var(--text-muted); font-size: 18px;"></i>
+        </div>
+
         <select id="groupBySelect" class="gn-select" onchange="agruparTabela(true)" style="width: auto; height: 40px; border: 1px solid var(--border-mid);">
             <option value="none">Lista Simples</option>
             <option value="cliente">Agrupar por Cliente</option>
@@ -177,7 +184,7 @@ require_once '../../includes/layout/sidebar.php';
             $hoje = date('Y-m-d');
             $estilo_data = '';
             if($t['status_geral'] != 'finalizado') {
-                if($t['data_publicacao'] < $hoje) {
+                if($t['data_publicacao'] < $hoje && !empty($t['data_publicacao'])) {
                     $estilo_data = 'prazo-vencido';
                 } elseif($t['data_publicacao'] == $hoje) {
                     $estilo_data = 'prazo-hoje';
@@ -231,7 +238,7 @@ require_once '../../includes/layout/sidebar.php';
             </td>
             
             <!-- Prazo -->
-            <td><input type="date" class="silent-input <?= $estilo_data ?>" value="<?= $t['data_publicacao'] ?? '' ?>" onchange="salvar(<?= $t['id'] ?>, 'data_publicacao', this.value)"></td>
+            <td><input type="date" class="silent-input <?= $estilo_data ?>" value="<?= $t['data_publicacao'] ?? '' ?>" onchange="salvar(<?= $t['id'] ?>, 'data_publicacao', this.value); this.closest('tr').setAttribute('data-data', this.value);"></td>
 
             <!-- Prioridade -->
             <td>
@@ -321,6 +328,9 @@ require_once '../../includes/layout/sidebar.php';
 </div>
 
 <script>
+// Pega a data de hoje diretamente do servidor para não dar conflito de fuso horário
+const dataHoje = '<?= date('Y-m-d') ?>';
+
 function quickAddSubmit() {
     const tema = document.getElementById('inputNewTema').value.trim();
     if(!tema) return;
@@ -417,13 +427,11 @@ function salvarTudoSide() {
     fd1.append('acao', 'salvar_roteiro');
     fd1.append('id_tarefa', id);
     fd1.append('roteiro', roteiro);
-    fetch('index.php', {method: 'POST', body: fd1});
 
     let fd2 = new FormData();
     fd2.append('acao', 'salvar_legenda');
     fd2.append('id_tarefa', id);
     fd2.append('legenda', legenda);
-    fetch('index.php', {method: 'POST', body: fd2});
 
     let fd3 = new FormData();
     fd3.append('acao', 'salvar_inspiracao');
@@ -473,6 +481,20 @@ function sortTable(col, toggle = true) {
         let valA = a.getAttribute('data-' + currentSortCol).toLowerCase();
         let valB = b.getAttribute('data-' + currentSortCol).toLowerCase();
 
+        // BLINDAGEM DA DATA: VAZIO SEMPRE NO FINAL
+        if (currentSortCol === 'data') {
+            let isAEmpty = (!valA || valA === '');
+            let isBEmpty = (!valB || valB === '');
+            
+            if (isAEmpty && !isBEmpty) return 1;
+            if (!isAEmpty && isBEmpty) return -1;
+            if (isAEmpty && isBEmpty) return 0;
+            
+            if (valA < valB) return currentSortAsc ? -1 : 1;
+            if (valA > valB) return currentSortAsc ? 1 : -1;
+            return 0;
+        }
+
         if (currentSortCol === 'prioridade') {
             const pMap = {'urgente': 4, 'alta': 3, 'media': 2, 'baixa': 1};
             valA = pMap[valA] || 0;
@@ -500,11 +522,28 @@ function sortTable(col, toggle = true) {
             groups[val].push(r);
         });
         Object.keys(groups).sort().forEach(g => {
+            // Lógica do colapso: Se for grupo de data e a data for hoje, não colapsa. O resto, colapsa tudo.
+            let isCollapsed = true;
+            if (crit === 'data' && g === dataHoje) {
+                isCollapsed = false;
+            }
+
+            let labelDisplay = g;
+            if (crit === 'data') {
+                if (g === '(vazio)' || g === '') labelDisplay = 'Sem data definida';
+                else if (g === dataHoje) labelDisplay = 'Hoje (' + g + ')';
+            }
+
             const header = document.createElement('tr');
-            header.className = 'group-header';
-            header.innerHTML = `<td colspan="8"><i class="ph ph-caret-down icone-colapso" style="margin-right: 5px;"></i> ${g} <span style="color: var(--text-muted); font-size: 13px; font-weight: normal; margin-left: 5px;">(${groups[g].length})</span></td>`;
+            header.className = isCollapsed ? 'group-header collapsed' : 'group-header';
+            header.innerHTML = `<td colspan="8"><i class="ph ph-caret-down icone-colapso" style="margin-right: 5px;"></i> ${labelDisplay} <span style="color: var(--text-muted); font-size: 13px; font-weight: normal; margin-left: 5px;">(${groups[g].length})</span></td>`;
             tbody.appendChild(header);
-            groups[g].forEach(r => tbody.appendChild(r));
+            
+            groups[g].forEach(r => {
+                if(isCollapsed) r.classList.add('linha-colapsada');
+                else r.classList.remove('linha-colapsada');
+                tbody.appendChild(r);
+            });
         });
     }
 }
@@ -516,27 +555,30 @@ function agruparTabela(save) {
 }
 
 // ==========================================
-// SISTEMA DE COLAPSO (Delegação de Eventos)
+// SISTEMA DE COLAPSO E CLIQUE MOBILE
 // ==========================================
 document.getElementById('tableBody').addEventListener('click', function(e) {
-    // Verifica se onde o cara clicou é um cabeçalho de grupo (ou dentro dele)
+    // Ação 1: Colapso dos cabeçalhos de grupos
     const header = e.target.closest('.group-header');
-    
-    // Se não for um cabeçalho de grupo, ignora
-    if (!header) return;
-
-    // Gira a setinha
-    header.classList.toggle('collapsed');
-    
-    // Pega a primeira linha de tarefa abaixo do cabeçalho
-    let nextRow = header.nextElementSibling;
-    
-    // Desce escondendo/mostrando as linhas até achar o próximo grupo
-    while (nextRow && !nextRow.classList.contains('group-header')) {
-        if (nextRow.classList.contains('task-row')) {
-            nextRow.classList.toggle('linha-colapsada');
+    if (header) {
+        header.classList.toggle('collapsed');
+        let nextRow = header.nextElementSibling;
+        while (nextRow && !nextRow.classList.contains('group-header')) {
+            if (nextRow.classList.contains('task-row')) {
+                nextRow.classList.toggle('linha-colapsada');
+            }
+            nextRow = nextRow.nextElementSibling;
         }
-        nextRow = nextRow.nextElementSibling;
+        return;
+    }
+
+    // Ação 2: Expansão do Card no Mobile
+    if (window.innerWidth <= 768) {
+        const row = e.target.closest('.task-row');
+        // Só expande se não tiver clicado num campo de edição ou botão
+        if (row && !['INPUT', 'SELECT', 'BUTTON', 'A', 'TEXTAREA', 'I'].includes(e.target.tagName)) {
+            row.classList.toggle('expanded');
+        }
     }
 });
 </script>
