@@ -33,30 +33,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // --- AÇÕES DO ROTEIRO ---
         if ($acao == 'aprovar_roteiro' && $item['status_roteiro'] == 'aguardando_aprovacao') {
             $pdo->prepare("UPDATE planejamento SET status_roteiro = 'aprovado', status_geral = 'roteiro_aprovado', roteiro_aprovado_em = NOW() WHERE id = ?")->execute([$id]);
-            $mensagem = "<div class='msg-sucesso'>✅ Roteiro Aprovado! A equipe já foi notificada para iniciar a arte.</div>";
+            $mensagem = "<div class='alert-success'>✅ Roteiro Aprovado! A equipe já foi notificada para iniciar a arte.</div>";
             $item['status_roteiro'] = 'aprovado';
             
         } elseif ($acao == 'revisar_roteiro' && $item['status_roteiro'] == 'aguardando_aprovacao') {
             $comentario = $_POST['comentario'] ?? '';
             $pdo->prepare("UPDATE planejamento SET status_roteiro = 'em_revisao', status_geral = 'roteiro_em_revisao', roteiro_comentario = ?, roteiro_revisoes = roteiro_revisoes + 1 WHERE id = ?")->execute([$comentario, $id]);
-            $mensagem = "<div class='msg-alerta'>⚠️ Alteração solicitada. Nossa equipe vai revisar o texto e te avisar.</div>";
+            $mensagem = "<div class='alert-danger'>⚠️ Alteração solicitada. Nossa equipe vai revisar o texto e te avisar.</div>";
             $item['status_roteiro'] = 'em_revisao';
         }
         
         // --- AÇÕES DA ARTE ---
         elseif ($acao == 'aprovar_peca' && $item['status_peca'] == 'aguardando_aprovacao') {
             $pdo->prepare("UPDATE planejamento SET status_peca = 'aprovado', status_geral = 'peca_aprovada', peca_aprovado_em = NOW() WHERE id = ?")->execute([$id]);
-            $mensagem = "<div class='msg-sucesso'>✅ Arte Aprovada! O material está pronto para ir ao ar.</div>";
+            $mensagem = "<div class='alert-success'>✅ Arte Aprovada! O material está pronto para ir ao ar.</div>";
             $item['status_peca'] = 'aprovado';
             
         } elseif ($acao == 'revisar_peca' && $item['status_peca'] == 'aguardando_aprovacao') {
             $comentario = $_POST['comentario'] ?? '';
             $pdo->prepare("UPDATE planejamento SET status_peca = 'em_revisao', status_geral = 'peca_em_revisao', peca_comentario = ?, peca_revisoes = peca_revisoes + 1 WHERE id = ?")->execute([$comentario, $id]);
-            $mensagem = "<div class='msg-alerta'>⚠️ Ajuste de arte solicitado. Nossa equipe fará a correção.</div>";
+            $mensagem = "<div class='alert-danger'>⚠️ Ajuste de arte solicitado. Nossa equipe fará a correção.</div>";
             $item['status_peca'] = 'em_revisao';
         }
     } catch (Exception $e) {
-        $mensagem = "<div class='msg-erro'>Erro: " . $e->getMessage() . "</div>";
+        $mensagem = "<div class='alert-warning'>Erro: " . $e->getMessage() . "</div>";
     }
 }
 

@@ -277,9 +277,6 @@ strong { color: var(--text-primary); font-weight: 600; }
 }
 
 /* ---- FORMULÁRIOS ---- */
-.form-group {
-    margin-bottom: 18px;
-}
 
 .form-group:last-child {
     margin-bottom: 0;

@@ -315,13 +315,8 @@ footer { padding: 60px; border-top: 1px solid var(--border); background: var(--s
 .social-link:hover { border-color: var(--red); color: var(--red); background: var(--red-soft); }
 
 /* ─── MODAL E STICKY CTA ─── */
-.modal-overlay { position: fixed; inset: 0; background: rgba(26,23,20,0.85); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
-.modal-overlay.active { display: flex; }
-.modal-box { background: var(--bg); width: 100%; max-width: 520px; padding: 48px; position: relative; border: 1px solid var(--border); }
 .modal-close { position: absolute; top: 16px; right: 20px; background: none; border: none; font-size: 28px; cursor: pointer; color: var(--ink-muted); }
 .modal-close:hover { color: var(--ink); }
-.modal-box h3 { font-family: 'Montserrat', sans-serif; font-size: 24px; color: var(--ink); margin-bottom: 16px; letter-spacing: -0.01em;}
-.modal-box p { font-size: 15px; color: var(--ink-mid); margin-bottom: 32px; line-height: 1.6; }
 .check-container { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: 32px; color: var(--ink); }
 .check-container input { width: 20px; height: 20px; accent-color: var(--red); flex-shrink: 0; margin-top: 2px;}
 .btn-confirm { background: var(--red); color: #fff; border: none; padding: 18px; width: 100%; font-family: 'Space Mono', monospace; font-weight: 700; font-size: 13px; letter-spacing: 0.1em; cursor: pointer; transition: 0.2s; }
@@ -353,5 +348,4 @@ footer { padding: 60px; border-top: 1px solid var(--border); background: var(--s
     .footer-contact { text-align: left; }
     .sticky-cta { flex-direction: column; gap: 20px; text-align: center; padding: 24px; }
     .btn-sticky { width: 100%; }
-    .modal-box { padding: 32px 24px; }
 }

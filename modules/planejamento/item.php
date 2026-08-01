@@ -37,13 +37,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $novo_status = ($item['status_geral'] == 'criado') ? 'roteiro_em_producao' : $item['status_geral'];
             
             $pdo->prepare("UPDATE planejamento SET roteiro = ?, status_geral = ? WHERE id = ?")->execute([$roteiro, $novo_status, $id]);
-            $mensagem = "<div class='msg-sucesso'>Roteiro salvo com sucesso!</div>";
+            $mensagem = "<div class='alert-success'>Roteiro salvo com sucesso!</div>";
             $item['roteiro'] = $roteiro;
             $item['status_geral'] = $novo_status;
 
         } elseif ($acao == 'enviar_roteiro_cliente') {
             $pdo->prepare("UPDATE planejamento SET status_roteiro = 'aguardando_aprovacao', status_geral = 'roteiro_aguardando_aprovacao' WHERE id = ?")->execute([$id]);
-            $mensagem = "<div class='msg-sucesso'>Roteiro liberado! O cliente já pode ver e aprovar pelo link do painel dele.</div>";
+            $mensagem = "<div class='alert-success'>Roteiro liberado! O cliente já pode ver e aprovar pelo link do painel dele.</div>";
             $item['status_roteiro'] = 'aguardando_aprovacao';
             $item['status_geral'] = 'roteiro_aguardando_aprovacao';
 
@@ -52,18 +52,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $novo_status = ($item['status_geral'] == 'roteiro_aprovado') ? 'peca_em_producao' : $item['status_geral'];
             
             $pdo->prepare("UPDATE planejamento SET link_peca = ?, status_geral = ? WHERE id = ?")->execute([$link_peca, $novo_status, $id]);
-            $mensagem = "<div class='msg-sucesso'>Link da peça salvo com sucesso!</div>";
+            $mensagem = "<div class='alert-success'>Link da peça salvo com sucesso!</div>";
             $item['link_peca'] = $link_peca;
             $item['status_geral'] = $novo_status;
 
         } elseif ($acao == 'enviar_peca_cliente') {
             $pdo->prepare("UPDATE planejamento SET status_peca = 'aguardando_aprovacao', status_geral = 'peca_aguardando_aprovacao' WHERE id = ?")->execute([$id]);
-            $mensagem = "<div class='msg-sucesso'>Arte liberada! O cliente já pode ver e aprovar.</div>";
+            $mensagem = "<div class='alert-success'>Arte liberada! O cliente já pode ver e aprovar.</div>";
             $item['status_peca'] = 'aguardando_aprovacao';
             $item['status_geral'] = 'peca_aguardando_aprovacao';
         }
     } catch (Exception $e) {
-        $mensagem = "<div class='msg-erro'>Erro: " . $e->getMessage() . "</div>";
+        $mensagem = "<div class='alert-warning'>Erro: " . $e->getMessage() . "</div>";
     }
 }
 
