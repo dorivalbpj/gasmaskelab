@@ -1902,3 +1902,102 @@ a.metric-premium-card.clickable:hover {
         .hide-on-mobile { display: none !important; }
         .btn-mobile-only { display: flex !important; }
     }
+
+    /* ===========================================
+   SIDEBAR TOGGLE & RESPONSIVO
+   =========================================== */
+.sidebar {
+    transition: width 0.3s ease, transform 0.3s ease;
+    z-index: 999;
+}
+
+/* Oculta os textos de forma suave */
+.hide-on-collapse {
+    transition: opacity 0.2s;
+    white-space: nowrap;
+}
+
+/* Botão do Header */
+.btn-toggle-sidebar {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 0;
+    margin-right: 16px;
+    transition: color 0.15s;
+}
+.btn-toggle-sidebar:hover {
+    color: var(--red);
+}
+
+/* Overlay Escuro para Mobile */
+.sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 998;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+/* ===========================================
+   DESKTOP (Colapsável)
+   =========================================== */
+@media (min-width: 769px) {
+    .sidebar.collapsed { width: 70px; }
+    
+    /* Esconde logos, textos e badges */
+    .sidebar.collapsed .hide-on-collapse,
+    .sidebar.collapsed .sidebar-section-label,
+    .sidebar.collapsed .nav-badge,
+    .sidebar.collapsed .sidebar-caret,
+    .sidebar.collapsed .brand-wrapper {
+        display: none;
+    }
+    
+    .sidebar.collapsed .sidebar-header { padding: 16px 0; justify-content: center; }
+    
+    /* Centraliza os ícones */
+    .sidebar.collapsed .sidebar-menu a,
+    .sidebar.collapsed .sidebar-submenu-trigger {
+        justify-content: center;
+        padding: 12px 0;
+    }
+    .sidebar.collapsed .sidebar-submenu { padding-left: 0; }
+    .sidebar.collapsed .sidebar-submenu a { padding: 10px 0; justify-content: center; }
+    
+    .sidebar.collapsed .sidebar-menu a i,
+    .sidebar.collapsed .sidebar-submenu-trigger i:first-child {
+        font-size: 22px !important;
+        margin: 0;
+    }
+}
+
+/* ===========================================
+   MOBILE (Drawer fora da tela)
+   =========================================== */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        transform: translateX(-100%);
+        width: 260px;
+        box-shadow: 4px 0 15px rgba(0,0,0,0.5);
+    }
+    
+    /* Quando o menu for ativado no mobile */
+    .sidebar.mobile-open {
+        transform: translateX(0);
+    }
+}
