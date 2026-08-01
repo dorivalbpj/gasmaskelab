@@ -123,16 +123,13 @@ require_once '../../includes/layout/sidebar.php';
                 <input type="text" id="filtroTexto" class="form-control input-pl-40" placeholder="Digite para buscar..." onkeyup="filtrarClientes()">
             </div>
         </div>
-        <div class="status-tabs">
-            <button type="button" class="status-tab active" data-status="ativo" onclick="filtrarPorStatus('ativo', this)">
-                Ativos <span class="status-tab-count"><?= $total_ativos ?></span>
-            </button>
-            <button type="button" class="status-tab" data-status="inativo" onclick="filtrarPorStatus('inativo', this)">
-                Inativos <span class="status-tab-count"><?= $total_inativos ?></span>
-            </button>
-            <button type="button" class="status-tab" data-status="todos" onclick="filtrarPorStatus('todos', this)">
-                Todos <span class="status-tab-count"><?= count($clientes) ?></span>
-            </button>
+        <div class="filter-col-sm">
+            <label class="filter-label">Status</label>
+            <select id="filtroStatus" class="form-control" onchange="filtrarClientes()">
+                <option value="todos">Todos (<?= count($clientes) ?>)</option>
+                <option value="ativo">Ativos (<?= $total_ativos ?>)</option>
+                <option value="inativo">Inativos (<?= $total_inativos ?>)</option>
+            </select>
         </div>
         <div>
             <button type="button" class="btn btn-ghost btn-h44" onclick="limparFiltros()" title="Limpar Filtros">
@@ -287,10 +284,10 @@ function fecharModalCliente() {
     setTimeout(() => modal.style.display = 'none', 300);
 }
 
-let statusFiltroAtual = 'ativo';
-
 function filtrarClientes() {
     const filtroTexto = document.getElementById('filtroTexto').value.toLowerCase();
+    const statusFiltroAtual = document.getElementById('filtroStatus').value;
+    
     const linhas = document.querySelectorAll('.linha-cliente');
     let visiveis = 0;
 
@@ -311,22 +308,9 @@ function filtrarClientes() {
     document.getElementById('tabelaClientes').style.display = visiveis === 0 ? 'none' : 'table';
 }
 
-function filtrarPorStatus(status, botao) {
-    statusFiltroAtual = status;
-
-    document.querySelectorAll('.status-tab').forEach(tab => tab.classList.remove('active'));
-    botao.classList.add('active');
-
-    filtrarClientes();
-}
-
 function limparFiltros() {
     document.getElementById('filtroTexto').value = '';
-    statusFiltroAtual = 'todos';
-
-    document.querySelectorAll('.status-tab').forEach(tab => tab.classList.remove('active'));
-    document.querySelector('.status-tab[data-status="todos"]').classList.add('active');
-
+    document.getElementById('filtroStatus').value = 'todos';
     filtrarClientes();
 }
 
@@ -334,20 +318,11 @@ document.getElementById('modalNovoCliente').addEventListener('click', function(e
     if (e.target === this) fecharModalCliente();
 });
 
-
-// Inicializa a página mostrando apenas clientes ativos
+// Inicializa a página mostrando clientes com base no filtro padrão (ativo)
 document.addEventListener('DOMContentLoaded', function() {
-    // Garante que a tab "Ativos" está ativa
-    const tabAtiva = document.querySelector('.status-tab[data-status="ativo"]');
-    if (tabAtiva) {
-        document.querySelectorAll('.status-tab').forEach(tab => tab.classList.remove('active'));
-        tabAtiva.classList.add('active');
-    }
-    // Aplica o filtro
+    document.getElementById('filtroStatus').value = 'ativo';
     filtrarClientes();
 });
-
-
 </script>
 
 <?php require_once '../../includes/layout/footer.php'; ?>

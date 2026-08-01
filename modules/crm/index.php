@@ -39,13 +39,24 @@ require_once '../../includes/layout/sidebar.php';
             </div>
         </div>
         <div class="filter-col-sm">
+            <label class="filter-label">Data de Criação</label>
+            <input type="date" id="filtroData" class="form-control" onchange="filtrarLeads()">
+        </div>
+        <div class="filter-col-sm">
             <label class="filter-label">Status</label>
             <select id="filtroStatus" class="form-control" onchange="filtrarLeads()">
                 <option value="">Todos</option>
                 <option value="contato_inicial">Contato Inicial</option>
                 <option value="aguardando_briefing">Aguardando Briefing</option>
                 <option value="em_negociacao">Em Negociação</option>
+                <option value="ganho">Ganho</option>
+                <option value="perdido">Perdido</option>
             </select>
+        </div>
+        <div>
+            <button type="button" class="btn btn-ghost btn-h44" onclick="limparFiltros()" title="Limpar Filtros">
+                <i class="ph ph-x-circle"></i> Limpar
+            </button>
         </div>
     </div>
 
@@ -56,7 +67,6 @@ require_once '../../includes/layout/sidebar.php';
 
     <?php if (count($leads) > 0): ?>
         <div class="table-wrapper">
-            <!-- Reaproveitando a classe e ID do seu sistema de clientes para estilização imediata -->
             <table id="tabelaClientes">
                 <thead>
                     <tr>
@@ -73,8 +83,9 @@ require_once '../../includes/layout/sidebar.php';
                         $texto_busca = strtolower($lead['nome'] . " " . $lead['empresa']);
                         $hoje = date('Y-m-d');
                         $atrasado = (!empty($lead['data_proximo_contato']) && $lead['data_proximo_contato'] < $hoje) ? 'text-red' : '';
+                        $data_pura = date('Y-m-d', strtotime($lead['criado_em']));
                     ?>
-                    <tr class="linha-lead" data-busca="<?= htmlspecialchars($texto_busca) ?>" data-status="<?= $lead['status'] ?>">
+                    <tr class="linha-lead" data-busca="<?= htmlspecialchars($texto_busca) ?>" data-status="<?= $lead['status'] ?>" data-data="<?= $data_pura ?>">
                         <td>
                             <span class="txt-name-main"><?= htmlspecialchars($lead['nome']) ?></span>
                             <span class="txt-meta-sm"><?= htmlspecialchars($lead['empresa'] ?? '—') ?></span>
@@ -116,7 +127,6 @@ require_once '../../includes/layout/sidebar.php';
                                     <i class="ph ph-pencil-simple"></i>
                                 </a>
                                 
-                                <!-- Botão de Zap já com o script de pedir o briefing embutido -->
                                 <button type="button" class="btn btn-ghost btn-icon-table btn-icon-wpp" onclick="pedirBriefing('<?= addslashes($lead['nome']) ?>', '<?= $link_publico_briefing ?>', this)" title="Pedir Briefing via WhatsApp">
                                     <i class="ph ph-whatsapp-logo"></i>
                                 </button>
@@ -132,6 +142,11 @@ require_once '../../includes/layout/sidebar.php';
                     <?php endforeach; ?>
                 </tbody>
             </table>
+            
+            <div id="msgSemResultados" class="empty-state empty-state-padded" style="display: none;">
+                <i class="ph ph-magnifying-glass empty-state-icon"></i>
+                Nenhum lead encontrado para estes filtros.
+            </div>
         </div>
     <?php else: ?>
         <div class="empty-state empty-state-padded">
@@ -149,29 +164,58 @@ function pedirBriefing(nome, link, btn) {
     navigator.clipboard.writeText(msg).then(() => {
         const originalHTML = btn.innerHTML;
         btn.innerHTML = '<i class="ph-fill ph-check-circle"></i>';
-        setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
+        btn.style.background = 'rgba(37, 211, 102, 0.15)';
+        
+        setTimeout(() => { 
+            btn.innerHTML = originalHTML; 
+            btn.style.background = 'rgba(37, 211, 102, 0.05)';
+        }, 2000);
     });
 }
 
 function filtrarLeads() {
     const texto = document.getElementById('filtroTexto').value.toLowerCase();
     const statusFiltro = document.getElementById('filtroStatus').value;
+    const dataFiltro = document.getElementById('filtroData').value;
+    
     const linhas = document.querySelectorAll('.linha-lead');
     let visiveis = 0;
 
     linhas.forEach(linha => {
         const busca = linha.getAttribute('data-busca');
         const status = linha.getAttribute('data-status');
+        const data = linha.getAttribute('data-data');
+        
         let mostra = true;
 
-        if (texto && !busca.includes(texto)) mostra = false;
-        if (statusFiltro && status !== statusFiltro) mostra = false;
+        if (texto !== '' && !busca.includes(texto)) mostra = false;
+        if (statusFiltro !== '' && status !== statusFiltro) mostra = false;
+        if (dataFiltro !== '' && data !== dataFiltro) mostra = false;
 
-        linha.style.display = mostra ? '' : 'none';
-        if (mostra) visiveis++;
+        if (mostra) {
+            linha.style.display = '';
+            visiveis++;
+        } else {
+            linha.style.display = 'none';
+        }
     });
 
     document.getElementById('contadorRegistros').innerText = visiveis + ' Registros';
+    
+    const tabela = document.getElementById('tabelaClientes');
+    const msgSem = document.getElementById('msgSemResultados');
+    
+    if (msgSem) {
+        msgSem.style.display = visiveis === 0 ? 'block' : 'none';
+        tabela.style.display = visiveis === 0 ? 'none' : 'table';
+    }
+}
+
+function limparFiltros() {
+    document.getElementById('filtroTexto').value = '';
+    document.getElementById('filtroStatus').value = '';
+    document.getElementById('filtroData').value = '';
+    filtrarLeads();
 }
 </script>
 
