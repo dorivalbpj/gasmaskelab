@@ -4,11 +4,15 @@
 // Usada tanto pelo worker_imagem.php (se você quiser manter um cron de apoio)
 // quanto diretamente pelo ajax_criar_fila.php (execução imediata, sem depender de rede).
 
-function processarProximoSlideDaFila(PDO $pdo): bool {
+function processarProximoSlideDaFila(PDO $pdo, ?int $carrossel_id = null): bool {
 
     error_log("[CARROSSEL] --- Iniciando processarProximoSlideDaFila ---");
 
-    $stmt = $pdo->query("
+    // Se um carrossel_id for informado, só pega slide pendente DESSE carrossel.
+    // Isso evita que a fila "roube" um slide pendente de um carrossel antigo
+    // (ex: um que travou em outra execução) quando o que queremos processar
+    // agora é o que acabou de ser criado.
+    $sql = "
         SELECT cs.id as slide_id, cs.numero_slide, cs.modelo_usado, cs.carrossel_id,
                c.assunto, c.formato, c.quantidade_imagens, c.cliente_id,
                cli.briefing_ia
@@ -16,9 +20,16 @@ function processarProximoSlideDaFila(PDO $pdo): bool {
         JOIN carrosseis c ON cs.carrossel_id = c.id
         JOIN clientes cli ON c.cliente_id = cli.id
         WHERE cs.status = 'pendente'
-        ORDER BY cs.id ASC
-        LIMIT 1
-    ");
+    ";
+    $params = [];
+    if ($carrossel_id !== null) {
+        $sql .= " AND cs.carrossel_id = ?";
+        $params[] = $carrossel_id;
+    }
+    $sql .= " ORDER BY cs.id ASC LIMIT 1";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
 
     $tarefa = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -53,9 +64,13 @@ function processarProximoSlideDaFila(PDO $pdo): bool {
             $aspectRatio = "9:16";
         }
 
+        // Nomes de modelo corretos na API do Gemini (os antigos não existiam de verdade,
+        // por isso toda chamada falhava antes mesmo de gastar quota):
+        //   Nano Banana 2   -> gemini-3.1-flash-image-preview
+        //   Nano Banana Pro -> gemini-3-pro-image-preview
         $modeloApi = ($tarefa['modelo_usado'] === 'nano_banana_pro')
-            ? 'gemini-3-pro-image'
-            : 'gemini-3.1-flash-lite-image';
+            ? 'gemini-3-pro-image-preview'
+            : 'gemini-3.1-flash-image-preview';
 
         $api_key = trim(GEMINI_API_KEY);
         $url = "https://generativelanguage.googleapis.com/v1beta/models/{$modeloApi}:generateContent?key={$api_key}";
@@ -73,25 +88,46 @@ function processarProximoSlideDaFila(PDO $pdo): bool {
         error_log("[CARROSSEL] Chamando API: {$url}");
         error_log("[CARROSSEL] Payload: " . json_encode($data));
 
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 90);
+        // Esses modelos são "preview" e a Google costuma devolver 429 (limite)
+        // ou 503 (sobrecarregado) de forma passageira. Tenta de novo algumas
+        // vezes antes de desistir e marcar como erro.
+        $max_tentativas = 3;
+        $tentativa = 0;
+        $response = false;
+        $http_code = 0;
+        $err = '';
 
-        $response  = curl_exec($ch);
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $err       = curl_error($ch);
-        curl_close($ch);
+        do {
+            $tentativa++;
 
-        error_log("[CARROSSEL] HTTP code: {$http_code} | curl_error: " . ($err ?: '(nenhum)'));
-        error_log("[CARROSSEL] Resposta (primeiros 500 chars): " . substr((string)$response, 0, 500));
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 90);
+
+            $response  = curl_exec($ch);
+            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $err       = curl_error($ch);
+            curl_close($ch);
+
+            error_log("[CARROSSEL] Tentativa {$tentativa}/{$max_tentativas} | HTTP code: {$http_code} | curl_error: " . ($err ?: '(nenhum)'));
+            error_log("[CARROSSEL] Resposta (primeiros 500 chars): " . substr((string)$response, 0, 500));
+
+            $deve_tentar_de_novo = in_array($http_code, [429, 503], true) && $tentativa < $max_tentativas;
+            if ($deve_tentar_de_novo) {
+                sleep($tentativa * 3); // 3s, depois 6s
+            }
+        } while ($deve_tentar_de_novo);
 
         if ($response === false || $http_code >= 400) {
-            throw new Exception("Erro API Gemini (HTTP $http_code): " . ($err ?: $response));
+            $motivo_http = $http_code === 429
+                ? " — isso é erro de LIMITE/QUOTA da API do Gemini (não é código travado). Confira se a cobrança (billing) está ativada no projeto da sua API key: modelos de imagem do Gemini têm quota gratuita ZERO."
+                : "";
+            throw new Exception("Erro API Gemini (HTTP $http_code): " . ($err ?: $response) . $motivo_http);
         }
 
         $resArr = json_decode($response, true);

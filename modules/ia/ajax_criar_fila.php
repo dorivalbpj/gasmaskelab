@@ -47,8 +47,10 @@ try {
 
     // Processa a fila direto, no mesmo processo PHP — nada de chamada de rede
     // pro próprio servidor (era isso que estava travando tudo em "pendente").
+    // Passamos o carrossel_id pra garantir que só processa slide DESTE carrossel
+    // (evita pegar um slide pendente "órfão" de uma tentativa antiga travada).
     for ($i = 0; $i < $quantidade; $i++) {
-        processarProximoSlideDaFila($pdo);
+        processarProximoSlideDaFila($pdo, $carrossel_id);
     }
 
     echo json_encode(['sucesso' => true, 'carrossel_id' => $carrossel_id]);
