@@ -1813,3 +1813,75 @@ a.metric-premium-card.clickable:hover {
     .quick-premium-grid   { grid-template-columns: 1fr; }
     .content-body         { padding: 14px; }
 }
+
+/* =======================================
+       DASHBOARD CIRÚRGICO - ESTILOS NOVOS 
+       (Mova para style.css)
+       ======================================= */
+    .radar-grid { 
+        display: grid; 
+        grid-template-columns: 1fr 1fr; 
+        gap: 20px; 
+        margin-bottom: 24px; 
+    }
+    
+    .alert-card-danger { border-color: var(--red) !important; background: rgba(255, 63, 52, 0.05) !important; }
+    .alert-card-warning { border-color: var(--yellow) !important; background: rgba(245, 158, 11, 0.05) !important; }
+    .alert-card-info { border-color: var(--blue) !important; background: rgba(59, 130, 246, 0.05) !important; }
+    .alert-card-success { border-color: var(--green) !important; background: rgba(34, 197, 94, 0.05) !important; }
+    
+    .alert-premium-card { cursor: pointer; text-decoration: none; }
+    .alert-premium-card:hover { transform: translateY(-2px); }
+    
+    .radar-panel {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r-lg);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .radar-header {
+        padding: 16px 20px;
+        background: var(--bg-elevated);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .radar-header h3 {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .radar-body { flex: 1; padding: 0; overflow-y: auto; max-height: 400px; }
+    
+    .radar-item {
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+    }
+    .radar-item:last-child { border-bottom: none; }
+    .radar-item:hover { background: var(--bg-hover); }
+
+    .fin-radar-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 14px 20px; border-bottom: 1px solid var(--border);
+    }
+    .fin-radar-row:last-child { border-bottom: none; }
+    
+    .fin-radar-label { font-size: 13px; font-weight: 600; color: var(--text-2); display: flex; align-items: center; gap: 8px;}
+    .fin-radar-value { font-size: 16px; font-weight: 700; color: var(--text); }
+    
+    @media (max-width: 992px) {
+        .radar-grid { grid-template-columns: 1fr; }
+        .radar-body { max-height: none; } 
+    }
