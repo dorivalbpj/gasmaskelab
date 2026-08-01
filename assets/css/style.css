@@ -1814,9 +1814,8 @@ a.metric-premium-card.clickable:hover {
     .content-body         { padding: 14px; }
 }
 
-/* =======================================
+ /* =======================================
        DASHBOARD CIRÚRGICO - ESTILOS NOVOS 
-       (Mova para style.css)
        ======================================= */
     .radar-grid { 
         display: grid; 
@@ -1859,7 +1858,10 @@ a.metric-premium-card.clickable:hover {
         letter-spacing: 1px;
     }
 
+    /* Ajuste da Scrollbar Personalizada */
     .radar-body { flex: 1; padding: 0; overflow-y: auto; max-height: 400px; }
+    .radar-body::-webkit-scrollbar { width: 5px; }
+    .radar-body::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 3px; }
     
     .radar-item {
         padding: 14px 20px;
@@ -1881,7 +1883,22 @@ a.metric-premium-card.clickable:hover {
     .fin-radar-label { font-size: 13px; font-weight: 600; color: var(--text-2); display: flex; align-items: center; gap: 8px;}
     .fin-radar-value { font-size: 16px; font-weight: 700; color: var(--text); }
     
+    /* Configurações Mobile: Ordem dos Radares e Botão Ver Mais */
+    @media (min-width: 993px) {
+        .btn-mobile-only { display: none !important; }
+    }
     @media (max-width: 992px) {
-        .radar-grid { grid-template-columns: 1fr; }
+        .radar-grid { 
+            display: flex; 
+            flex-direction: column; 
+        }
+        /* Inversão da Ordem: Financeiro primeiro, Tarefas depois */
+        .panel-financeiro { order: 1; }
+        .panel-tarefas { order: 2; }
+        
         .radar-body { max-height: none; } 
+        
+        /* Ocultar tarefas extras no mobile */
+        .hide-on-mobile { display: none !important; }
+        .btn-mobile-only { display: flex !important; }
     }
