@@ -982,6 +982,21 @@
         font-size: 12px;
         padding: 6px 10px;
     }
+
+    /* Garante que o cabeçalho dos grupos (filtros) não suma no mobile */
+    .notion-table tr.group-header td {
+        display: block !important;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Garante que a linha de Nova Tarefa continue visível e utilizável no mobile */
+    .notion-table tr#rowNewTask td {
+        display: block !important;
+        width: 100%;
+        box-sizing: border-box;
+        margin-bottom: 8px;
+    }
 }
 
 .gn-select {
