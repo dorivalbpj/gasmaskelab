@@ -122,6 +122,9 @@ require_once '../../includes/layout/header.php';
 require_once '../../includes/layout/sidebar.php';
 ?>
 
+<!-- Importação do CSS Mobile Específico -->
+<link rel="stylesheet" href="../../assets/css/mobile-financeiro.css">
+
 <div class="cabecalho">
     <div>
         <h2 class="page-title" style="display: flex; align-items: center; gap: 10px;">
@@ -368,6 +371,14 @@ function processarLoteEntradas(tipo) {
     document.getElementById('tipo_acao_entradas').value = tipo;
     document.getElementById('formLoteEntradas').submit();
 }
+
+// Toggle Mobile View
+document.querySelectorAll('.table-wrapper tr').forEach(row => {
+    row.addEventListener('click', function(e) {
+        if(e.target.tagName === 'INPUT' || e.target.closest('button') || e.target.closest('a')) return;
+        this.classList.toggle('mobile-expanded');
+    });
+});
 </script>
 
 <?php require_once '../../includes/layout/footer.php'; ?>

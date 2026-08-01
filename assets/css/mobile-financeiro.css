@@ -1,0 +1,264 @@
+/* ===========================================
+   MOBILE FIX - ENTRADAS & SAÍDAS
+   =========================================== */
+
+/* 1. Melhoria no Seletor de Mês (Desktop e Mobile) */
+.cabecalho h2.page-title {
+    flex-wrap: wrap;
+    gap: 12px !important;
+}
+
+.cabecalho h2.page-title span {
+    background: var(--bg-elevated);
+    color: var(--text) !important;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 14px !important;
+    font-weight: 700;
+    border: 1px solid var(--border-mid);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.cabecalho h2.page-title a.btn-ghost {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-mid);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all 0.2s ease;
+}
+
+.cabecalho h2.page-title a.btn-ghost:hover {
+    background: var(--bg-hover);
+    border-color: var(--text-3);
+    color: var(--text);
+    transform: scale(1.05);
+}
+
+/* 2. Checkbox Personalizado (Limpo e no padrão Gasmaske) */
+.table-wrapper input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-mid);
+    border-radius: 5px;
+    background: var(--bg-surface);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease;
+    margin: 0;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.table-wrapper input[type="checkbox"]:hover {
+    border-color: var(--text-3);
+}
+
+.table-wrapper input[type="checkbox"]:checked {
+    background: var(--red);
+    border-color: var(--red);
+    box-shadow: 0 2px 8px rgba(255, 63, 52, 0.3);
+}
+
+.table-wrapper input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 2px;
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+/* 3. Tabela Responsiva - Transformação em Lista (Mobile) */
+@media (max-width: 768px) {
+    .table-wrapper {
+        border: none;
+        background: transparent;
+    }
+    
+    .table-wrapper table,
+    .table-wrapper tbody {
+        display: block;
+        width: 100%;
+    }
+    
+    /* Esconde os cabeçalhos originais da tabela */
+    .table-wrapper thead {
+        display: none;
+    }
+    
+    /* Transforma cada linha em um Card (Item da Lista) */
+    .table-wrapper tr {
+        display: flex;
+        flex-wrap: wrap;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-mid);
+        border-radius: var(--r-lg);
+        margin-bottom: 16px;
+        padding: 16px 14px;
+        align-items: center;
+        position: relative;
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        -webkit-tap-highlight-color: transparent;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    
+    .table-wrapper tr:active {
+        transform: scale(0.98);
+    }
+    
+    .table-wrapper tr.row-atrasado {
+        border-left: 4px solid var(--red);
+    }
+    
+    .table-wrapper tr.row-pago {
+        opacity: 0.6;
+    }
+
+    /* Reseta todas as células e oculta para a visão colapsada */
+    .table-wrapper td {
+        display: none;
+        padding: 0 !important;
+        border: none !important;
+        width: 100%;
+    }
+
+    /* --- VISÃO COLAPSADA (Resumo Padrão) --- */
+    
+    /* Checkbox */
+    .table-wrapper td:nth-child(1) {
+        display: block;
+        width: auto;
+        margin-right: 14px;
+        order: 1;
+    }
+
+    /* Data (Coluna 2) */
+    .table-wrapper td:nth-child(2) {
+        display: block;
+        width: auto;
+        flex: 1;
+        order: 2;
+    }
+    .table-wrapper td:nth-child(2) strong {
+        font-size: 14px;
+        color: var(--text);
+    }
+    .table-wrapper td:nth-child(2) span {
+        display: none; /* Oculta a info extra da data no resumo */
+    }
+
+    /* Valor (Identificado automaticamente) */
+    .table-wrapper td[style*="text-align: right"] {
+        display: block;
+        width: auto;
+        font-size: 18px !important;
+        font-weight: 800 !important;
+        color: var(--text) !important;
+        order: 3;
+    }
+
+    /* Descrição / Cliente (Coluna 3) */
+    .table-wrapper td:nth-child(3) {
+        display: block;
+        width: 100%;
+        margin-top: 10px;
+        padding-left: 38px !important; /* Alinha visualmente após o checkbox */
+        order: 4;
+    }
+    .table-wrapper td:nth-child(3) strong,
+    .table-wrapper td:nth-child(3) .txt-name-main {
+        font-size: 14px;
+        color: var(--text-2);
+        font-weight: 500;
+        line-height: 1.3;
+    }
+    .table-wrapper td:nth-child(3) span.txt-meta-sm {
+        font-size: 12px;
+        margin-top: 4px;
+    }
+
+    /* Botão de Copiar PIX / Código (Se existir na linha) */
+    .table-wrapper td:has(button[title*="Copiar"]) {
+        display: block;
+        position: absolute;
+        bottom: 12px;
+        right: 12px;
+        width: auto;
+        order: 5;
+        z-index: 2;
+    }
+
+    /* Evita conflito de cliques no resumo para não descolapsar ao clicar em ações */
+    .table-wrapper td:nth-child(1),
+    .table-wrapper td:has(button[title*="Copiar"]) {
+        pointer-events: auto;
+    }
+
+    /* --- VISÃO EXPANDIDA (Descolapsada) --- */
+    
+    .table-wrapper tr.mobile-expanded {
+        flex-direction: column;
+        align-items: flex-start;
+        background: var(--bg-elevated);
+        border-color: var(--border);
+        padding-bottom: 20px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    }
+
+    /* Exibe todas as células como linhas na visão detalhada */
+    .table-wrapper tr.mobile-expanded td {
+        display: flex;
+        flex-direction: row;
+        width: 100%;
+        justify-content: flex-start;
+        align-items: center;
+        padding: 10px 0 !important;
+        margin: 0 !important;
+        border-bottom: 1px solid var(--border-mid) !important;
+        order: unset !important;
+        text-align: left !important;
+    }
+
+    .table-wrapper tr.mobile-expanded td:nth-child(2) span {
+        display: inline-block;
+        margin-left: 10px;
+    }
+
+    /* Formatação da última linha (Ações) */
+    .table-wrapper tr.mobile-expanded td:last-child {
+        border-bottom: none !important;
+        justify-content: center;
+        gap: 12px;
+        padding-top: 16px !important;
+        background: transparent;
+    }
+    
+    /* Reposiciona o botão de copiar na view completa */
+    .table-wrapper tr.mobile-expanded td:has(button[title*="Copiar"]) {
+        position: relative;
+        bottom: auto;
+        right: auto;
+    }
+
+    /* Remove recuos extras aplicados no resumo */
+    .table-wrapper tr.mobile-expanded td:nth-child(3) {
+        padding-left: 0 !important;
+    }
+    
+    /* Alinha valores à esquerda */
+    .table-wrapper tr.mobile-expanded td[style*="text-align: right"] {
+        justify-content: flex-start;
+        font-size: 16px !important;
+    }
+}
