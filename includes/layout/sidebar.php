@@ -32,6 +32,9 @@ $current_page = basename($_SERVER['PHP_SELF']);
             <a href="<?= BASE_URL ?>modules/contratos/index.php" class="<?= ($current_dir == 'contratos') ? 'active' : '' ?>">
                 <i class="ph ph-handshake" style="font-size: 18px;"></i> Contratos
             </a>
+            <a href="<?= BASE_URL ?>modules/crm/index.php" class="<?= ($current_dir == 'crm') ? 'active' : '' ?>">
+                <i class="ph ph-address-book" style="font-size: 18px;"></i> CRM
+            </a>
         <?php endif; ?>
 
         <div class="sidebar-section-label">Labs</div>

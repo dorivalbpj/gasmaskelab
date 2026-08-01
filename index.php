@@ -20,8 +20,9 @@ if (isAdmin()) {
     $stmt_briefings = $pdo->query("SELECT COUNT(*) as total FROM briefings WHERE status = 'novo'");
     $briefings_novos = $stmt_briefings->fetch()['total'];
 
-    $stmt_clientes_contato = $pdo->query("SELECT COUNT(*) as qtd FROM clientes WHERE proximo_contato IS NOT NULL AND proximo_contato <= CURDATE()");
-    $clientes_para_contato = $stmt_clientes_contato->fetch()['qtd'];
+    // NOVO: Busca Leads do CRM que precisam de Follow-up (Hoje ou Atrasados) e que não estejam finalizados
+    $stmt_leads_contato = $pdo->query("SELECT COUNT(*) as qtd FROM leads WHERE data_proximo_contato IS NOT NULL AND data_proximo_contato <= CURDATE() AND status NOT IN ('ganho', 'perdido')");
+    $leads_para_contato = $stmt_leads_contato->fetch()['qtd'];
 
     // Pipeline
     $stmt_pipe_plan = $pdo->query("SELECT COUNT(*) as qtd FROM planejamento WHERE status_geral IN ('roteiro_em_producao', 'roteiro_em_revisao')");
@@ -121,7 +122,8 @@ require_once 'includes/layout/sidebar.php';
 
     <?php if (isAdmin()): ?>
 
-        <?php if ($faturas_atrasadas['qtd'] > 0 || $propostas_paradas > 0 || $briefings_novos > 0 || $clientes_para_contato > 0): ?>
+        <!-- Atualizado para verificar a nova variável $leads_para_contato -->
+        <?php if ($faturas_atrasadas['qtd'] > 0 || $propostas_paradas > 0 || $briefings_novos > 0 || $leads_para_contato > 0): ?>
             <!-- Central de Alertas Urgentes -->
             <div class="urgent-alerts-panel">
                 <div class="urgent-header">
@@ -149,10 +151,12 @@ require_once 'includes/layout/sidebar.php';
                             <i class="ph ph-arrow-right"></i>
                         </a>
                     <?php endif; ?>
-                    <?php if ($clientes_para_contato > 0): ?>
-                        <a href="modules/clientes/index.php" class="urgent-item alert-red">
-                            <span class="urgent-icon">🔴</span>
-                            <span class="urgent-text"><strong><?= $clientes_para_contato ?> Cliente(s)</strong> aguardando contato</span>
+                    
+                    <!-- NOVO ALERTA: Leads do CRM -->
+                    <?php if ($leads_para_contato > 0): ?>
+                        <a href="modules/crm/index.php" class="urgent-item alert-blue">
+                            <span class="urgent-icon">🔵</span>
+                            <span class="urgent-text"><strong><?= $leads_para_contato ?> Lead(s) no CRM</strong> aguardando follow-up hoje</span>
                             <i class="ph ph-arrow-right"></i>
                         </a>
                     <?php endif; ?>
