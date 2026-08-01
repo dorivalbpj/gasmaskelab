@@ -331,6 +331,26 @@ require_once '../../includes/layout/sidebar.php';
 // Pega a data de hoje diretamente do servidor para não dar conflito de fuso horário
 const dataHoje = '<?= date('Y-m-d') ?>';
 
+// FUNÇÃO NOVA: Formata a data para o padrão Brasileiro
+function formatarDataVisao(dataStr) {
+    if (!dataStr || dataStr.indexOf('-') === -1) return dataStr;
+    
+    const partes = dataStr.split('-');
+    if (partes.length !== 3) return dataStr;
+    
+    const ano = partes[0];
+    const mes = partes[1];
+    const dia = partes[2];
+    const anoAtual = new Date().getFullYear().toString();
+    
+    // Se for o ano atual, exibe só DIA/MÊS. Se for diferente, exibe DIA/MÊS/ANO.
+    if (ano === anoAtual) {
+        return `${dia}/${mes}`;
+    } else {
+        return `${dia}/${mes}/${ano}`;
+    }
+}
+
 function quickAddSubmit() {
     const tema = document.getElementById('inputNewTema').value.trim();
     if(!tema) return;
@@ -521,6 +541,7 @@ function sortTable(col, toggle = true) {
             if(!groups[val]) groups[val] = [];
             groups[val].push(r);
         });
+        
         Object.keys(groups).sort().forEach(g => {
             // Lógica do colapso: Se for grupo de data e a data for hoje, não colapsa. O resto, colapsa tudo.
             let isCollapsed = true;
@@ -529,9 +550,19 @@ function sortTable(col, toggle = true) {
             }
 
             let labelDisplay = g;
+            
+            // AQUI APLICAMOS A NOVA FORMATAÇÃO DE DATA
             if (crit === 'data') {
-                if (g === '(vazio)' || g === '') labelDisplay = 'Sem data definida';
-                else if (g === dataHoje) labelDisplay = 'Hoje (' + g + ')';
+                if (g === '(vazio)' || g === '') {
+                    labelDisplay = 'Sem data definida';
+                } else {
+                    const dataFormatada = formatarDataVisao(g);
+                    if (g === dataHoje) {
+                        labelDisplay = 'Hoje (' + dataFormatada + ')';
+                    } else {
+                        labelDisplay = dataFormatada;
+                    }
+                }
             }
 
             const header = document.createElement('tr');
