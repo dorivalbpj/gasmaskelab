@@ -126,7 +126,7 @@ require_once '../../includes/layout/sidebar.php';
         <!-- CONTROLE DE ZOOM -->
         <div class="zoom-control" style="display: flex; align-items: center; gap: 5px; margin-right: 10px;">
             <i class="ph ph-magnifying-glass-minus" style="color: var(--text-muted); font-size: 18px;"></i>
-            <input type="range" id="tableZoom" min="60" max="130" value="100" oninput="document.getElementById('mainTable').style.zoom = this.value + '%';" style="width: 80px; cursor: pointer;">
+            <input type="range" id="tableZoom" min="60" max="130" value="100" oninput="document.getElementById('mainTable').style.zoom = this.value + '%'; localStorage.setItem('planejamento_zoom', this.value);" style="width: 80px; cursor: pointer;">
             <i class="ph ph-magnifying-glass-plus" style="color: var(--text-muted); font-size: 18px;"></i>
         </div>
 
@@ -195,19 +195,22 @@ require_once '../../includes/layout/sidebar.php';
             $resp_nome = ($t['responsavel_id'] && isset($usuarios_map[$t['responsavel_id']])) ? $usuarios_map[$t['responsavel_id']] : 'Sem Resp.';
             $categoria = $t['tipo'] ?? '';
             $tem_link = !empty($t['link_arte_final']);
+            $esta_finalizado = ($t['status_geral'] == 'finalizado');
         ?>
-        <tr class="task-row" 
+        <tr class="task-row<?= $esta_finalizado ? ' tarefa-finalizada' : '' ?>" 
             data-cliente="<?= htmlspecialchars($t['cliente_nome'] ?: 'Interno') ?>" 
             data-categoria="<?= htmlspecialchars($categoria) ?>"
             data-tema="<?= htmlspecialchars($t['tema'] ?? '') ?>"
             data-data="<?= $t['data_publicacao'] ?? '' ?>"
             data-prioridade="<?= $t['prioridade'] ?? '' ?>"
             data-responsavel="<?= htmlspecialchars($resp_nome) ?>"
-            data-status="<?= htmlspecialchars($status_lista[$t['status_geral']] ?? $t['status_geral']) ?>">
+            data-status="<?= htmlspecialchars($status_lista[$t['status_geral']] ?? $t['status_geral']) ?>"
+            data-status-key="<?= htmlspecialchars($t['status_geral']) ?>"
+            data-finalizado="<?= $esta_finalizado ? '1' : '0' ?>">
 
             <!-- Cliente -->
             <td>
-                <select onchange="salvar(<?= $t['id'] ?>, 'cliente_id', this.value); this.className='silent-select pill '+(this.value ? 'pill-cliente-'+this.value : 'pill-cliente-interno')" class="silent-select pill <?= $t['cliente_id'] ? 'pill-cliente-'.$t['cliente_id'] : 'pill-cliente-interno' ?>" style="font-weight: 600;">
+                <select onchange="salvar(<?= $t['id'] ?>, 'cliente_id', this.value); this.className='silent-select pill '+(this.value ? 'pill-cliente-'+this.value : 'pill-cliente-interno'); this.closest('tr').setAttribute('data-cliente', this.options[this.selectedIndex].text); agruparTabela(false);" class="silent-select pill <?= $t['cliente_id'] ? 'pill-cliente-'.$t['cliente_id'] : 'pill-cliente-interno' ?>" style="font-weight: 600;">
                     <option value="">Interno</option>
                     <?php foreach($clientes as $c): ?>
                         <option value="<?= $c['id'] ?>" <?= $t['cliente_id'] == $c['id'] ? 'selected' : '' ?>><?= htmlspecialchars($c['nome']) ?></option>
@@ -217,7 +220,7 @@ require_once '../../includes/layout/sidebar.php';
 
             <!-- Categoria -->
             <td>
-                <select onchange="salvar(<?= $t['id'] ?>, 'tipo', this.value); this.closest('tr').setAttribute('data-categoria', this.value);" class="silent-select" style="font-size: 12px;">
+                <select onchange="salvar(<?= $t['id'] ?>, 'tipo', this.value); this.closest('tr').setAttribute('data-categoria', this.value); agruparTabela(false);" class="silent-select" style="font-size: 12px;">
                     <option value="">—</option>
                     <?php foreach($categorias_fixas as $cat): ?>
                         <option value="<?= $cat ?>" <?= $categoria == $cat ? 'selected' : '' ?>><?= $cat ?></option>
@@ -238,11 +241,11 @@ require_once '../../includes/layout/sidebar.php';
             </td>
             
             <!-- Prazo -->
-            <td><input type="date" class="silent-input <?= $estilo_data ?>" value="<?= $t['data_publicacao'] ?? '' ?>" onchange="salvar(<?= $t['id'] ?>, 'data_publicacao', this.value); this.closest('tr').setAttribute('data-data', this.value);"></td>
+            <td><input type="date" class="silent-input <?= $estilo_data ?>" value="<?= $t['data_publicacao'] ?? '' ?>" onchange="salvar(<?= $t['id'] ?>, 'data_publicacao', this.value); this.closest('tr').setAttribute('data-data', this.value); recalcularEstiloLinha(this.closest('tr')); agruparTabela(false);"></td>
 
             <!-- Prioridade -->
             <td>
-                <select onchange="salvar(<?= $t['id'] ?>, 'prioridade', this.value); this.className='silent-select pill pill-prio-'+this.value" class="silent-select pill pill-prio-<?= $t['prioridade'] ?>">
+                <select onchange="salvar(<?= $t['id'] ?>, 'prioridade', this.value); this.className='silent-select pill pill-prio-'+this.value; this.closest('tr').setAttribute('data-prioridade', this.value); agruparTabela(false);" class="silent-select pill pill-prio-<?= $t['prioridade'] ?>">
                     <option value="baixa" <?= $t['prioridade']=='baixa'?'selected':'' ?>>Baixa</option>
                     <option value="media" <?= $t['prioridade']=='media'?'selected':'' ?>>Média</option>
                     <option value="alta" <?= $t['prioridade']=='alta'?'selected':'' ?>>Alta</option>
@@ -252,7 +255,7 @@ require_once '../../includes/layout/sidebar.php';
 
             <!-- Responsável -->
             <td>
-                <select onchange="salvar(<?= $t['id'] ?>, 'responsavel_id', this.value); this.className='silent-select pill '+(this.value ? 'pill-resp-'+this.value : 'pill-resp-vazio')" class="silent-select pill <?= $t['responsavel_id'] ? 'pill-resp-'.$t['responsavel_id'] : 'pill-resp-vazio' ?>">
+                <select onchange="salvar(<?= $t['id'] ?>, 'responsavel_id', this.value); this.className='silent-select pill '+(this.value ? 'pill-resp-'+this.value : 'pill-resp-vazio'); this.closest('tr').setAttribute('data-responsavel', this.options[this.selectedIndex].text); agruparTabela(false);" class="silent-select pill <?= $t['responsavel_id'] ? 'pill-resp-'.$t['responsavel_id'] : 'pill-resp-vazio' ?>">
                     <option value="">-</option>
                     <?php foreach($usuarios as $u): ?>
                         <option value="<?= $u['id'] ?>" <?= $t['responsavel_id']==$u['id']?'selected':'' ?>><?= htmlspecialchars($u['nome']) ?></option>
@@ -262,7 +265,7 @@ require_once '../../includes/layout/sidebar.php';
 
             <!-- Status -->
             <td>
-                <select onchange="salvar(<?= $t['id'] ?>, 'status_geral', this.value); this.className='silent-select pill pill-status-'+this.value" class="silent-select pill pill-status-<?= $t['status_geral'] ?>">
+                <select onchange="salvar(<?= $t['id'] ?>, 'status_geral', this.value); this.className='silent-select pill pill-status-'+this.value; atualizarStatusLinha(this);" class="silent-select pill pill-status-<?= $t['status_geral'] ?>">
                     <?php foreach($status_lista as $k => $v): ?>
                         <option value="<?= $k ?>" <?= $t['status_geral']==$k?'selected':'' ?>><?= $v ?></option>
                     <?php endforeach; ?>
@@ -331,6 +334,47 @@ require_once '../../includes/layout/sidebar.php';
 // Pega a data de hoje diretamente do servidor para não dar conflito de fuso horário
 const dataHoje = '<?= date('Y-m-d') ?>';
 
+// Mapa status_geral (chave) -> rótulo, usado para atualizar tudo em tempo real
+const statusMap = <?= json_encode($status_lista, JSON_UNESCAPED_UNICODE) ?>;
+
+// ==========================================
+// ATUALIZAÇÃO EM TEMPO REAL (sem precisar dar F5)
+// ==========================================
+
+// Recalcula a cor do prazo (vencido/hoje/normal) e o "apagado" de finalizado
+function recalcularEstiloLinha(row) {
+    const dateInput = row.querySelector('td input[type="date"]');
+    const statusKey = row.getAttribute('data-status-key');
+    const finalizado = statusKey === 'finalizado';
+
+    if (dateInput) {
+        dateInput.classList.remove('prazo-vencido', 'prazo-hoje', 'prazo-normal');
+        if (!finalizado) {
+            const val = dateInput.value;
+            if (val && val < dataHoje) {
+                dateInput.classList.add('prazo-vencido');
+            } else if (val === dataHoje) {
+                dateInput.classList.add('prazo-hoje');
+            } else {
+                dateInput.classList.add('prazo-normal');
+            }
+        }
+    }
+
+    row.setAttribute('data-finalizado', finalizado ? '1' : '0');
+    row.classList.toggle('tarefa-finalizada', finalizado);
+}
+
+// Chamado quando o STATUS muda: atualiza tudo (cor de prazo, apagado, agrupamento) na hora
+function atualizarStatusLinha(select) {
+    const row = select.closest('tr');
+    const statusKey = select.value;
+    row.setAttribute('data-status-key', statusKey);
+    row.setAttribute('data-status', statusMap[statusKey] || statusKey);
+    recalcularEstiloLinha(row);
+    agruparTabela(false);
+}
+
 // FUNÇÃO NOVA: Formata a data para o padrão Brasileiro
 function formatarDataVisao(dataStr) {
     if (!dataStr || dataStr.indexOf('-') === -1) return dataStr;
@@ -366,6 +410,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if(lastGroup && lastGroup !== 'none') {
         document.getElementById('groupBySelect').value = lastGroup;
     }
+
+    // Restaura o zoom salvo da última vez
+    const lastZoom = localStorage.getItem('planejamento_zoom');
+    if (lastZoom) {
+        document.getElementById('tableZoom').value = lastZoom;
+        document.getElementById('mainTable').style.zoom = lastZoom + '%';
+    }
+
     sortTable('data', false);
 });
 
@@ -500,31 +552,36 @@ function sortTable(col, toggle = true) {
     rows.sort((a, b) => {
         let valA = a.getAttribute('data-' + currentSortCol).toLowerCase();
         let valB = b.getAttribute('data-' + currentSortCol).toLowerCase();
+        let cmp = 0;
 
         // BLINDAGEM DA DATA: VAZIO SEMPRE NO FINAL
         if (currentSortCol === 'data') {
             let isAEmpty = (!valA || valA === '');
             let isBEmpty = (!valB || valB === '');
             
-            if (isAEmpty && !isBEmpty) return 1;
-            if (!isAEmpty && isBEmpty) return -1;
-            if (isAEmpty && isBEmpty) return 0;
-            
-            if (valA < valB) return currentSortAsc ? -1 : 1;
-            if (valA > valB) return currentSortAsc ? 1 : -1;
-            return 0;
-        }
-
-        if (currentSortCol === 'prioridade') {
+            if (isAEmpty && !isBEmpty) cmp = 1;
+            else if (!isAEmpty && isBEmpty) cmp = -1;
+            else if (isAEmpty && isBEmpty) cmp = 0;
+            else if (valA < valB) cmp = currentSortAsc ? -1 : 1;
+            else if (valA > valB) cmp = currentSortAsc ? 1 : -1;
+        } else if (currentSortCol === 'prioridade') {
             const pMap = {'urgente': 4, 'alta': 3, 'media': 2, 'baixa': 1};
             valA = pMap[valA] || 0;
             valB = pMap[valB] || 0;
-            return currentSortAsc ? valA - valB : valB - valA;
+            cmp = currentSortAsc ? valA - valB : valB - valA;
+        } else {
+            if (valA < valB) cmp = currentSortAsc ? -1 : 1;
+            else if (valA > valB) cmp = currentSortAsc ? 1 : -1;
         }
 
-        if (valA < valB) return currentSortAsc ? -1 : 1;
-        if (valA > valB) return currentSortAsc ? 1 : -1;
-        return 0;
+        // TAREFAS FINALIZADAS: sempre no final do seu "bucket" (mesmo dia/mesmo valor), apagadas
+        if (cmp === 0) {
+            const finA = a.getAttribute('data-finalizado') === '1';
+            const finB = b.getAttribute('data-finalizado') === '1';
+            if (finA !== finB) return finA ? 1 : -1;
+        }
+
+        return cmp;
     });
 
     const crit = document.getElementById('groupBySelect').value;
@@ -570,7 +627,12 @@ function sortTable(col, toggle = true) {
             header.innerHTML = `<td colspan="8"><i class="ph ph-caret-down icone-colapso" style="margin-right: 5px;"></i> ${labelDisplay} <span style="color: var(--text-muted); font-size: 13px; font-weight: normal; margin-left: 5px;">(${groups[g].length})</span></td>`;
             tbody.appendChild(header);
             
-            groups[g].forEach(r => {
+            // Dentro do grupo, finalizados sempre por último (mantendo a ordem entre eles)
+            const naoFinalizados = groups[g].filter(r => r.getAttribute('data-finalizado') !== '1');
+            const finalizados = groups[g].filter(r => r.getAttribute('data-finalizado') === '1');
+            const listaFinal = naoFinalizados.concat(finalizados);
+
+            listaFinal.forEach(r => {
                 if(isCollapsed) r.classList.add('linha-colapsada');
                 else r.classList.remove('linha-colapsada');
                 tbody.appendChild(r);

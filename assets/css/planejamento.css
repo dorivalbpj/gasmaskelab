@@ -1051,6 +1051,20 @@
     display: none !important;
 }
 
+/* Tarefas finalizadas: ficam "apagadas" e vão para o final do seu dia/grupo */
+.notion-table tr.task-row.tarefa-finalizada {
+    opacity: 0.45;
+}
+
+.notion-table tr.task-row.tarefa-finalizada:hover {
+    opacity: 0.7;
+}
+
+.notion-table tr.task-row.tarefa-finalizada td:nth-child(3) input.silent-input {
+    text-decoration: line-through;
+    color: var(--text-muted, #888) !important;
+}
+
 .group-header .icone-colapso {
     transition: transform 0.2s;
     display: inline-block;
