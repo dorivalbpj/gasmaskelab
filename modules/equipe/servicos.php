@@ -103,8 +103,8 @@ require_once '../../includes/layout/sidebar.php';
 
 <div class="cabecalho">
     <div>
-        <h2 class="page-title">Configurações Gerais</h2>
-        <p class="page-subtitle">Gerencie os serviços e a equipe da agência.</p>
+        <h2 class="page-title">Configurações do Sistema</h2>
+        <p class="page-subtitle">Gerencie as preferências, serviços e cadastros base da agência.</p>
     </div>
     
     <?php if ($tab == 'servicos'): ?>
@@ -121,181 +121,90 @@ require_once '../../includes/layout/sidebar.php';
                 <i class="ph ph-arrow-left"></i> Voltar
             </a>
         <?php endif; ?>
+    <?php elseif ($tab == 'fin_categorias'): ?>
+        <button type="button" class="btn btn-primary" onclick="abrirModalFin()">
+            <i class="ph ph-plus"></i> Nova Categoria
+        </button>
+    <?php elseif ($tab == 'task_categorias'): ?>
+        <button type="button" class="btn btn-primary" onclick="abrirModalTask()">
+            <i class="ph ph-plus"></i> Nova Categoria
+        </button>
     <?php endif; ?>
 </div>
 
 <?= $mensagem ?>
 
-<!-- ===== TABS ===== -->
-<div class="tabs-container">
-    <a href="?tab=servicos" class="tab-link <?= $tab == 'servicos' ? 'active' : '' ?>">
-        <i class="ph ph-briefcase"></i> Catálogo de Serviços
-    </a>
-    <a href="?tab=usuarios" class="tab-link <?= $tab == 'usuarios' ? 'active' : '' ?>">
-        <i class="ph ph-users"></i> Gestão de Usuários
-    </a>
-</div>
-
-<!-- ====================================================== -->
-<!-- ===== ABA: SERVIÇOS ===== -->
-<!-- ====================================================== -->
-<?php if ($tab == 'servicos'): ?>
-
-<div class="card">
-    <div class="card-header" style="border-bottom: none; padding-bottom: 0;">
-        <h3 class="card-title">Catálogo de Serviços</h3>
-        <span class="badge badge-gray"><?= count($servicos) ?> Registros</span>
-    </div>
+<!-- ===== CONTAINER PRINCIPAL ESCALÁVEL ===== -->
+<div class="settings-container">
     
-    <?php if (count($servicos) > 0): ?>
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Nome do Serviço</th>
-                        <th style="text-align: center; width: 160px;">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($servicos as $s): ?>
-                    <tr>
-                        <td>
-                            <span class="txt-name-main"><?= htmlspecialchars($s['nome']) ?></span>
-                        </td>
-                        <td style="text-align: center;">
-                            <div class="btn-actions-wrapper">
-                                <!-- Botão Configurar - apenas ícone -->
-                                <a href="gerenciar.php?id=<?= $s['id'] ?>" 
-                                   class="btn btn-primary btn--sm btn-icon-table" 
-                                   title="Configurar Fluxo">
-                                    <i class="ph ph-sliders"></i>
-                                </a>
-                                
-                                <!-- Botão Excluir - apenas ícone -->
-                                <form method="POST" onsubmit="return confirm('Tem certeza? Isso pode afetar dados antigos.');" style="margin: 0;">
-                                    <input type="hidden" name="acao" value="excluir_servico">
-                                    <input type="hidden" name="id" value="<?= $s['id'] ?>">
-                                    <button type="submit" 
-                                            class="btn btn-ghost btn--sm btn-icon-table" 
-                                            style="color: var(--red);" 
-                                            title="Excluir Serviço">
-                                        <i class="ph ph-trash"></i>
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-    <?php else: ?>
-        <div class="empty-state empty-state-padded">
-            <i class="ph ph-briefcase empty-state-icon"></i>
-            <p>Nenhum serviço cadastrado na agência.</p>
-        </div>
-    <?php endif; ?>
-</div>
-
-<!-- ===== MODAL: NOVO SERVIÇO ===== -->
-<div id="modalNovoServico" class="modal-overlay">
-    <div class="modal-box">
-        <button type="button" class="modal-close-btn" onclick="fecharModalServico()">
-            <i class="ph ph-x"></i>
-        </button>
+    <!-- MENU LATERAL (SIDEBAR DE CONFIGURAÇÕES) -->
+    <aside class="settings-sidebar">
+        <div class="settings-group-title">Geral</div>
+        <a href="?tab=tema" class="settings-nav-link <?= $tab == 'tema' ? 'active' : '' ?>">
+            <i class="ph ph-palette"></i> Aparência
+        </a>
+        <a href="?tab=servicos" class="settings-nav-link <?= $tab == 'servicos' ? 'active' : '' ?>">
+            <i class="ph ph-briefcase"></i> Serviços
+        </a>
         
-        <h3 style="margin: 0 0 20px 0; font-size: 20px; font-weight: 700; color: var(--text);">
-            Cadastrar Novo Serviço
-        </h3>
+        <div class="settings-group-title">Acessos</div>
+        <a href="?tab=usuarios" class="settings-nav-link <?= $tab == 'usuarios' ? 'active' : '' ?>">
+            <i class="ph ph-users"></i> Usuários da Equipe
+        </a>
         
-        <form method="POST" action="?tab=servicos">
-            <input type="hidden" name="acao" value="novo_servico">
-            
-            <div class="form-group">
-                <label>Nome do Serviço *</label>
-                <input type="text" name="nome" class="form-control" required placeholder="Ex: Gestão de Tráfego...">
-            </div>
-            
-            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
-                <i class="ph ph-floppy-disk"></i> Salvar Serviço
-            </button>
-        </form>
-    </div>
-</div>
+        <div class="settings-group-title">Cadastros Base</div>
+        <a href="?tab=fin_categorias" class="settings-nav-link <?= $tab == 'fin_categorias' ? 'active' : '' ?>">
+            <i class="ph ph-currency-dollar"></i> Categorias Financeiras
+        </a>
+        <a href="?tab=task_categorias" class="settings-nav-link <?= $tab == 'task_categorias' ? 'active' : '' ?>">
+            <i class="ph ph-list-checks"></i> Categorias Tarefas
+        </a>
+    </aside>
 
-<script>
-function abrirModalServico() {
-    const modal = document.getElementById('modalNovoServico');
-    modal.style.display = 'flex';
-    setTimeout(() => modal.classList.add('active'), 10);
-}
+    <!-- CONTEÚDO ATIVO -->
+    <main class="settings-content">
+        
+        <!-- ====================================================== -->
+        <!-- ===== ABA: SERVIÇOS (ORIGINAL FUNCIONANDO) ===== -->
+        <!-- ====================================================== -->
+        <?php if ($tab == 'servicos'): ?>
 
-function fecharModalServico() {
-    const modal = document.getElementById('modalNovoServico');
-    modal.classList.remove('active');
-    setTimeout(() => modal.style.display = 'none', 300);
-}
-</script>
-
-
-<!-- ====================================================== -->
-<!-- ===== ABA: USUÁRIOS ===== -->
-<!-- ====================================================== -->
-<?php elseif ($tab == 'usuarios'): ?>
-
-    <?php if ($acao == 'listar'): ?>
-        <!-- ===== LISTAGEM DE USUÁRIOS ===== -->
         <div class="card">
             <div class="card-header" style="border-bottom: none; padding-bottom: 0;">
-                <h3 class="card-title">Equipe e Clientes</h3>
-                <span class="badge badge-gray"><?= count($usuarios) ?> Registros</span>
+                <h3 class="card-title">Catálogo de Serviços</h3>
+                <span class="badge badge-gray"><?= count($servicos) ?> Registros</span>
             </div>
             
-            <?php if (count($usuarios) > 0): ?>
+            <?php if (count($servicos) > 0): ?>
                 <div class="table-wrapper">
                     <table>
                         <thead>
                             <tr>
-                                <th>Nome</th>
-                                <th>E-mail</th>
-                                <th style="text-align: center;">Perfil</th>
-                                <th style="text-align: right; width: 120px;">Ações</th>
+                                <th>Nome do Serviço</th>
+                                <th style="text-align: center; width: 160px;">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($usuarios as $u): ?>
+                            <?php foreach ($servicos as $s): ?>
                             <tr>
                                 <td>
-                                    <span class="txt-name-main"><?= htmlspecialchars($u['nome']) ?></span>
+                                    <span class="txt-name-main"><?= htmlspecialchars($s['nome']) ?></span>
                                 </td>
-                                <td style="color: var(--text-2);"><?= htmlspecialchars($u['email']) ?></td>
                                 <td style="text-align: center;">
-                                    <?php if ($u['perfil'] == 'admin'): ?>
-                                        <span class="badge badge-red">Admin</span>
-                                    <?php elseif ($u['perfil'] == 'equipe'): ?>
-                                        <span class="badge badge-blue">Equipe</span>
-                                    <?php else: ?>
-                                        <span class="badge badge-gray">Cliente</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td style="text-align: right;">
-                                    <div class="btn-actions-wrapper" style="justify-content: flex-end;">
-                                        <!-- Botão Editar - apenas ícone -->
-                                        <a href="?tab=usuarios&acao=editar_usuario&id=<?= $u['id'] ?>" 
-                                           class="btn btn-secondary btn--sm btn-icon-table" 
-                                           title="Editar Usuário">
-                                            <i class="ph ph-pencil-simple"></i>
+                                    <div class="btn-actions-wrapper">
+                                        <a href="gerenciar.php?id=<?= $s['id'] ?>" 
+                                           class="btn btn-primary btn--sm btn-icon-table" 
+                                           title="Configurar Fluxo">
+                                            <i class="ph ph-sliders"></i>
                                         </a>
                                         
-                                        <!-- Botão Excluir - apenas ícone -->
-                                        <form method="POST" style="margin:0;" 
-                                              onsubmit="return confirm('ATENÇÃO: Deseja realmente excluir o usuário <?= htmlspecialchars($u['nome']) ?>?');">
-                                            <input type="hidden" name="acao" value="excluir_usuario">
-                                            <input type="hidden" name="id" value="<?= $u['id'] ?>">
+                                        <form method="POST" onsubmit="return confirm('Tem certeza? Isso pode afetar dados antigos.');" style="margin: 0;">
+                                            <input type="hidden" name="acao" value="excluir_servico">
+                                            <input type="hidden" name="id" value="<?= $s['id'] ?>">
                                             <button type="submit" 
                                                     class="btn btn-ghost btn--sm btn-icon-table" 
                                                     style="color: var(--red);" 
-                                                    title="Excluir Usuário">
+                                                    title="Excluir Serviço">
                                                 <i class="ph ph-trash"></i>
                                             </button>
                                         </form>
@@ -308,59 +217,298 @@ function fecharModalServico() {
                 </div>
             <?php else: ?>
                 <div class="empty-state empty-state-padded">
-                    <i class="ph ph-users empty-state-icon"></i>
-                    <p>Nenhum usuário cadastrado.</p>
+                    <i class="ph ph-briefcase empty-state-icon"></i>
+                    <p>Nenhum serviço cadastrado na agência.</p>
                 </div>
             <?php endif; ?>
         </div>
 
-    <?php else: ?>
-        <!-- ===== FORMULÁRIO: NOVO/EDITAR USUÁRIO ===== -->
-        <div class="card user-form-card">
-            <div class="card-header">
-                <h3 class="card-title"><?= $id > 0 ? 'Editar Usuário' : 'Novo Usuário' ?></h3>
+        <!-- ====================================================== -->
+        <!-- ===== ABA: USUÁRIOS (ORIGINAL FUNCIONANDO) ===== -->
+        <!-- ====================================================== -->
+        <?php elseif ($tab == 'usuarios'): ?>
+
+            <?php if ($acao == 'listar'): ?>
+                <div class="card">
+                    <div class="card-header" style="border-bottom: none; padding-bottom: 0;">
+                        <h3 class="card-title">Equipe e Clientes</h3>
+                        <span class="badge badge-gray"><?= count($usuarios) ?> Registros</span>
+                    </div>
+                    
+                    <?php if (count($usuarios) > 0): ?>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>E-mail</th>
+                                        <th style="text-align: center;">Perfil</th>
+                                        <th style="text-align: right; width: 120px;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($usuarios as $u): ?>
+                                    <tr>
+                                        <td>
+                                            <span class="txt-name-main"><?= htmlspecialchars($u['nome']) ?></span>
+                                        </td>
+                                        <td style="color: var(--text-2);"><?= htmlspecialchars($u['email']) ?></td>
+                                        <td style="text-align: center;">
+                                            <?php if ($u['perfil'] == 'admin'): ?>
+                                                <span class="badge badge-red">Admin</span>
+                                            <?php elseif ($u['perfil'] == 'equipe'): ?>
+                                                <span class="badge badge-blue">Equipe</span>
+                                            <?php else: ?>
+                                                <span class="badge badge-gray">Cliente</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td style="text-align: right;">
+                                            <div class="btn-actions-wrapper" style="justify-content: flex-end;">
+                                                <a href="?tab=usuarios&acao=editar_usuario&id=<?= $u['id'] ?>" 
+                                                   class="btn btn-secondary btn--sm btn-icon-table" 
+                                                   title="Editar Usuário">
+                                                    <i class="ph ph-pencil-simple"></i>
+                                                </a>
+                                                
+                                                <form method="POST" style="margin:0;" 
+                                                      onsubmit="return confirm('ATENÇÃO: Deseja realmente excluir o usuário <?= htmlspecialchars($u['nome']) ?>?');">
+                                                    <input type="hidden" name="acao" value="excluir_usuario">
+                                                    <input type="hidden" name="id" value="<?= $u['id'] ?>">
+                                                    <button type="submit" 
+                                                            class="btn btn-ghost btn--sm btn-icon-table" 
+                                                            style="color: var(--red);" 
+                                                            title="Excluir Usuário">
+                                                        <i class="ph ph-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php else: ?>
+                        <div class="empty-state empty-state-padded">
+                            <i class="ph ph-users empty-state-icon"></i>
+                            <p>Nenhum usuário cadastrado.</p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+            <?php else: ?>
+                <div class="card user-form-card" style="margin-left: 0;">
+                    <div class="card-header">
+                        <h3 class="card-title"><?= $id > 0 ? 'Editar Usuário' : 'Novo Usuário' ?></h3>
+                    </div>
+                    
+                    <form method="POST" action="?tab=usuarios">
+                        <input type="hidden" name="acao" value="salvar_usuario">
+                        <input type="hidden" name="id" value="<?= $id ?>">
+                        
+                        <div class="form-group">
+                            <label>Nome Completo *</label>
+                            <input type="text" name="nome" value="<?= htmlspecialchars($user_edit['nome']) ?>" required class="form-control">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>E-mail de Acesso *</label>
+                            <input type="email" name="email" value="<?= htmlspecialchars($user_edit['email']) ?>" required class="form-control">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Nível de Acesso (Perfil)</label>
+                            <select name="perfil" class="form-control">
+                                <option value="equipe" <?= $user_edit['perfil'] == 'equipe' ? 'selected' : '' ?>>Membro da Equipe (Padrão)</option>
+                                <option value="admin" <?= $user_edit['perfil'] == 'admin' ? 'selected' : '' ?>>Administrador Geral</option>
+                                <option value="cliente" <?= $user_edit['perfil'] == 'cliente' ? 'selected' : '' ?>>Cliente Final</option>
+                            </select>
+                        </div>
+                        
+                        <div class="senha-box">
+                            <label><?= $id > 0 ? 'Redefinir Senha' : 'Senha de Acesso' ?></label>
+                            <input type="password" name="senha" 
+                                   placeholder="<?= $id > 0 ? 'Deixe em branco para manter a atual' : 'Digite a senha (padrão: 123456)' ?>" 
+                                   class="form-control">
+                        </div>
+                        
+                        <div style="margin-top: 24px; text-align: right;">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="ph ph-floppy-disk"></i> Salvar Usuário
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            <?php endif; ?>
+
+        <!-- ====================================================== -->
+        <!-- ===== ABA: TEMA ===== -->
+        <!-- ====================================================== -->
+        <?php elseif ($tab == 'tema'): ?>
+            <div class="card user-form-card" style="margin-left: 0;">
+                <div class="card-header">
+                    <h3 class="card-title">Aparência do Sistema</h3>
+                </div>
+                <form>
+                    <div class="form-group mb-20">
+                        <label class="mb-2">Escolha o Tema Padrão</label>
+                        <div class="briefing-grid-2">
+                            <div>
+                                <input type="radio" name="tema_ui" id="tema_dark" class="radio-pill-input" checked>
+                                <label for="tema_dark" class="radio-pill-label">
+                                    <i class="ph ph-moon mr-2"></i> Tema Escuro
+                                </label>
+                            </div>
+                            <div>
+                                <input type="radio" name="tema_ui" id="tema_light" class="radio-pill-input">
+                                <label for="tema_light" class="radio-pill-label">
+                                    <i class="ph ph-sun mr-2"></i> Tema Claro
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-right mt-3">
+                        <button type="button" class="btn btn-primary">
+                            <i class="ph ph-floppy-disk"></i> Salvar Preferência
+                        </button>
+                    </div>
+                </form>
             </div>
             
-            <form method="POST" action="?tab=usuarios">
-                <input type="hidden" name="acao" value="salvar_usuario">
-                <input type="hidden" name="id" value="<?= $id ?>">
-                
-                <div class="form-group">
-                    <label>Nome Completo *</label>
-                    <input type="text" name="nome" value="<?= htmlspecialchars($user_edit['nome']) ?>" required class="form-control">
+        <!-- ====================================================== -->
+        <!-- ===== ABA: CATEGORIAS FINANCEIRAS ===== -->
+        <!-- ====================================================== -->
+        <?php elseif ($tab == 'fin_categorias'): ?>
+            <div class="card">
+                <div class="card-header mb-0">
+                    <h3 class="card-title">Categorias Financeiras</h3>
+                    <span class="badge badge-gray">0 Registros</span>
                 </div>
-                
-                <div class="form-group">
-                    <label>E-mail de Acesso *</label>
-                    <input type="email" name="email" value="<?= htmlspecialchars($user_edit['email']) ?>" required class="form-control">
+                <div class="empty-state empty-state-padded">
+                    <i class="ph ph-tag empty-state-icon"></i>
+                    <p>Nenhuma categoria de pagamento cadastrada.<br>Cadastre para organizar impostos, saúde, infraestrutura, etc.</p>
                 </div>
-                
-                <div class="form-group">
-                    <label>Nível de Acesso (Perfil)</label>
-                    <select name="perfil" class="form-control">
-                        <option value="equipe" <?= $user_edit['perfil'] == 'equipe' ? 'selected' : '' ?>>Membro da Equipe (Padrão)</option>
-                        <option value="admin" <?= $user_edit['perfil'] == 'admin' ? 'selected' : '' ?>>Administrador Geral</option>
-                        <option value="cliente" <?= $user_edit['perfil'] == 'cliente' ? 'selected' : '' ?>>Cliente Final</option>
-                    </select>
+            </div>
+            
+        <!-- ====================================================== -->
+        <!-- ===== ABA: CATEGORIAS DE TAREFAS ===== -->
+        <!-- ====================================================== -->
+        <?php elseif ($tab == 'task_categorias'): ?>
+            <div class="card">
+                <div class="card-header mb-0">
+                    <h3 class="card-title">Categorias de Tarefas</h3>
+                    <span class="badge badge-gray">0 Registros</span>
                 </div>
-                
-                <div class="senha-box">
-                    <label><?= $id > 0 ? 'Redefinir Senha' : 'Senha de Acesso' ?></label>
-                    <input type="password" name="senha" 
-                           placeholder="<?= $id > 0 ? 'Deixe em branco para manter a atual' : 'Digite a senha (padrão: 123456)' ?>" 
-                           class="form-control">
+                <div class="empty-state empty-state-padded">
+                    <i class="ph ph-list-checks empty-state-icon"></i>
+                    <p>Nenhuma categoria de tarefa cadastrada.<br>Cadastre para organizar demandas como Design, Reuniões, Edição de Vídeo.</p>
                 </div>
-                
-                <div style="margin-top: 24px; text-align: right;">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="ph ph-floppy-disk"></i> Salvar Usuário
-                    </button>
-                </div>
-            </form>
-        </div>
+            </div>
+            
+        <?php endif; ?>
         
-    <?php endif; ?>
+    </main>
+</div>
 
-<?php endif; ?>
+<!-- ===== MODAIS ===== -->
+<div id="modalNovoServico" class="modal-overlay">
+    <div class="modal-box">
+        <button type="button" class="modal-close-btn" onclick="fecharModalServico()">
+            <i class="ph ph-x"></i>
+        </button>
+        
+        <h3 class="modal-title">Cadastrar Novo Serviço</h3>
+        
+        <form method="POST" action="?tab=servicos">
+            <input type="hidden" name="acao" value="novo_servico">
+            
+            <div class="form-group mb-20">
+                <label>Nome do Serviço *</label>
+                <input type="text" name="nome" class="form-control" required placeholder="Ex: Gestão de Tráfego...">
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block">
+                <i class="ph ph-floppy-disk"></i> Salvar Serviço
+            </button>
+        </form>
+    </div>
+</div>
+
+<div id="modalNovoFin" class="modal-overlay">
+    <div class="modal-box">
+        <button type="button" class="modal-close-btn" onclick="fecharModalFin()">
+            <i class="ph ph-x"></i>
+        </button>
+        
+        <h3 class="modal-title">Nova Categoria Financeira</h3>
+        
+        <form>
+            <div class="form-group mb-20">
+                <label>Nome da Categoria *</label>
+                <input type="text" class="form-control" placeholder="Ex: Impostos, Saúde, Infraestrutura...">
+            </div>
+            
+            <button type="button" class="btn btn-primary btn-block">
+                <i class="ph ph-floppy-disk"></i> Salvar Categoria
+            </button>
+        </form>
+    </div>
+</div>
+
+<div id="modalNovoTask" class="modal-overlay">
+    <div class="modal-box">
+        <button type="button" class="modal-close-btn" onclick="fecharModalTask()">
+            <i class="ph ph-x"></i>
+        </button>
+        
+        <h3 class="modal-title">Nova Categoria de Tarefa</h3>
+        
+        <form>
+            <div class="form-group mb-20">
+                <label>Nome da Categoria *</label>
+                <input type="text" class="form-control" placeholder="Ex: Edição de Vídeo, Criativos, Reunião...">
+            </div>
+            
+            <button type="button" class="btn btn-primary btn-block">
+                <i class="ph ph-floppy-disk"></i> Salvar Categoria
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+function abrirModalServico() {
+    const modal = document.getElementById('modalNovoServico');
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('active'), 10);
+}
+function fecharModalServico() {
+    const modal = document.getElementById('modalNovoServico');
+    modal.classList.remove('active');
+    setTimeout(() => modal.style.display = 'none', 300);
+}
+
+function abrirModalFin() {
+    const modal = document.getElementById('modalNovoFin');
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('active'), 10);
+}
+function fecharModalFin() {
+    const modal = document.getElementById('modalNovoFin');
+    modal.classList.remove('active');
+    setTimeout(() => modal.style.display = 'none', 300);
+}
+
+function abrirModalTask() {
+    const modal = document.getElementById('modalNovoTask');
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('active'), 10);
+}
+function fecharModalTask() {
+    const modal = document.getElementById('modalNovoTask');
+    modal.classList.remove('active');
+    setTimeout(() => modal.style.display = 'none', 300);
+}
+</script>
 
 <?php require_once '../../includes/layout/footer.php'; ?>

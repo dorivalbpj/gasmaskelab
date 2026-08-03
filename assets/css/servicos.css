@@ -1,122 +1,99 @@
 /* ===========================================
-   SERVIÇOS — Design System v3
+   LAYOUT DE CONFIGURAÇÕES ESCALÁVEL
    =========================================== */
-
-/* ===== TABS ===== */
-.tabs-container {
+.settings-container {
     display: flex;
-    gap: 4px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 24px;
-    padding: 0 2px;
+    gap: 24px;
+    align-items: flex-start;
 }
 
-.tab-link {
+/* Menu Lateral Esquerdo */
+.settings-sidebar {
+    width: 250px;
+    flex-shrink: 0;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 12px 0;
+}
+
+.settings-group-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-3);
+    padding: 12px 20px 6px;
+    margin-top: 8px;
+}
+
+.settings-group-title:first-child {
+    margin-top: 0;
+}
+
+.settings-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding: 10px 20px;
+    color: var(--text-2);
     font-size: 13px;
-    font-weight: 600;
-    color: var(--text-2);
+    font-weight: 500;
     text-decoration: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
     transition: all 0.15s;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    border-radius: var(--r-sm) var(--r-sm) 0 0;
+    border-left: 2px solid transparent;
 }
 
-.tab-link:hover {
-    color: var(--text);
+.settings-nav-link i {
+    font-size: 16px;
+}
+
+.settings-nav-link:hover {
     background: var(--bg-hover);
-    opacity: 1;
+    color: var(--text);
 }
 
-.tab-link.active {
+.settings-nav-link.active {
+    background: var(--red-glow);
     color: var(--red);
-    border-bottom-color: var(--red);
-    background: rgba(255, 63, 52, 0.04);
+    border-left-color: var(--red);
+    font-weight: 600;
 }
 
-/* ===== FORMULÁRIO DE USUÁRIO ===== */
-.user-form-card {
-    max-width: 600px;
-    margin: 0 auto;
+/* Área de Conteúdo Direito */
+.settings-content {
+    flex: 1;
+    min-width: 0; /* Previne overflow de tabelas */
 }
 
-.user-form-card .form-group {
-    margin-bottom: 18px;
-}
-
-.user-form-card .form-group label {
-    display: block;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-2);
-    margin-bottom: 4px;
-}
-
-.user-form-card .form-group .form-control {
-    width: 100%;
-}
-
-.senha-box {
-    background: var(--bg-elevated);
-    padding: 16px 18px;
-    border-radius: var(--r-md);
-    border: 1px dashed var(--border-mid);
-    margin: 6px 0 4px;
-}
-
-.senha-box label {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-2);
-    display: block;
-    margin-bottom: 6px;
-}
-
-.senha-box .form-control {
-    width: 100%;
-}
-
-/* ===== BOTÕES DE AÇÃO NA TABELA ===== */
-.btn-actions-wrapper {
-    display: flex;
-    gap: 6px;
-    justify-content: center;
-    align-items: center;
-}
-
-/* ===== RESPONSIVO ===== */
+/* Responsivo */
 @media (max-width: 768px) {
-    .tabs-container {
+    .settings-container {
         flex-direction: column;
-        gap: 2px;
-        border-bottom: none;
+        gap: 16px;
     }
     
-    .tab-link {
-        border-bottom: 1px solid var(--border);
-        border-radius: var(--r-sm);
-        margin-bottom: 0;
-    }
-    
-    .tab-link.active {
-        border-bottom-color: var(--red);
-        background: rgba(255, 63, 52, 0.06);
-    }
-    
-    .user-form-card {
-        max-width: 100%;
-    }
-    
-    .btn-actions-wrapper {
+    .settings-sidebar {
+        width: 100%;
+        display: flex;
         flex-wrap: wrap;
-        gap: 4px;
+        padding: 8px;
+    }
+    
+    .settings-group-title {
+        width: 100%;
+        padding: 8px 12px 4px;
+    }
+    
+    .settings-nav-link {
+        width: 50%; /* Divide em 2 colunas no celular */
+        padding: 8px 12px;
+        border-left: none;
+        border-radius: var(--r-sm);
+    }
+    
+    .settings-nav-link.active {
+        background: rgba(255, 63, 52, 0.08);
+        border-left: none;
     }
 }
