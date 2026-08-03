@@ -2001,3 +2001,23 @@ a.metric-premium-card.clickable:hover {
         transform: translateX(0);
     }
 }
+
+
+/* ===========================================
+   TEMA CLARO (Sobrescrita de variáveis)
+   =========================================== */
+.theme-light {
+    --bg:           #f4f6f8;
+    --bg-surface:   #ffffff;
+    --bg-elevated:  #f8fafc;
+    --bg-hover:     #e2e8f0;
+
+    --border:       rgba(0,0,0,0.08);
+    --border-mid:   rgba(0,0,0,0.15);
+
+    --text:         #0f172a;
+    --text-2:       #475569;
+    --text-3:       #94a3b8;
+
+    --red-glow:     rgba(255, 63, 52, 0.08);
+}

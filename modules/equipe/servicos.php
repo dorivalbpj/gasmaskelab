@@ -75,6 +75,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
         }
         $acao = 'listar';
     }
+    
+    // --- AÇÕES: TEMA ---
+    elseif ($_POST['acao'] == 'salvar_tema') {
+        $tema_escolhido = $_POST['tema_ui'] ?? 'dark';
+        
+        // Atualiza a sessão
+        $_SESSION['tema_ui'] = $tema_escolhido;
+        
+        // Tenta atualizar no banco de dados
+        try {
+            $stmt = $pdo->prepare("UPDATE usuarios SET tema_ui = ? WHERE id = ?");
+            $stmt->execute([$tema_escolhido, $_SESSION['usuario_id']]);
+            $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Tema atualizado com sucesso!</div>";
+        } catch (Exception $e) {
+            // Fallback: se a coluna tema_ui ainda não existir na tabela usuarios
+            $mensagem = "<div class='alert alert-warning'><i class='ph-fill ph-warning-circle'></i> Tema alterado! (Lembrete: crie a coluna 'tema_ui' na tabela usuarios para salvar permanentemente).</div>";
+        }
+        $tab = 'tema';
+    }
 }
 
 // --- BUSCA DE DADOS ---
@@ -349,18 +368,22 @@ require_once '../../includes/layout/sidebar.php';
                 <div class="card-header">
                     <h3 class="card-title">Aparência do Sistema</h3>
                 </div>
-                <form>
+                
+                <form method="POST" action="?tab=tema">
+                    <input type="hidden" name="acao" value="salvar_tema">
+                    <?php $tema_atual = $_SESSION['tema_ui'] ?? 'dark'; ?>
+                    
                     <div class="form-group mb-20">
                         <label class="mb-2">Escolha o Tema Padrão</label>
                         <div class="briefing-grid-2">
                             <div>
-                                <input type="radio" name="tema_ui" id="tema_dark" class="radio-pill-input" checked>
+                                <input type="radio" name="tema_ui" value="dark" id="tema_dark" class="radio-pill-input" <?= $tema_atual == 'dark' ? 'checked' : '' ?>>
                                 <label for="tema_dark" class="radio-pill-label">
                                     <i class="ph ph-moon mr-2"></i> Tema Escuro
                                 </label>
                             </div>
                             <div>
-                                <input type="radio" name="tema_ui" id="tema_light" class="radio-pill-input">
+                                <input type="radio" name="tema_ui" value="light" id="tema_light" class="radio-pill-input" <?= $tema_atual == 'light' ? 'checked' : '' ?>>
                                 <label for="tema_light" class="radio-pill-label">
                                     <i class="ph ph-sun mr-2"></i> Tema Claro
                                 </label>
@@ -368,7 +391,7 @@ require_once '../../includes/layout/sidebar.php';
                         </div>
                     </div>
                     <div class="text-right mt-3">
-                        <button type="button" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary">
                             <i class="ph ph-floppy-disk"></i> Salvar Preferência
                         </button>
                     </div>

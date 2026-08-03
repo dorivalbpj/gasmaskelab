@@ -1,5 +1,6 @@
 <?php
 // includes/layout/header.php
+$temaAtivo = (isset($_SESSION['tema_ui']) && $_SESSION['tema_ui'] === 'light') ? 'theme-light' : '';
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -33,4 +34,4 @@
         setInterval(animateTitle, 300);
     </script>
 </head>
-<body>
+<body class="<?= $temaAtivo ?>">
