@@ -6,7 +6,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gasmaske Workspace</title>
+    
+    <!-- Título principal -->
+    <title>Gasmaske ERP</title>
+    
+    <link rel="icon" type="image/png" href="<?= BASE_URL ?>assets/img/logo-v.png">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,10 +18,19 @@
     
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     
+    <!-- Folha de estilo externa -->
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css">
     
-    <style>
-        body { font-family: 'Inter', var(--font); }
-    </style>
+    <!-- Script para o efeito Marquee na aba -->
+    <script>
+        let pageTitle = "Gasmaske ERP  ";
+        
+        function animateTitle() {
+            pageTitle = pageTitle.substring(1) + pageTitle.substring(0, 1);
+            document.title = pageTitle;
+        }
+        
+        setInterval(animateTitle, 300);
+    </script>
 </head>
 <body>
