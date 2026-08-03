@@ -334,6 +334,11 @@ require_once '../../includes/layout/sidebar.php';
 // Pega a data de hoje diretamente do servidor para não dar conflito de fuso horário
 const dataHoje = '<?= date('Y-m-d') ?>';
 
+// Detecta se está no formato mobile (mesmo breakpoint do CSS)
+function isMobileView() {
+    return window.innerWidth <= 768;
+}
+
 // Mapa status_geral (chave) -> rótulo, usado para atualizar tudo em tempo real
 const statusMap = <?= json_encode($status_lista, JSON_UNESCAPED_UNICODE) ?>;
 
@@ -406,9 +411,15 @@ function quickAddSubmit() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const lastGroup = localStorage.getItem('planejamento_group');
-    if(lastGroup && lastGroup !== 'none') {
+    const groupKey = isMobileView() ? 'planejamento_group_mobile' : 'planejamento_group';
+    const lastGroup = localStorage.getItem(groupKey);
+
+    if (lastGroup && lastGroup !== 'none') {
         document.getElementById('groupBySelect').value = lastGroup;
+    } else if (!lastGroup && isMobileView()) {
+        // No celular, sem preferência salva ainda: já abre organizado por data
+        // (assim "Hoje" e "Atrasadas" ficam em evidência e o resto some até precisar)
+        document.getElementById('groupBySelect').value = 'data';
     }
 
     // Restaura o zoom salvo da última vez
@@ -601,9 +612,15 @@ function sortTable(col, toggle = true) {
         
         Object.keys(groups).sort().forEach(g => {
             // Lógica do colapso: Se for grupo de data e a data for hoje, não colapsa. O resto, colapsa tudo.
+            // No mobile, além de "hoje", as tarefas ATRASADAS também já ficam abertas por padrão
+            // (são as mais urgentes de ver) - o resto (futuras) fica escondido até o usuário pedir.
             let isCollapsed = true;
-            if (crit === 'data' && g === dataHoje) {
-                isCollapsed = false;
+            if (crit === 'data') {
+                if (g === dataHoje) {
+                    isCollapsed = false;
+                } else if (isMobileView() && g && g !== '(vazio)' && g < dataHoje) {
+                    isCollapsed = false;
+                }
             }
 
             let labelDisplay = g;
@@ -638,13 +655,38 @@ function sortTable(col, toggle = true) {
                 tbody.appendChild(r);
             });
         });
+
+        // No mobile, resume o que ficou escondido num botão único pra não precisar caçar cabeçalho por cabeçalho
+        if (isMobileView() && crit === 'data') {
+            const escondidas = tbody.querySelectorAll('.task-row.linha-colapsada').length;
+            if (escondidas > 0) {
+                const btnRow = document.createElement('tr');
+                btnRow.className = 'mobile-ver-futuras-row';
+                const plural = escondidas > 1 ? 's' : '';
+                btnRow.innerHTML = `<td colspan="8"><button type="button" class="btn-ver-futuras" onclick="expandirTudoMobile(this)">`
+                    + `<i class="ph ph-caret-down"></i> Ver mais ${escondidas} tarefa${plural} futura${plural}`
+                    + `</button></td>`;
+                tbody.appendChild(btnRow);
+            }
+        }
     }
 }
 
 function agruparTabela(save) {
     const crit = document.getElementById('groupBySelect').value;
-    if(save) localStorage.setItem('planejamento_group', crit);
+    if(save) {
+        const groupKey = isMobileView() ? 'planejamento_group_mobile' : 'planejamento_group';
+        localStorage.setItem(groupKey, crit);
+    }
     sortTable(currentSortCol || 'data', false);
+}
+
+// Expande de uma vez todos os grupos/linhas escondidas (usado pelo botão "Ver mais futuras" no mobile)
+function expandirTudoMobile(btn) {
+    document.querySelectorAll('.group-header.collapsed').forEach(h => h.classList.remove('collapsed'));
+    document.querySelectorAll('.task-row.linha-colapsada').forEach(r => r.classList.remove('linha-colapsada'));
+    const row = btn.closest('tr');
+    if (row) row.remove();
 }
 
 // ==========================================
