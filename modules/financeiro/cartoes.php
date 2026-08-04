@@ -120,6 +120,18 @@ function bandeiraIcone($classe) {
     return $icones[$classe] ?? 'ph ph-credit-card';
 }
 
+// Verifica se o nome do cartão corresponde a um banco/loja específico
+function identificarCartaoPorNome($nome) {
+    $n = strtolower(trim($nome));
+    if (strpos($n, 'inter') !== false) return 'inter';
+    if (strpos($n, 'neon') !== false) return 'neon';
+    if (strpos($n, 'next') !== false) return 'next';
+    if (strpos($n, 'nubank') !== false) return 'nubank';
+    if (strpos($n, 'renner') !== false) return 'renner';
+    if (strpos($n, 'riachuelo') !== false) return 'riachuelo';
+    return false; // Retorna false se não for nenhum desses
+}
+
 require_once '../../includes/layout/header.php';
 require_once '../../includes/layout/sidebar.php';
 ?>
