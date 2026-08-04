@@ -349,3 +349,44 @@ footer { padding: 60px; border-top: 1px solid var(--border); background: var(--s
     .sticky-cta { flex-direction: column; gap: 20px; text-align: center; padding: 24px; }
     .btn-sticky { width: 100%; }
 }
+
+
+/* ─── MODAL OVERLAY tela de proposta publica ─── */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 23, 20, 0.6);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal-box {
+    position: relative;
+    background: var(--bg);
+    max-width: 480px;
+    width: 100%;
+    padding: 40px;
+    border: 1px solid var(--border);
+}
+
+.modal-box h3 {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 24px;
+    margin-bottom: 16px;
+    color: var(--ink);
+}
+
+.modal-box p {
+    font-size: 15px;
+    color: var(--ink-mid);
+    line-height: 1.6;
+    margin-bottom: 24px;
+}
