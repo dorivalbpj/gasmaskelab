@@ -383,6 +383,12 @@ require_once '../../includes/layout/sidebar.php';
                             onclick="copiarMensagemContrato('<?= addslashes($contrato['cliente_nome']) ?>', '<?= addslashes($contrato['codigo_agc']) ?>', '<?= $link_publico ?>', this)">
                             <i class="ph ph-whatsapp-logo"></i> Copiar Zap
                         </button>
+
+                        <a href="gerar_contrato.php?id=<?= $contrato['id'] ?>" 
+                            class="btn w-100" 
+                            style="justify-content: center; background: #2D3748; color: #fff; border: none;">
+                                <i class="ph ph-file-text"></i> Baixar Contrato .TXT
+                            </a>
                     </div>
                 <?php endif; ?>
 
