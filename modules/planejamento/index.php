@@ -7,8 +7,10 @@ require_once '../../includes/functions.php';
 
 requireLogin();
 
-// --- AJAX: ATUALIZAÇÕES RÁPIDAS ---
+// --- AJAX: ATUALIZAÇÕES RÁPIDAS COM LOG ---
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
+    
+    // Atualizar campo e registrar log
     if ($_POST['acao'] == 'atualizar_campo') {
         $id = $_POST['id_tarefa'];
         $campo = $_POST['campo'];
@@ -16,9 +18,45 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
         
         $campos = ['responsavel_id', 'prioridade', 'data_publicacao', 'status_geral', 'link_arte_final', 'tipo', 'cliente_id', 'tema'];
         if (in_array($campo, $campos)) {
+            // Pega o valor antigo para o log
+            $stmt = $pdo->prepare("SELECT {$campo} FROM planejamento WHERE id = ?");
+            $stmt->execute([$id]);
+            $valor_antigo = $stmt->fetchColumn();
+
+            // Só salva o log se realmente houver alteração
+            if ($valor_antigo != $valor) {
+                $usuario_log = $_SESSION['usuario_id'] ?? 1; // Fallback caso perca a sessão no ajax
+                $pdo->prepare("INSERT INTO planejamento_logs (tarefa_id, usuario_id, campo, valor_antigo, valor_novo) VALUES (?, ?, ?, ?, ?)")
+                    ->execute([$id, $usuario_log, $campo, $valor_antigo, $valor]);
+            }
+
             $pdo->prepare("UPDATE planejamento SET {$campo} = ?, data_ultima_acao = NOW() WHERE id = ?")->execute([$valor, $id]);
             echo "ok"; exit;
         }
+    }
+
+    // Carregar logs para o modal global
+    if ($_POST['acao'] == 'carregar_logs_globais') {
+        $stmt = $pdo->query("SELECT l.*, u.nome as usuario_nome, p.tema as tarefa_tema 
+                             FROM planejamento_logs l 
+                             LEFT JOIN usuarios u ON l.usuario_id = u.id 
+                             LEFT JOIN planejamento p ON l.tarefa_id = p.id 
+                             ORDER BY l.criado_em DESC LIMIT 50");
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        exit;
+    }
+
+    // Reverter alteração (Rollback)
+    if ($_POST['acao'] == 'reverter_log') {
+        $log_id = $_POST['log_id'];
+        $stmt = $pdo->prepare("SELECT tarefa_id, campo, valor_antigo FROM planejamento_logs WHERE id = ?");
+        $stmt->execute([$log_id]);
+        $log = $stmt->fetch();
+
+        if ($log) {
+            $pdo->prepare("UPDATE planejamento SET {$log['campo']} = ?, data_ultima_acao = NOW() WHERE id = ?")->execute([$log['valor_antigo'], $log['tarefa_id']]);
+        }
+        echo "ok"; exit;
     }
 
     if ($_POST['acao'] == 'salvar_roteiro') {
@@ -36,14 +74,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
         echo "ok"; exit;
     }
 
+    // Quick add com auto-atribuição
     if ($_POST['acao'] == 'quick_add') {
         $tema = trim($_POST['tema']);
         $cliente_id = empty($_POST['cliente_id']) ? null : $_POST['cliente_id'];
+        $resp_id = $_SESSION['usuario_id'] ?? null; // Atribui a quem está criando
         
         if ($tema) {
-            $sql = "INSERT INTO planejamento (tema, cliente_id, prioridade, status_geral, data_publicacao) 
-        VALUES (?, ?, 'media', 'a_fazer', CURDATE())";
-            $pdo->prepare($sql)->execute([$tema, $cliente_id]);
+            $sql = "INSERT INTO planejamento (tema, cliente_id, prioridade, status_geral, data_publicacao, responsavel_id) 
+                    VALUES (?, ?, 'media', 'a_fazer', CURDATE(), ?)";
+            $pdo->prepare($sql)->execute([$tema, $cliente_id, $resp_id]);
         }
         header("Location: index.php"); exit;
     }
@@ -58,12 +98,10 @@ foreach($usuarios as $u) {
 
 // --- GERADOR DINÂMICO DE CORES PARA OS RESPONSÁVEIS ---
 echo '<style>';
-// Uma paleta de 10 cores sólidas e modernas
 $paleta = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#0284c7'];
 $c_index = 0;
 foreach($usuarios as $u) {
     $cor = $paleta[$c_index % count($paleta)];
-    // Cria uma classe CSS para cada ID de usuário
     echo ".pill-resp-{$u['id']} { background-color: {$cor} !important; color: #fff !important; border-color: transparent !important; } \n";
     $c_index++;
 }
@@ -74,11 +112,8 @@ $clientes = $pdo->query("SELECT id, nome FROM clientes ORDER BY nome ASC")->fetc
 
 // ---GERADOR DINÂMICO DE CORES PARA OS CLIENTES ---
 echo '<style>';
-// Paleta estendida com 15 cores modernas para dar mais variação
 $paleta_clientes = ['#059669', '#2563eb', '#7c3aed', '#db2777', '#dc2626', '#d97706', '#65a30d', '#0d9488', '#0284c7', '#4f46e5', '#c026d3', '#e11d48', '#ea580c', '#ca8a04', '#4d7c0f'];
 $c_index_cli = 0;
-
-// Cor padrão para os projetos internos (quando não tem cliente)
 echo ".pill-cliente-interno { background-color: #334155 !important; color: #fff !important; border-color: transparent !important; } \n";
 
 foreach($clientes as $c) {
@@ -123,6 +158,12 @@ require_once '../../includes/layout/sidebar.php';
     </div>
     
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <!-- CAMPO DE BUSCA -->
+        <div class="search-container" style="position: relative;">
+            <i class="ph ph-magnifying-glass" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-3);"></i>
+            <input type="text" id="inputBusca" class="gn-select" placeholder="Buscar tarefa..." onkeyup="buscarTabela()" style="padding-left: 32px; width: 220px;">
+        </div>
+
         <!-- CONTROLE DE ZOOM -->
         <div class="zoom-control" style="display: flex; align-items: center; gap: 5px; margin-right: 10px;">
             <i class="ph ph-magnifying-glass-minus" style="color: var(--text-muted); font-size: 18px;"></i>
@@ -138,6 +179,11 @@ require_once '../../includes/layout/sidebar.php';
             <option value="status">Agrupar por Status</option>
             <option value="data">Agrupar por Data</option>
         </select>
+
+        <button class="btn btn-secondary" onclick="abrirModalLogsGlobais()" style="height: 40px; display: flex; align-items: center; gap: 8px;">
+            <i class="ph ph-clock-counter-clockwise"></i> Logs
+        </button>
+
         <button class="btn btn-primary" onclick="document.getElementById('rowNewTask').style.display='table-row'; document.getElementById('inputNewTema').focus();" style="height: 40px; display: flex; align-items: center; gap: 8px;"><i class="ph ph-plus"></i> Nova Tarefa</button>
     </div>
 </div>
@@ -208,7 +254,6 @@ require_once '../../includes/layout/sidebar.php';
             data-status-key="<?= htmlspecialchars($t['status_geral']) ?>"
             data-finalizado="<?= $esta_finalizado ? '1' : '0' ?>">
 
-            <!-- Cliente -->
             <td>
                 <select onchange="salvar(<?= $t['id'] ?>, 'cliente_id', this.value); this.className='silent-select pill '+(this.value ? 'pill-cliente-'+this.value : 'pill-cliente-interno'); this.closest('tr').setAttribute('data-cliente', this.options[this.selectedIndex].text); agruparTabela(false);" class="silent-select pill <?= $t['cliente_id'] ? 'pill-cliente-'.$t['cliente_id'] : 'pill-cliente-interno' ?>" style="font-weight: 600;">
                     <option value="">Interno</option>
@@ -217,8 +262,6 @@ require_once '../../includes/layout/sidebar.php';
                     <?php endforeach; ?>
                 </select>
             </td>
-
-            <!-- Categoria -->
             <td>
                 <select onchange="salvar(<?= $t['id'] ?>, 'tipo', this.value); this.closest('tr').setAttribute('data-categoria', this.value); agruparTabela(false);" class="silent-select" style="font-size: 12px;">
                     <option value="">—</option>
@@ -227,23 +270,16 @@ require_once '../../includes/layout/sidebar.php';
                     <?php endforeach; ?>
                 </select>
             </td>
-
-            <!-- Tarefa -->
             <td>
-                <input type="text" id="input_tema_<?= $t['id'] ?>" class="silent-input" value="<?= htmlspecialchars($t['tema'] ?? '') ?>" onchange="salvar(<?= $t['id'] ?>, 'tema', this.value); document.getElementById('hidden_tema_<?= $t['id'] ?>').value = this.value;" style="font-weight: 600; color: var(--text-primary);">
+                <input type="text" id="input_tema_<?= $t['id'] ?>" class="silent-input" value="<?= htmlspecialchars($t['tema'] ?? '') ?>" onchange="salvar(<?= $t['id'] ?>, 'tema', this.value); document.getElementById('hidden_tema_<?= $t['id'] ?>').value = this.value; this.closest('tr').setAttribute('data-tema', this.value);" style="font-weight: 600; color: var(--text-primary);">
                 
-                <!-- Campos hidden para o side modal -->
                 <textarea id="hidden_rot_<?= $t['id'] ?>" style="display:none;"><?= htmlspecialchars($t['roteiro'] ?? '') ?></textarea>
                 <textarea id="hidden_leg_<?= $t['id'] ?>" style="display:none;"><?= htmlspecialchars($t['legenda'] ?? '') ?></textarea>
                 <textarea id="hidden_ins_<?= $t['id'] ?>" style="display:none;"><?= htmlspecialchars($t['inspiracao'] ?? '') ?></textarea>
                 <input type="hidden" id="hidden_link_<?= $t['id'] ?>" value="<?= htmlspecialchars($t['link_arte_final'] ?? '') ?>">
                 <input type="hidden" id="hidden_tema_<?= $t['id'] ?>" value="<?= htmlspecialchars($t['tema'] ?? '') ?>">
             </td>
-            
-            <!-- Prazo -->
             <td><input type="date" class="silent-input <?= $estilo_data ?>" value="<?= $t['data_publicacao'] ?? '' ?>" onchange="salvar(<?= $t['id'] ?>, 'data_publicacao', this.value); this.closest('tr').setAttribute('data-data', this.value); recalcularEstiloLinha(this.closest('tr')); agruparTabela(false);"></td>
-
-            <!-- Prioridade -->
             <td>
                 <select onchange="salvar(<?= $t['id'] ?>, 'prioridade', this.value); this.className='silent-select pill pill-prio-'+this.value; this.closest('tr').setAttribute('data-prioridade', this.value); agruparTabela(false);" class="silent-select pill pill-prio-<?= $t['prioridade'] ?>">
                     <option value="baixa" <?= $t['prioridade']=='baixa'?'selected':'' ?>>Baixa</option>
@@ -252,8 +288,6 @@ require_once '../../includes/layout/sidebar.php';
                     <option value="urgente" <?= $t['prioridade']=='urgente'?'selected':'' ?>>Urgente</option>
                 </select>
             </td>
-
-            <!-- Responsável -->
             <td>
                 <select onchange="salvar(<?= $t['id'] ?>, 'responsavel_id', this.value); this.className='silent-select pill '+(this.value ? 'pill-resp-'+this.value : 'pill-resp-vazio'); this.closest('tr').setAttribute('data-responsavel', this.options[this.selectedIndex].text); agruparTabela(false);" class="silent-select pill <?= $t['responsavel_id'] ? 'pill-resp-'.$t['responsavel_id'] : 'pill-resp-vazio' ?>">
                     <option value="">-</option>
@@ -262,8 +296,6 @@ require_once '../../includes/layout/sidebar.php';
                     <?php endforeach; ?>
                 </select>
             </td>
-
-            <!-- Status -->
             <td>
                 <select onchange="salvar(<?= $t['id'] ?>, 'status_geral', this.value); this.className='silent-select pill pill-status-'+this.value; atualizarStatusLinha(this);" class="silent-select pill pill-status-<?= $t['status_geral'] ?>">
                     <?php foreach($status_lista as $k => $v): ?>
@@ -271,8 +303,6 @@ require_once '../../includes/layout/sidebar.php';
                     <?php endforeach; ?>
                 </select>
             </td>
-
-            <!-- Abrir Side Modal -->
             <td style="text-align: center;">
                 <button onclick="abrirSide(<?= $t['id'] ?>)" class="btn-ghost" style="padding: 4px; color: <?= $tem_link ? '#1fa463' : 'var(--text-muted)' ?>; opacity: <?= $tem_link ? '1' : '0.6' ?>;" title="Abrir detalhes">
                     <i class="<?= $tem_link ? 'ph-fill ph-check-circle' : 'ph ph-plus-circle' ?>" style="font-size: 22px;"></i>
@@ -284,7 +314,7 @@ require_once '../../includes/layout/sidebar.php';
     </table>
 </div>
 
-<!-- Side Modal -->
+<!-- Side Modal da Tarefa -->
 <div class="overlay" id="overlay" onclick="fecharSide()"></div>
 <div class="side-modal" id="sideModal">
     <div class="side-modal-header">
@@ -330,23 +360,125 @@ require_once '../../includes/layout/sidebar.php';
     </div>
 </div>
 
-<script>
-// Pega a data de hoje diretamente do servidor para não dar conflito de fuso horário
-const dataHoje = '<?= date('Y-m-d') ?>';
+<!-- TELA/MODAL GLOBAL DE LOGS -->
+<div class="modal-overlay" id="modalLogsGlobais" style="z-index: 2000;">
+    <div class="modal-box" style="max-width: 700px; max-height: 85vh; display: flex; flex-direction: column;">
+        <button class="modal-close-btn" onclick="document.getElementById('modalLogsGlobais').classList.remove('active')"><i class="ph ph-x"></i></button>
+        <h3 style="margin-top: 0; color: var(--text);"><i class="ph ph-list-dashes"></i> Histórico de Alterações</h3>
+        <p style="font-size: 13px; color: var(--text-3); margin-bottom: 20px;">Acompanhe o que a equipe alterou e desfaça (rollback) se necessário.</p>
+        
+        <div id="conteudoLogsGlobais" style="overflow-y: auto; flex: 1; padding-right: 10px;">
+            <!-- Renderizado via JS -->
+        </div>
+    </div>
+</div>
 
-// Detecta se está no formato mobile (mesmo breakpoint do CSS)
+<!-- IA FLUTUANTE FIIOTE -->
+<!-- ===========================================
+   IA FLUTUANTE — FIIOTE
+   =========================================== -->
+<div class="ai-floating-container">
+    
+    <!-- Balão de mensagem -->
+    <div class="ai-bubble" id="aiBubble">
+        <div class="ai-bubble-header">
+            <div class="ai-bubble-avatar">
+                <i class="ph-fill ph-robot"></i>
+            </div>
+            <div>
+                <div class="ai-bubble-name">Gasmaske <span>IA</span></div>
+                <div class="ai-bubble-status">Online</div>
+            </div>
+        </div>
+        <p class="ai-bubble-text">
+            E aí🤖<br>
+            Em breve vou estar por aqui pra te ajudar.<br>
+            <strong>#GasmaskeLab</strong>
+        </p>
+        <div class="ai-bubble-time">● Hoje, agora</div>
+    </div>
+
+    <!-- Botão da IA -->
+    <button class="ai-button" id="aiButton" onclick="toggleAI()">
+        <i class="ph-fill ph-robot"></i>
+        <span class="ai-tooltip">Falar com a Gasmaske IA</span>
+        <span class="ai-notif hidden" id="aiNotif">1</span>
+    </button>
+
+</div>
+
+<script>
+
+    function toggleAI() {
+    const bubble = document.getElementById('aiBubble');
+    const button = document.getElementById('aiButton');
+    const notif = document.getElementById('aiNotif');
+    
+    bubble.classList.toggle('active');
+    button.classList.toggle('active');
+    
+    // Esconde a notificação ao abrir
+    if (bubble.classList.contains('active')) {
+        notif.classList.add('hidden');
+    }
+}
+
+// Fecha o balão ao clicar fora (opcional)
+document.addEventListener('click', function(e) {
+    const container = document.querySelector('.ai-floating-container');
+    if (!container.contains(e.target)) {
+        document.getElementById('aiBubble').classList.remove('active');
+        document.getElementById('aiButton').classList.remove('active');
+    }
+});
+
+// Mostra notificação após 3 segundos (exemplo)
+setTimeout(() => {
+    document.getElementById('aiNotif').classList.remove('hidden');
+}, 3000);
+
+const dataHoje = '<?= date('Y-m-d') ?>';
+const statusMap = <?= json_encode($status_lista, JSON_UNESCAPED_UNICODE) ?>;
+
 function isMobileView() {
     return window.innerWidth <= 768;
 }
 
-// Mapa status_geral (chave) -> rótulo, usado para atualizar tudo em tempo real
-const statusMap = <?= json_encode($status_lista, JSON_UNESCAPED_UNICODE) ?>;
+// BUSCA GLOBAL
+function buscarTabela() {
+    const termo = document.getElementById('inputBusca').value.toLowerCase();
+    
+    document.querySelectorAll('.task-row').forEach(row => {
+        const textoLinha = `
+            ${row.getAttribute('data-cliente') || ''} 
+            ${row.getAttribute('data-categoria') || ''} 
+            ${row.getAttribute('data-tema') || ''} 
+            ${row.getAttribute('data-responsavel') || ''} 
+            ${row.getAttribute('data-status') || ''}
+        `.toLowerCase();
+        
+        if (textoLinha.includes(termo)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
 
-// ==========================================
-// ATUALIZAÇÃO EM TEMPO REAL (sem precisar dar F5)
-// ==========================================
+    // Esconde cabeçalhos vazios
+    document.querySelectorAll('.group-header').forEach(header => {
+        let nextRow = header.nextElementSibling;
+        let temVisivel = false;
+        while (nextRow && nextRow.classList.contains('task-row')) {
+            if (nextRow.style.display !== 'none') {
+                temVisivel = true;
+                break;
+            }
+            nextRow = nextRow.nextElementSibling;
+        }
+        header.style.display = temVisivel ? '' : 'none';
+    });
+}
 
-// Recalcula a cor do prazo (vencido/hoje/normal) e o "apagado" de finalizado
 function recalcularEstiloLinha(row) {
     const dateInput = row.querySelector('td input[type="date"]');
     const statusKey = row.getAttribute('data-status-key');
@@ -356,13 +488,9 @@ function recalcularEstiloLinha(row) {
         dateInput.classList.remove('prazo-vencido', 'prazo-hoje', 'prazo-normal');
         if (!finalizado) {
             const val = dateInput.value;
-            if (val && val < dataHoje) {
-                dateInput.classList.add('prazo-vencido');
-            } else if (val === dataHoje) {
-                dateInput.classList.add('prazo-hoje');
-            } else {
-                dateInput.classList.add('prazo-normal');
-            }
+            if (val && val < dataHoje) dateInput.classList.add('prazo-vencido');
+            else if (val === dataHoje) dateInput.classList.add('prazo-hoje');
+            else dateInput.classList.add('prazo-normal');
         }
     }
 
@@ -370,7 +498,6 @@ function recalcularEstiloLinha(row) {
     row.classList.toggle('tarefa-finalizada', finalizado);
 }
 
-// Chamado quando o STATUS muda: atualiza tudo (cor de prazo, apagado, agrupamento) na hora
 function atualizarStatusLinha(select) {
     const row = select.closest('tr');
     const statusKey = select.value;
@@ -380,24 +507,13 @@ function atualizarStatusLinha(select) {
     agruparTabela(false);
 }
 
-// FUNÇÃO NOVA: Formata a data para o padrão Brasileiro
 function formatarDataVisao(dataStr) {
     if (!dataStr || dataStr.indexOf('-') === -1) return dataStr;
-    
     const partes = dataStr.split('-');
     if (partes.length !== 3) return dataStr;
-    
-    const ano = partes[0];
-    const mes = partes[1];
-    const dia = partes[2];
+    const ano = partes[0], mes = partes[1], dia = partes[2];
     const anoAtual = new Date().getFullYear().toString();
-    
-    // Se for o ano atual, exibe só DIA/MÊS. Se for diferente, exibe DIA/MÊS/ANO.
-    if (ano === anoAtual) {
-        return `${dia}/${mes}`;
-    } else {
-        return `${dia}/${mes}/${ano}`;
-    }
+    return (ano === anoAtual) ? `${dia}/${mes}` : `${dia}/${mes}/${ano}`;
 }
 
 function quickAddSubmit() {
@@ -414,15 +530,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const groupKey = isMobileView() ? 'planejamento_group_mobile' : 'planejamento_group';
     const lastGroup = localStorage.getItem(groupKey);
 
-    if (lastGroup && lastGroup !== 'none') {
-        document.getElementById('groupBySelect').value = lastGroup;
-    } else if (!lastGroup && isMobileView()) {
-        // No celular, sem preferência salva ainda: já abre organizado por data
-        // (assim "Hoje" e "Atrasadas" ficam em evidência e o resto some até precisar)
-        document.getElementById('groupBySelect').value = 'data';
-    }
+    if (lastGroup && lastGroup !== 'none') document.getElementById('groupBySelect').value = lastGroup;
+    else if (!lastGroup && isMobileView()) document.getElementById('groupBySelect').value = 'data';
 
-    // Restaura o zoom salvo da última vez
     const lastZoom = localStorage.getItem('planejamento_zoom');
     if (lastZoom) {
         document.getElementById('tableZoom').value = lastZoom;
@@ -441,6 +551,61 @@ function salvar(id, campo, valor) {
     fetch('index.php', {method: 'POST', body: fd});
 }
 
+// LOGS GLOBAIS
+function abrirModalLogsGlobais() {
+    document.getElementById('modalLogsGlobais').classList.add('active');
+    const lista = document.getElementById('conteudoLogsGlobais');
+    lista.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="ph ph-spinner ph-spin" style="font-size: 24px;"></i><br>Buscando histórico...</div>';
+
+    let fd = new FormData();
+    fd.append('acao', 'carregar_logs_globais');
+
+    fetch('index.php', { method: 'POST', body: fd })
+    .then(res => res.json())
+    .then(data => {
+        if (data.length === 0) {
+            lista.innerHTML = '<div class="empty-state">Nenhuma alteração registrada ainda.</div>';
+            return;
+        }
+        
+        lista.innerHTML = data.map(log => {
+            let tarefaTexto = log.tarefa_tema ? log.tarefa_tema : `Tarefa #${log.tarefa_id} (Deletada)`;
+            return `
+            <div style="background: var(--bg-elevated); border: 1px solid var(--border-mid); border-radius: var(--r-md); padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-size: 11px; color: var(--text-3); margin-bottom: 4px;">
+                        <i class="ph ph-calendar-blank"></i> ${log.criado_em} &nbsp;|&nbsp; 
+                        <i class="ph ph-user"></i> <strong>${log.usuario_nome || 'Sistema'}</strong>
+                    </div>
+                    <div style="font-size: 14px; color: var(--text); font-weight: 600; margin-bottom: 4px;">
+                        ${tarefaTexto}
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-2);">
+                        Alterou <span class="badge badge-blue">${log.campo}</span><br>
+                        De: <em><strike>${log.valor_antigo || '(vazio)'}</strike></em> ➔ Para: <strong>${log.valor_novo || '(vazio)'}</strong>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-primary btn-sm" onclick="reverterLog(${log.id})" title="Desfazer e voltar pro valor antigo">
+                    <i class="ph ph-arrow-u-up-left"></i> Desfazer
+                </button>
+            </div>
+            `;
+        }).join('');
+    });
+}
+
+function reverterLog(log_id) {
+    if(!confirm('Tem certeza que deseja reverter esta alteração?')) return;
+    
+    let fd = new FormData();
+    fd.append('acao', 'reverter_log');
+    fd.append('log_id', log_id);
+
+    fetch('index.php', { method: 'POST', body: fd }).then(() => {
+        window.location.reload();
+    });
+}
+
 function abrirSide(id) {
     const link = document.getElementById('hidden_link_'+id).value;
     
@@ -451,7 +616,6 @@ function abrirSide(id) {
     document.getElementById('sideInspiracao').value = document.getElementById('hidden_ins_'+id).value;
     document.getElementById('sideLink').value = link;
     
-    // Atualiza o botão de abrir link
     const btnAbrir = document.getElementById('btnAbrirLink');
     if(link && link.trim() !== '') {
         btnAbrir.href = link;
@@ -546,6 +710,12 @@ function sortTable(col, toggle = true) {
         currentSortAsc = true;
     }
 
+    // MEMORIZAR GRUPOS ABERTOS PARA NÃO COLAPSAR AO SALVAR
+    const expandedGroups = new Set();
+    document.querySelectorAll('.group-header:not(.collapsed)').forEach(h => {
+        expandedGroups.add(h.textContent.trim());
+    });
+
     document.querySelectorAll('.sortable i').forEach(icon => {
         icon.className = 'ph ph-arrows-down-up';
         icon.style.opacity = '0.5';
@@ -565,10 +735,13 @@ function sortTable(col, toggle = true) {
         let valB = b.getAttribute('data-' + currentSortCol).toLowerCase();
         let cmp = 0;
 
-        // BLINDAGEM DA DATA: VAZIO SEMPRE NO FINAL
         if (currentSortCol === 'data') {
             let isAEmpty = (!valA || valA === '');
             let isBEmpty = (!valB || valB === '');
+            
+            // Lógica para empurrar datas retroativas (atrasadas)
+            let isAOverdue = (!isAEmpty && valA < dataHoje) ? 1 : 0;
+            let isBOverdue = (!isBEmpty && valB < dataHoje) ? 1 : 0;
             
             if (isAEmpty && !isBEmpty) cmp = 1;
             else if (!isAEmpty && isBEmpty) cmp = -1;
@@ -585,7 +758,6 @@ function sortTable(col, toggle = true) {
             else if (valA > valB) cmp = currentSortAsc ? 1 : -1;
         }
 
-        // TAREFAS FINALIZADAS: sempre no final do seu "bucket" (mesmo dia/mesmo valor), apagadas
         if (cmp === 0) {
             const finA = a.getAttribute('data-finalizado') === '1';
             const finB = b.getAttribute('data-finalizado') === '1';
@@ -610,33 +782,48 @@ function sortTable(col, toggle = true) {
             groups[val].push(r);
         });
         
-        Object.keys(groups).sort().forEach(g => {
-            // Lógica do colapso: Se for grupo de data e a data for hoje, não colapsa. O resto, colapsa tudo.
-            // No mobile, além de "hoje", as tarefas ATRASADAS também já ficam abertas por padrão
-            // (são as mais urgentes de ver) - o resto (futuras) fica escondido até o usuário pedir.
-            let isCollapsed = true;
+        let chavesGrupos = Object.keys(groups);
+        
+        // ORDENAR OS GRUPOS: ATRASADAS E VAZIAS PRO FUNDO
+        chavesGrupos.sort((a, b) => {
             if (crit === 'data') {
-                if (g === dataHoje) {
-                    isCollapsed = false;
-                } else if (isMobileView() && g && g !== '(vazio)' && g < dataHoje) {
-                    isCollapsed = false;
-                }
-            }
+                let isAEmpty = (a === '(vazio)' || a === '');
+                let isBEmpty = (b === '(vazio)' || b === '');
+                let isAPast = !isAEmpty && a < dataHoje;
+                let isBPast = !isBEmpty && b < dataHoje;
 
+                if (isAEmpty && !isBEmpty) return 1;
+                if (!isAEmpty && isBEmpty) return -1;
+                
+                if (isAPast && !isBPast) return 1;
+                if (!isAPast && isBPast) return -1;
+                
+                return a < b ? -1 : (a > b ? 1 : 0);
+            }
+            return a < b ? -1 : (a > b ? 1 : 0);
+        });
+
+        chavesGrupos.forEach(g => {
             let labelDisplay = g;
-            
-            // AQUI APLICAMOS A NOVA FORMATAÇÃO DE DATA
             if (crit === 'data') {
                 if (g === '(vazio)' || g === '') {
                     labelDisplay = 'Sem data definida';
                 } else {
                     const dataFormatada = formatarDataVisao(g);
-                    if (g === dataHoje) {
-                        labelDisplay = 'Hoje (' + dataFormatada + ')';
-                    } else {
-                        labelDisplay = dataFormatada;
-                    }
+                    if (g === dataHoje) labelDisplay = 'Hoje (' + dataFormatada + ')';
+                    else labelDisplay = dataFormatada;
                 }
+            }
+
+            const textoHeader = `${labelDisplay} (${groups[g].length})`;
+            
+            // VERIFICAR SE DEVE FICAR COLAPSADO
+            let isCollapsed = true;
+            if (expandedGroups.has(textoHeader)) {
+                isCollapsed = false; // Mantém aberto se já estava aberto
+            } else if (crit === 'data') {
+                if (g === dataHoje) isCollapsed = false;
+                else if (isMobileView() && g && g !== '(vazio)' && g < dataHoje) isCollapsed = false;
             }
 
             const header = document.createElement('tr');
@@ -644,7 +831,6 @@ function sortTable(col, toggle = true) {
             header.innerHTML = `<td colspan="8"><i class="ph ph-caret-down icone-colapso" style="margin-right: 5px;"></i> ${labelDisplay} <span style="color: var(--text-muted); font-size: 13px; font-weight: normal; margin-left: 5px;">(${groups[g].length})</span></td>`;
             tbody.appendChild(header);
             
-            // Dentro do grupo, finalizados sempre por último (mantendo a ordem entre eles)
             const naoFinalizados = groups[g].filter(r => r.getAttribute('data-finalizado') !== '1');
             const finalizados = groups[g].filter(r => r.getAttribute('data-finalizado') === '1');
             const listaFinal = naoFinalizados.concat(finalizados);
@@ -656,7 +842,6 @@ function sortTable(col, toggle = true) {
             });
         });
 
-        // No mobile, resume o que ficou escondido num botão único pra não precisar caçar cabeçalho por cabeçalho
         if (isMobileView() && crit === 'data') {
             const escondidas = tbody.querySelectorAll('.task-row.linha-colapsada').length;
             if (escondidas > 0) {
@@ -670,6 +855,11 @@ function sortTable(col, toggle = true) {
             }
         }
     }
+    
+    // Reaplica a busca caso ela estivesse ativa durante o sort
+    if(document.getElementById('inputBusca').value !== '') {
+        buscarTabela();
+    }
 }
 
 function agruparTabela(save) {
@@ -681,7 +871,6 @@ function agruparTabela(save) {
     sortTable(currentSortCol || 'data', false);
 }
 
-// Expande de uma vez todos os grupos/linhas escondidas (usado pelo botão "Ver mais futuras" no mobile)
 function expandirTudoMobile(btn) {
     document.querySelectorAll('.group-header.collapsed').forEach(h => h.classList.remove('collapsed'));
     document.querySelectorAll('.task-row.linha-colapsada').forEach(r => r.classList.remove('linha-colapsada'));
@@ -689,11 +878,7 @@ function expandirTudoMobile(btn) {
     if (row) row.remove();
 }
 
-// ==========================================
-// SISTEMA DE COLAPSO E CLIQUE MOBILE
-// ==========================================
 document.getElementById('tableBody').addEventListener('click', function(e) {
-    // Ação 1: Colapso dos cabeçalhos de grupos
     const header = e.target.closest('.group-header');
     if (header) {
         header.classList.toggle('collapsed');
@@ -707,10 +892,8 @@ document.getElementById('tableBody').addEventListener('click', function(e) {
         return;
     }
 
-    // Ação 2: Expansão do Card no Mobile
     if (window.innerWidth <= 768) {
         const row = e.target.closest('.task-row');
-        // Só expande se não tiver clicado num campo de edição ou botão
         if (row && !['INPUT', 'SELECT', 'BUTTON', 'A', 'TEXTAREA', 'I'].includes(e.target.tagName)) {
             row.classList.toggle('expanded');
         }

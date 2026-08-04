@@ -2021,3 +2021,250 @@ a.metric-premium-card.clickable:hover {
 
     --red-glow:     rgba(255, 63, 52, 0.08);
 }
+
+/* ===========================================
+   IA FLUTUANTE — FIIOTE
+   =========================================== */
+
+.ai-floating-container {
+    position: fixed;
+    bottom: 50px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+}
+
+/* Balão de chat */
+.ai-bubble {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-mid);
+    border-radius: var(--r-lg) var(--r-lg) 0 var(--r-lg);
+    padding: 16px 18px;
+    max-width: 280px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    animation: aiBubbleIn 0.3s ease-out;
+    position: relative;
+    display: none;
+}
+
+.ai-bubble.active {
+    display: block;
+}
+
+.ai-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    right: 16px;
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 12px solid var(--bg-surface);
+}
+
+.ai-bubble-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.ai-bubble-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.ai-bubble-avatar i {
+    color: #fff;
+    font-size: 16px;
+}
+
+.ai-bubble-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.ai-bubble-name span {
+    color: var(--red);
+}
+
+.ai-bubble-status {
+    font-size: 10px;
+    color: var(--green);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ai-bubble-status::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    display: inline-block;
+    animation: pulse-dot 1.5s infinite;
+}
+
+.ai-bubble-text {
+    font-size: 13px;
+    color: var(--text-2);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.ai-bubble-text strong {
+    color: var(--text);
+}
+
+.ai-bubble-time {
+    font-size: 10px;
+    color: var(--text-3);
+    margin-top: 8px;
+    text-align: right;
+    font-family: var(--font-mono);
+}
+
+/* Botão da IA */
+.ai-button {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--red);
+    box-shadow: 0 4px 20px rgba(255, 63, 52, 0.35);
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+    flex-shrink: 0;
+}
+
+.ai-button:hover {
+    transform: scale(1.08);
+    box-shadow: 0 6px 28px rgba(255, 63, 52, 0.5);
+}
+
+.ai-button:active {
+    transform: scale(0.92);
+}
+
+.ai-button i {
+    color: #fff;
+    font-size: 28px;
+    transition: transform 0.3s;
+}
+
+.ai-button.active i {
+    transform: rotate(45deg);
+}
+
+/* Notificação pulsante no botão */
+.ai-button .ai-notif {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 18px;
+    height: 18px;
+    background: var(--green);
+    border-radius: 50%;
+    font-size: 9px;
+    font-weight: 700;
+    color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--bg);
+    animation: pulse-ring 2s infinite;
+}
+
+.ai-button .ai-notif.hidden {
+    display: none;
+}
+
+/* Tooltip (opcional) */
+.ai-tooltip {
+    position: absolute;
+    bottom: 70px;
+    right: 0;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-mid);
+    padding: 6px 14px;
+    border-radius: var(--r-sm);
+    font-size: 11px;
+    color: var(--text-2);
+    white-space: nowrap;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.25s;
+    pointer-events: none;
+    font-weight: 500;
+}
+
+.ai-button:hover .ai-tooltip {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Animações */
+@keyframes aiBubbleIn {
+    from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.7); }
+}
+
+@keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+    70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+/* Responsivo */
+@media (max-width: 480px) {
+    .ai-floating-container {
+        bottom: 16px;
+        right: 16px;
+    }
+    
+    .ai-button {
+        width: 52px;
+        height: 52px;
+    }
+    
+    .ai-button i {
+        font-size: 24px;
+    }
+    
+    .ai-bubble {
+        max-width: 240px;
+        padding: 14px 16px;
+    }
+    
+    .ai-bubble-text {
+        font-size: 12px;
+    }
+}
