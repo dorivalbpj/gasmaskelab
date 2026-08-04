@@ -18,14 +18,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
         
         $campos = ['responsavel_id', 'prioridade', 'data_publicacao', 'status_geral', 'link_arte_final', 'tipo', 'cliente_id', 'tema'];
         if (in_array($campo, $campos)) {
-            // Pega o valor antigo para o log
             $stmt = $pdo->prepare("SELECT {$campo} FROM planejamento WHERE id = ?");
             $stmt->execute([$id]);
             $valor_antigo = $stmt->fetchColumn();
 
-            // Só salva o log se realmente houver alteração
             if ($valor_antigo != $valor) {
-                $usuario_log = $_SESSION['usuario_id'] ?? 1; // Fallback caso perca a sessão no ajax
+                $usuario_log = $_SESSION['usuario_id'] ?? 1;
                 $pdo->prepare("INSERT INTO planejamento_logs (tarefa_id, usuario_id, campo, valor_antigo, valor_novo) VALUES (?, ?, ?, ?, ?)")
                     ->execute([$id, $usuario_log, $campo, $valor_antigo, $valor]);
             }
@@ -78,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
     if ($_POST['acao'] == 'quick_add') {
         $tema = trim($_POST['tema']);
         $cliente_id = empty($_POST['cliente_id']) ? null : $_POST['cliente_id'];
-        $resp_id = $_SESSION['usuario_id'] ?? null; // Atribui a quem está criando
+        $resp_id = $_SESSION['usuario_id'] ?? null;
         
         if ($tema) {
             $sql = "INSERT INTO planejamento (tema, cliente_id, prioridade, status_geral, data_publicacao, responsavel_id) 
@@ -96,7 +94,6 @@ foreach($usuarios as $u) {
     $usuarios_map[$u['id']] = $u['nome'];
 }
 
-// --- GERADOR DINÂMICO DE CORES PARA OS RESPONSÁVEIS ---
 echo '<style>';
 $paleta = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#0284c7'];
 $c_index = 0;
@@ -107,10 +104,8 @@ foreach($usuarios as $u) {
 }
 echo '</style>';
 
-// Buscar CLIENTES diretamente da tabela clientes
 $clientes = $pdo->query("SELECT id, nome FROM clientes ORDER BY nome ASC")->fetchAll();
 
-// ---GERADOR DINÂMICO DE CORES PARA OS CLIENTES ---
 echo '<style>';
 $paleta_clientes = ['#059669', '#2563eb', '#7c3aed', '#db2777', '#dc2626', '#d97706', '#65a30d', '#0d9488', '#0284c7', '#4f46e5', '#c026d3', '#e11d48', '#ea580c', '#ca8a04', '#4d7c0f'];
 $c_index_cli = 0;
@@ -137,7 +132,6 @@ $status_lista = [
     'arquivado' => 'Arquivado'
 ];
 
-// Busca principal
 $tarefas = $pdo->query("
     SELECT p.*, c.nome as cliente_nome 
     FROM planejamento p 
@@ -151,27 +145,34 @@ require_once '../../includes/layout/sidebar.php';
 
 <link rel="stylesheet" href="../../assets/css/planejamento.css">
 
-<div class="cabecalho">
-    <div>
+<div class="header-planejamento">
+    <!-- Bloco da Esquerda: Título e Números Rápidos -->
+    <div class="header-title-block">
         <h2 class="page-title">Planejamento</h2>
-        <p class="page-subtitle">Gestão operacional de tarefas.</p>
+        <div class="header-stats" id="headerStats">
+            <span class="stat-badge danger hidden" onclick="scrollToAtrasadas()" id="badgeAtrasadas" title="Ir para tarefas atrasadas">
+                <i class="ph-fill ph-warning-circle"></i> <span id="countAtrasadas">0</span> Atrasadas
+            </span>
+            <span class="stat-badge warning hidden" onclick="scrollToHoje()" id="badgeHoje" title="Ir para tarefas de hoje">
+                <i class="ph-fill ph-clock"></i> <span id="countHoje">0</span> Para Hoje
+            </span>
+        </div>
     </div>
     
-    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-        <!-- CAMPO DE BUSCA -->
-        <div class="search-container" style="position: relative;">
-            <i class="ph ph-magnifying-glass" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-3);"></i>
-            <input type="text" id="inputBusca" class="gn-select" placeholder="Buscar tarefa..." onkeyup="buscarTabela()" style="padding-left: 32px; width: 220px;">
+    <!-- Bloco do Meio: Filtros e Controles -->
+    <div class="header-controls">
+        <div class="search-wrapper">
+            <i class="ph ph-magnifying-glass search-icon"></i>
+            <input type="text" id="inputBusca" class="gn-select input-busca" placeholder="Buscar tarefa..." onkeyup="buscarTabela()">
         </div>
 
-        <!-- CONTROLE DE ZOOM -->
-        <div class="zoom-control" style="display: flex; align-items: center; gap: 5px; margin-right: 10px;">
-            <i class="ph ph-magnifying-glass-minus" style="color: var(--text-muted); font-size: 18px;"></i>
-            <input type="range" id="tableZoom" min="60" max="130" value="100" oninput="document.getElementById('mainTable').style.zoom = this.value + '%'; localStorage.setItem('planejamento_zoom', this.value);" style="width: 80px; cursor: pointer;">
-            <i class="ph ph-magnifying-glass-plus" style="color: var(--text-muted); font-size: 18px;"></i>
+        <div class="zoom-control-box">
+            <i class="ph ph-magnifying-glass-minus text-muted" style="font-size: 18px;"></i>
+            <input type="range" id="tableZoom" class="zoom-slider" min="60" max="130" value="100" oninput="document.getElementById('mainTable').style.zoom = this.value + '%'; localStorage.setItem('planejamento_zoom', this.value);">
+            <i class="ph ph-magnifying-glass-plus text-muted" style="font-size: 18px;"></i>
         </div>
 
-        <select id="groupBySelect" class="gn-select" onchange="agruparTabela(true)" style="width: auto; height: 40px; border: 1px solid var(--border-mid);">
+        <select id="groupBySelect" class="gn-select w-auto" style="height: 44px;" onchange="agruparTabela(true)">
             <option value="none">Lista Simples</option>
             <option value="cliente">Agrupar por Cliente</option>
             <option value="categoria">Agrupar por Categoria</option>
@@ -179,16 +180,19 @@ require_once '../../includes/layout/sidebar.php';
             <option value="status">Agrupar por Status</option>
             <option value="data">Agrupar por Data</option>
         </select>
+    </div>
 
-        <button class="btn btn-secondary" onclick="abrirModalLogsGlobais()" style="height: 40px; display: flex; align-items: center; gap: 8px;">
+    <!-- Bloco da Direita: Ações de Impacto -->
+    <div class="action-buttons">
+        <button class="btn btn-secondary btn-h44" onclick="abrirModalLogsGlobais()">
             <i class="ph ph-clock-counter-clockwise"></i> Logs
         </button>
-
-        <button class="btn btn-primary" onclick="document.getElementById('rowNewTask').style.display='table-row'; document.getElementById('inputNewTema').focus();" style="height: 40px; display: flex; align-items: center; gap: 8px;"><i class="ph ph-plus"></i> Nova Tarefa</button>
+        <button class="btn btn-primary btn-h44" onclick="document.getElementById('rowNewTask').style.display='table-row'; document.getElementById('inputNewTema').focus();">
+            <i class="ph ph-plus"></i> Nova Tarefa
+        </button>
     </div>
 </div>
 
-<!-- Formulário real invisível para o quick add -->
 <form id="realQuickAddForm" method="POST" style="display:none;">
     <input type="hidden" name="acao" value="quick_add">
     <input type="hidden" name="cliente_id" id="hiddenQuickCliente">
@@ -211,7 +215,6 @@ require_once '../../includes/layout/sidebar.php';
         </thead>
         <tbody id="tableBody">
 
-        <!-- Quick Add -->
         <tr id="rowNewTask" style="display: none; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-mid);">
             <td>
                 <select id="quickClienteId" onchange="this.className='silent-select pill '+(this.value ? 'pill-cliente-'+this.value : 'pill-cliente-interno')" class="silent-select pill pill-cliente-interno" style="font-weight: 600; border: 1px solid var(--border-mid); color: #fff;">
@@ -367,19 +370,12 @@ require_once '../../includes/layout/sidebar.php';
         <h3 style="margin-top: 0; color: var(--text);"><i class="ph ph-list-dashes"></i> Histórico de Alterações</h3>
         <p style="font-size: 13px; color: var(--text-3); margin-bottom: 20px;">Acompanhe o que a equipe alterou e desfaça (rollback) se necessário.</p>
         
-        <div id="conteudoLogsGlobais" style="overflow-y: auto; flex: 1; padding-right: 10px;">
-            <!-- Renderizado via JS -->
-        </div>
+        <div id="conteudoLogsGlobais" style="overflow-y: auto; flex: 1; padding-right: 10px;"></div>
     </div>
 </div>
 
 <!-- IA FLUTUANTE FIIOTE -->
-<!-- ===========================================
-   IA FLUTUANTE — FIIOTE
-   =========================================== -->
 <div class="ai-floating-container">
-    
-    <!-- Balão de mensagem -->
     <div class="ai-bubble" id="aiBubble">
         <div class="ai-bubble-header">
             <div class="ai-bubble-avatar">
@@ -398,18 +394,16 @@ require_once '../../includes/layout/sidebar.php';
         <div class="ai-bubble-time">● Hoje, agora</div>
     </div>
 
-    <!-- Botão da IA -->
     <button class="ai-button" id="aiButton" onclick="toggleAI()">
         <i class="ph-fill ph-robot"></i>
         <span class="ai-tooltip">Falar com a Gasmaske IA</span>
         <span class="ai-notif hidden" id="aiNotif">1</span>
     </button>
-
 </div>
 
 <script>
-
-    function toggleAI() {
+// --- FUNÇÕES DA IA FLUTUANTE ---
+function toggleAI() {
     const bubble = document.getElementById('aiBubble');
     const button = document.getElementById('aiButton');
     const notif = document.getElementById('aiNotif');
@@ -417,13 +411,11 @@ require_once '../../includes/layout/sidebar.php';
     bubble.classList.toggle('active');
     button.classList.toggle('active');
     
-    // Esconde a notificação ao abrir
     if (bubble.classList.contains('active')) {
         notif.classList.add('hidden');
     }
 }
 
-// Fecha o balão ao clicar fora (opcional)
 document.addEventListener('click', function(e) {
     const container = document.querySelector('.ai-floating-container');
     if (!container.contains(e.target)) {
@@ -432,9 +424,9 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// Mostra notificação após 3 segundos (exemplo)
 setTimeout(() => {
-    document.getElementById('aiNotif').classList.remove('hidden');
+    const notif = document.getElementById('aiNotif');
+    if (notif) notif.classList.remove('hidden');
 }, 3000);
 
 const dataHoje = '<?= date('Y-m-d') ?>';
@@ -444,7 +436,82 @@ function isMobileView() {
     return window.innerWidth <= 768;
 }
 
-// BUSCA GLOBAL
+// --- ATUALIZAR CONTADORES DO CABEÇALHO ---
+function atualizarContadores() {
+    let atrasadas = 0;
+    let hoje = 0;
+    const rows = document.querySelectorAll('.task-row');
+    
+    rows.forEach(row => {
+        const status = row.getAttribute('data-status-key');
+        if (status === 'finalizado' || status === 'arquivado') return;
+        
+        const dataStr = row.getAttribute('data-data');
+        if (!dataStr) return;
+
+        if (dataStr < dataHoje) atrasadas++;
+        else if (dataStr === dataHoje) hoje++;
+    });
+
+    const badgeAtrasadas = document.getElementById('badgeAtrasadas');
+    const badgeHoje = document.getElementById('badgeHoje');
+
+    if (atrasadas > 0) {
+        document.getElementById('countAtrasadas').textContent = atrasadas;
+        badgeAtrasadas.classList.remove('hidden');
+    } else {
+        badgeAtrasadas.classList.add('hidden');
+    }
+
+    if (hoje > 0) {
+        document.getElementById('countHoje').textContent = hoje;
+        badgeHoje.classList.remove('hidden');
+    } else {
+        badgeHoje.classList.add('hidden');
+    }
+}
+
+// --- SCROLL PARA DATAS ATRASADAS ---
+function scrollToAtrasadas() {
+    document.getElementById('groupBySelect').value = 'data';
+    agruparTabela(false);
+    
+    setTimeout(() => {
+        document.querySelectorAll('.group-header[data-grupo-atrasado="1"]').forEach(h => {
+            h.classList.remove('collapsed');
+            let nextRow = h.nextElementSibling;
+            while (nextRow && !nextRow.classList.contains('group-header')) {
+                nextRow.classList.remove('linha-colapsada');
+                nextRow = nextRow.nextElementSibling;
+            }
+        });
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }, 100);
+}
+
+// --- SCROLL PARA TAREFAS DE HOJE ---
+function scrollToHoje() {
+    document.getElementById('groupBySelect').value = 'data';
+    agruparTabela(false);
+    
+    setTimeout(() => {
+        const headers = document.querySelectorAll('.group-header');
+        for(let h of headers) {
+            if(h.textContent.includes('Hoje')) {
+                h.classList.remove('collapsed');
+                let nextRow = h.nextElementSibling;
+                while (nextRow && !nextRow.classList.contains('group-header')) {
+                    nextRow.classList.remove('linha-colapsada');
+                    nextRow = nextRow.nextElementSibling;
+                }
+                h.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                break;
+            }
+        }
+    }, 100);
+}
+
+// --- BUSCA GLOBAL ---
 function buscarTabela() {
     const termo = document.getElementById('inputBusca').value.toLowerCase();
     
@@ -464,7 +531,6 @@ function buscarTabela() {
         }
     });
 
-    // Esconde cabeçalhos vazios
     document.querySelectorAll('.group-header').forEach(header => {
         let nextRow = header.nextElementSibling;
         let temVisivel = false;
@@ -496,6 +562,8 @@ function recalcularEstiloLinha(row) {
 
     row.setAttribute('data-finalizado', finalizado ? '1' : '0');
     row.classList.toggle('tarefa-finalizada', finalizado);
+    
+    atualizarContadores();
 }
 
 function atualizarStatusLinha(select) {
@@ -540,6 +608,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     sortTable('data', false);
+    atualizarContadores();
 });
 
 function salvar(id, campo, valor) {
@@ -710,7 +779,6 @@ function sortTable(col, toggle = true) {
         currentSortAsc = true;
     }
 
-    // MEMORIZAR GRUPOS ABERTOS PARA NÃO COLAPSAR AO SALVAR
     const expandedGroups = new Set();
     document.querySelectorAll('.group-header:not(.collapsed)').forEach(h => {
         expandedGroups.add(h.textContent.trim());
@@ -739,7 +807,6 @@ function sortTable(col, toggle = true) {
             let isAEmpty = (!valA || valA === '');
             let isBEmpty = (!valB || valB === '');
             
-            // Lógica para empurrar datas retroativas (atrasadas)
             let isAOverdue = (!isAEmpty && valA < dataHoje) ? 1 : 0;
             let isBOverdue = (!isBEmpty && valB < dataHoje) ? 1 : 0;
             
@@ -784,7 +851,6 @@ function sortTable(col, toggle = true) {
         
         let chavesGrupos = Object.keys(groups);
         
-        // ORDENAR OS GRUPOS: ATRASADAS E VAZIAS PRO FUNDO
         chavesGrupos.sort((a, b) => {
             if (crit === 'data') {
                 let isAEmpty = (a === '(vazio)' || a === '');
@@ -817,10 +883,9 @@ function sortTable(col, toggle = true) {
 
             const textoHeader = `${labelDisplay} (${groups[g].length})`;
             
-            // VERIFICAR SE DEVE FICAR COLAPSADO
             let isCollapsed = true;
             if (expandedGroups.has(textoHeader)) {
-                isCollapsed = false; // Mantém aberto se já estava aberto
+                isCollapsed = false;
             } else if (crit === 'data') {
                 if (g === dataHoje) isCollapsed = false;
                 else if (isMobileView() && g && g !== '(vazio)' && g < dataHoje) isCollapsed = false;
@@ -828,6 +893,12 @@ function sortTable(col, toggle = true) {
 
             const header = document.createElement('tr');
             header.className = isCollapsed ? 'group-header collapsed' : 'group-header';
+            
+            // TAG PARA O SCROLL DAS ATRASADAS
+            if (crit === 'data' && g !== '(vazio)' && g !== '' && g < dataHoje) {
+                header.setAttribute('data-grupo-atrasado', '1');
+            }
+
             header.innerHTML = `<td colspan="8"><i class="ph ph-caret-down icone-colapso" style="margin-right: 5px;"></i> ${labelDisplay} <span style="color: var(--text-muted); font-size: 13px; font-weight: normal; margin-left: 5px;">(${groups[g].length})</span></td>`;
             tbody.appendChild(header);
             
@@ -856,7 +927,6 @@ function sortTable(col, toggle = true) {
         }
     }
     
-    // Reaplica a busca caso ela estivesse ativa durante o sort
     if(document.getElementById('inputBusca').value !== '') {
         buscarTabela();
     }
