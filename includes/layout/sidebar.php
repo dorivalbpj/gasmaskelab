@@ -11,8 +11,8 @@ $current_page = basename($_SERVER['PHP_SELF']);
 <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="brand-wrapper">
-    <img src="<?= BASE_URL ?>assets/img/logo-h.png" class="logo-img logo-h" alt="Logo">
-</div>
+            <img src="<?= BASE_URL ?>assets/img/logo-h.png" class="logo-img logo-h" alt="Logo">
+        </div>
     </div>
     
     <div class="sidebar-menu">
@@ -94,8 +94,77 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </div>
         </div>
         
-        <div class="top-header-right">
+        <!-- DIREITA DO CABEÇALHO -->
+        <div class="top-header-right" style="display: flex; align-items: center; gap: 20px;">
             
+            <!-- SISTEMA DE NOTIFICAÇÕES (INSERIDO AQUI) -->
+            <div class="notification-wrapper">
+                <button class="notification-btn" onclick="toggleNotificacoes()">
+                    <i class="ph ph-bell"></i>
+                    <?php if (isset($total_notificacoes) && $total_notificacoes > 0): ?>
+                        <span class="notification-badge"><?= $total_notificacoes ?></span>
+                    <?php endif; ?>
+                </button>
+                
+                <!-- DROPDOWN DE NOTIFICAÇÕES -->
+                <div class="notification-dropdown" id="notifDropdown">
+                    <div class="notif-header">
+                        <h4>Notificações</h4>
+                        <span><?= $total_notificacoes ?? 0 ?> pendentes</span>
+                    </div>
+                    <div class="notif-body">
+                        <?php if (!isset($total_notificacoes) || $total_notificacoes == 0): ?>
+                            <div class="notif-empty">
+                                <i class="ph ph-check-circle"></i> Tudo limpo por aqui!
+                            </div>
+                        <?php else: ?>
+                            
+                            <?php if ($notif_briefings > 0): ?>
+                                <a href="<?= BASE_URL ?>modules/briefing/index.php" class="notif-item">
+                                    <div class="notif-icon bg-green-light text-green"><i class="ph-fill ph-file-plus"></i></div>
+                                    <div class="notif-content">
+                                        <strong>Briefings Novos</strong>
+                                        <p><?= $notif_briefings ?> solicitação(ões) na caixa</p>
+                                    </div>
+                                </a>
+                            <?php endif; ?>
+                            
+                            <?php if ($notif_propostas > 0): ?>
+                                <a href="<?= BASE_URL ?>modules/propostas/index.php" class="notif-item">
+                                    <div class="notif-icon bg-yellow-light text-yellow"><i class="ph-fill ph-file-text"></i></div>
+                                    <div class="notif-content">
+                                        <strong>Propostas</strong>
+                                        <p><?= $notif_propostas ?> parada(s) ou alterada(s)</p>
+                                    </div>
+                                </a>
+                            <?php endif; ?>
+                            
+                            <?php if ($notif_contratos > 0): ?>
+                                <a href="<?= BASE_URL ?>modules/contratos/index.php" class="notif-item">
+                                    <div class="notif-icon bg-blue-light text-blue"><i class="ph-fill ph-handshake"></i></div>
+                                    <div class="notif-content">
+                                        <strong>Contratos</strong>
+                                        <p><?= $notif_contratos ?> aguardando assinatura</p>
+                                    </div>
+                                </a>
+                            <?php endif; ?>
+                            
+                            <?php if ($notif_crm > 0): ?>
+                                <a href="<?= BASE_URL ?>modules/crm/index.php" class="notif-item">
+                                    <div class="notif-icon bg-red-light text-red"><i class="ph-fill ph-phone-call"></i></div>
+                                    <div class="notif-content">
+                                        <strong>CRM - Follow-up</strong>
+                                        <p><?= $notif_crm ?> contato(s) para hoje/atrasado</p>
+                                    </div>
+                                </a>
+                            <?php endif; ?>
+                            
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PERFIL DO USUÁRIO -->
             <div style="display: flex; align-items: center; gap: 12px;">
                 <div style="text-align: right;">
                     <span style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); line-height: 1.2;">
@@ -152,4 +221,18 @@ function toggleSubmenu(el) {
     }
     el.parentElement.classList.toggle('open');
 }
+
+// Funções do Dropdown de Notificações
+function toggleNotificacoes() {
+    document.getElementById('notifDropdown').classList.toggle('active');
+}
+
+// Fechar dropdown ao clicar fora
+document.addEventListener('click', function(event) {
+    const wrapper = document.querySelector('.notification-wrapper');
+    const dropdown = document.getElementById('notifDropdown');
+    if (wrapper && dropdown && !wrapper.contains(event.target)) {
+        dropdown.classList.remove('active');
+    }
+});
 </script>
