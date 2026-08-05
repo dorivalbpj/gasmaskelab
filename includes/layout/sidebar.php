@@ -20,14 +20,27 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <a href="<?= BASE_URL ?>index.php" class="<?= ($current_page == 'index.php' && $current_dir == 'gasmaske') ? 'active' : '' ?>">
             <i class="ph ph-squares-four" style="font-size: 18px;"></i> <span class="hide-on-collapse">Dashboard</span>
         </a>
+
+        <div class="sidebar-section-label">Operação</div>
+        <a href="<?= BASE_URL ?>modules/planejamento/index.php" class="<?= ($current_dir == 'planejamento') ? 'active' : '' ?>">
+            <i class="ph ph-kanban" style="font-size: 18px;"></i> <span class="hide-on-collapse">Tarefas</span>
+        </a>
+
+        <div class="sidebar-section-label">IA Labs</div>
+        <a href="<?= BASE_URL ?>modules/ia/index.php" class="<?= ($current_dir == 'ia') ? 'active' : '' ?>">
+            <i class="ph ph-rocket" style="font-size: 18px;"></i> <span class="hide-on-collapse">Carrossel</span>
+        </a> 
+        <a href="<?= BASE_URL ?>modules/ia/index.php" class="<?= ($current_dir == 'ia') ? 'active' : '' ?>">
+            <i class="ph ph-article" style="font-size: 18px;"></i> <span class="hide-on-collapse">Relátorios</span>
+        </a>         
         
         <div class="sidebar-section-label">Comercial & CRM</div>
-        <a href="<?= BASE_URL ?>modules/briefing/index.php" class="<?= ($current_dir == 'briefing') ? 'active' : '' ?>">
-            <i class="ph ph-envelope-simple-open" style="font-size: 18px;"></i> <span class="hide-on-collapse">Briefings</span>
-        </a>
         <?php if (isAdmin()): ?>
-            <a href="<?= BASE_URL ?>modules/clientes/index.php" class="<?= ($current_dir == 'clientes') ? 'active' : '' ?>">
-                <i class="ph ph-users" style="font-size: 18px;"></i> <span class="hide-on-collapse">Clientes</span>
+            <a href="<?= BASE_URL ?>modules/briefing/index.php" class="<?= ($current_dir == 'briefing') ? 'active' : '' ?>">
+            <i class="ph ph-envelope-simple-open" style="font-size: 18px;"></i> <span class="hide-on-collapse">Briefings</span>
+            </a>
+            <a href="<?= BASE_URL ?>modules/crm/index.php" class="<?= ($current_dir == 'crm') ? 'active' : '' ?>">
+                <i class="ph ph-address-book" style="font-size: 18px;"></i> <span class="hide-on-collapse">CRM</span>
             </a>
             <a href="<?= BASE_URL ?>modules/propostas/index.php" class="<?= ($current_dir == 'propostas') ? 'active' : '' ?>">
                 <i class="ph ph-file-text" style="font-size: 18px;"></i> <span class="hide-on-collapse">Propostas</span>
@@ -35,21 +48,11 @@ $current_page = basename($_SERVER['PHP_SELF']);
             <a href="<?= BASE_URL ?>modules/contratos/index.php" class="<?= ($current_dir == 'contratos') ? 'active' : '' ?>">
                 <i class="ph ph-handshake" style="font-size: 18px;"></i> <span class="hide-on-collapse">Contratos</span>
             </a>
-            <a href="<?= BASE_URL ?>modules/crm/index.php" class="<?= ($current_dir == 'crm') ? 'active' : '' ?>">
-                <i class="ph ph-address-book" style="font-size: 18px;"></i> <span class="hide-on-collapse">CRM</span>
+            <a href="<?= BASE_URL ?>modules/clientes/index.php" class="<?= ($current_dir == 'clientes') ? 'active' : '' ?>">
+                <i class="ph ph-users" style="font-size: 18px;"></i> <span class="hide-on-collapse">Clientes</span>
             </a>
         <?php endif; ?>
 
-        <div class="sidebar-section-label">Labs</div>
-        <a href="<?= BASE_URL ?>modules/ia/index.php" class="<?= ($current_dir == 'ia') ? 'active' : '' ?>">
-            <i class="ph ph-rocket" style="font-size: 18px;"></i> <span class="hide-on-collapse">Gasmaske IA</span>
-        </a>
-
-        <div class="sidebar-section-label">Operação</div>
-        <a href="<?= BASE_URL ?>modules/planejamento/index.php" class="<?= ($current_dir == 'planejamento') ? 'active' : '' ?>">
-            <i class="ph ph-kanban" style="font-size: 18px;"></i> <span class="hide-on-collapse">Tarefas</span>
-        </a>
-        
         <?php if (isAdmin()): ?>
             <div class="sidebar-section-label">Gestão</div>
             <div class="sidebar-submenu-wrapper <?= ($current_dir == 'financeiro') ? 'open' : '' ?>">
@@ -80,6 +83,14 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </a>
         <?php endif; ?>
     </div>
+
+    <div class="sidebar-footer">
+        <button class="btn-collapse-sidebar" id="btnCollapseSidebarDesktop">
+            <i class="ph ph-caret-double-left" id="collapseIcon" style="font-size: 18px;"></i>
+            <span class="hide-on-collapse">Recolher</span>
+        </button>
+    </div>
+
 </div>
 
 <div class="main-content">
@@ -210,6 +221,27 @@ document.addEventListener('DOMContentLoaded', function() {
         overlay.addEventListener('click', function() {
             sidebar.classList.remove('mobile-open');
             overlay.classList.remove('active');
+        });
+    }
+
+    // Lógica para o novo botão no final do sidebar
+    const collapseBtnDesktop = document.getElementById('btnCollapseSidebarDesktop');
+    const collapseIcon = document.getElementById('collapseIcon');
+
+    if (collapseBtnDesktop) {
+        collapseBtnDesktop.addEventListener('click', function() {
+            if (window.innerWidth > 768) {
+                sidebar.classList.toggle('collapsed');
+                
+                // Animação/Troca do ícone quando colapsado
+                if (sidebar.classList.contains('collapsed')) {
+                    collapseIcon.classList.remove('ph-caret-double-left');
+                    collapseIcon.classList.add('ph-caret-double-right');
+                } else {
+                    collapseIcon.classList.remove('ph-caret-double-right');
+                    collapseIcon.classList.add('ph-caret-double-left');
+                }
+            }
         });
     }
 });

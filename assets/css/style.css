@@ -1903,6 +1903,60 @@ a.metric-premium-card.clickable:hover {
         .btn-mobile-only { display: flex !important; }
     }
 
+
+    /* ===========================================
+   SIDEBAR FOOTER & COLLAPSE BUTTON (NOVO)
+   =========================================== */
+.sidebar-footer {
+    padding: 16px 18px;
+    border-top: 1px solid var(--border);
+    margin-top: auto; /* Garante que o footer fique preso no fundo */
+    background: var(--bg-surface);
+}
+
+.btn-collapse-sidebar {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text-2);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 10px 16px;
+    border-radius: var(--r-md);
+    transition: background 0.15s, color 0.15s;
+    font-family: var(--font);
+}
+
+.btn-collapse-sidebar:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+}
+
+/* ===========================================
+   COMPORTAMENTO DO BOTÃO COLAPSADO
+   =========================================== */
+@media (min-width: 769px) {
+    .sidebar.collapsed .sidebar-footer {
+        padding: 16px 0;
+        display: flex;
+        justify-content: center;
+    }
+
+    .sidebar.collapsed .btn-collapse-sidebar {
+        justify-content: center;
+        padding: 12px 0;
+        width: auto;
+    }
+    
+    .sidebar.collapsed .btn-collapse-sidebar i {
+        font-size: 22px !important;
+        margin: 0;
+    }
+}
     /* ===========================================
    SIDEBAR TOGGLE & RESPONSIVO
    =========================================== */
@@ -1954,6 +2008,9 @@ a.metric-premium-card.clickable:hover {
    =========================================== */
 @media (min-width: 769px) {
     .sidebar.collapsed { width: 70px; }
+    .btn-toggle-sidebar {
+        display: none !important;
+    }
     
     /* Esconde logos, textos e badges */
     .sidebar.collapsed .hide-on-collapse,
