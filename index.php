@@ -74,8 +74,8 @@ $receber_hoje = $stmt_rec_hoje->fetch()['total'] ?? 0;
 $stmt_pag_hoje = $pdo->query("
     SELECT SUM(valor) as total 
     FROM fin_lancamentos 
-    WHERE status IN ('pendente', 'atrasado') 
-    AND data_vencimento <= CURDATE()
+    WHERE data_vencimento = CURDATE() 
+    AND status = 'pendente'
 ");
 $pagar_hoje = $stmt_pag_hoje->fetch()['total'] ?? 0;
 
