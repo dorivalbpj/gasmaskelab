@@ -828,7 +828,8 @@ function sortTable(col, toggle = true) {
 
     const expandedGroups = new Set();
     document.querySelectorAll('.group-header:not(.collapsed)').forEach(h => {
-        expandedGroups.add(h.textContent.trim());
+        const gKey = h.getAttribute('data-group-key');
+        if (gKey) expandedGroups.add(gKey);
     });
 
     document.querySelectorAll('.sortable i').forEach(icon => {
@@ -950,10 +951,8 @@ function sortTable(col, toggle = true) {
                 badgePendentes = `<span style="background: var(--gn-orange); color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 10px; font-weight: bold;">${qtdNaoFinalizados} pendentes</span>`;
             }
 
-            const textoHeader = `${labelDisplay} (${groups[g].length})`;
-            
             let isCollapsed = true;
-            if (expandedGroups.has(textoHeader)) {
+            if (expandedGroups.has(g)) {
                 isCollapsed = false;
             } else if (crit === 'data') {
                 if (g === dataHoje) isCollapsed = false;
@@ -962,6 +961,7 @@ function sortTable(col, toggle = true) {
 
             const header = document.createElement('tr');
             header.className = isCollapsed ? 'group-header collapsed' : 'group-header';
+            header.setAttribute('data-group-key', g);
             
             // TAG PARA O SCROLL DAS ATRASADAS
             if (crit === 'data' && g !== '(vazio)' && g !== '' && g < dataHoje) {
