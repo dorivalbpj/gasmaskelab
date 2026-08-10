@@ -161,6 +161,11 @@ require_once '../../includes/layout/sidebar.php';
     
     <!-- Bloco do Meio: Filtros e Controles -->
     <div class="header-controls">
+        <label style="display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13px; cursor: pointer; white-space: nowrap;">
+            <input type="checkbox" id="chkMostrarArquivados" onchange="agruparTabela(false)"> 
+            Mostrar Arquivados
+        </label>
+
         <div class="search-wrapper">
             <i class="ph ph-magnifying-glass search-icon"></i>
             <input type="text" id="inputBusca" class="gn-select input-busca" placeholder="Buscar tarefa..." onkeyup="buscarTabela()">
@@ -217,12 +222,13 @@ require_once '../../includes/layout/sidebar.php';
 
         <tr id="rowNewTask" style="display: none; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-mid);">
             <td>
-                <select id="quickClienteId" onchange="this.className='silent-select pill '+(this.value ? 'pill-cliente-'+this.value : 'pill-cliente-interno')" class="silent-select pill pill-cliente-interno" style="font-weight: 600; border: 1px solid var(--border-mid); color: #fff;">
-                    <option value="">Interno...</option>
+                <input list="clientesDatalist" id="quickClienteInput" class="silent-input pill pill-cliente-interno" placeholder="Buscar cliente..." style="font-weight: 600; border: 1px solid var(--border-mid); color: #fff; width: 100%;">
+                <datalist id="clientesDatalist">
+                    <option data-id="" value="Interno"></option>
                     <?php foreach($clientes as $c): ?>
-                        <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['nome']) ?></option>
+                        <option data-id="<?= $c['id'] ?>" value="<?= htmlspecialchars($c['nome']) ?>"></option>
                     <?php endforeach; ?>
-                </select>
+                </datalist>
             </td>
             <td colspan="7">
                 <input type="text" id="inputNewTema" class="silent-input" placeholder="O que precisa ser feito? + Enter" style="border: 1px solid var(--border-mid); font-weight: bold; background: transparent; color: var(--text-primary);" onkeydown="if(event.key === 'Enter') { event.preventDefault(); quickAddSubmit(); }">
@@ -514,8 +520,15 @@ function scrollToHoje() {
 // --- BUSCA GLOBAL ---
 function buscarTabela() {
     const termo = document.getElementById('inputBusca').value.toLowerCase();
+    const mostrarArquivados = document.getElementById('chkMostrarArquivados').checked;
     
     document.querySelectorAll('.task-row').forEach(row => {
+        const statusKey = row.getAttribute('data-status-key');
+        if (!mostrarArquivados && statusKey === 'arquivado') {
+            row.style.display = 'none';
+            return;
+        }
+
         const textoLinha = `
             ${row.getAttribute('data-cliente') || ''} 
             ${row.getAttribute('data-categoria') || ''} 
@@ -587,8 +600,13 @@ function formatarDataVisao(dataStr) {
 function quickAddSubmit() {
     const tema = document.getElementById('inputNewTema').value.trim();
     if(!tema) return;
+    
+    const clienteNome = document.getElementById('quickClienteInput').value;
+    const option = document.querySelector(`#clientesDatalist option[value="${clienteNome}"]`);
+    const clienteId = option ? option.getAttribute('data-id') : '';
+
     document.getElementById('hiddenQuickTema').value = tema;
-    document.getElementById('hiddenQuickCliente').value = document.getElementById('quickClienteId').value;
+    document.getElementById('hiddenQuickCliente').value = clienteId;
     document.getElementById('inputNewTema').disabled = true;
     document.getElementById('inputNewTema').value = 'Adicionando...';
     document.getElementById('realQuickAddForm').submit();
@@ -763,7 +781,36 @@ function salvarTudoSide() {
         fetch('index.php', {method: 'POST', body: fd2}),
         fetch('index.php', {method: 'POST', body: fd3})
     ]).then(() => {
-        window.location.reload();
+        btn.innerHTML = '<i class="ph-fill ph-check-circle" style="font-size: 20px;"></i> SALVO COM SUCESSO!';
+        btn.style.background = 'var(--gn-green)';
+        
+        document.getElementById('hidden_rot_'+id).value = roteiro;
+        document.getElementById('hidden_leg_'+id).value = legenda;
+        document.getElementById('hidden_ins_'+id).value = inspiracao;
+        document.getElementById('hidden_link_'+id).value = link;
+
+        const tr = document.querySelector(`tr input[id="hidden_tema_${id}"]`).closest('tr');
+        if(tr) {
+            const btnIcon = tr.querySelector('td:last-child button i');
+            if(btnIcon) {
+                if(link && link.trim() !== '') {
+                    btnIcon.className = 'ph-fill ph-check-circle';
+                    btnIcon.parentElement.style.color = '#1fa463';
+                    btnIcon.parentElement.style.opacity = '1';
+                } else {
+                    btnIcon.className = 'ph ph-plus-circle';
+                    btnIcon.parentElement.style.color = 'var(--text-muted)';
+                    btnIcon.parentElement.style.opacity = '0.6';
+                }
+            }
+        }
+
+        setTimeout(() => {
+            btn.innerHTML = '<i class="ph-fill ph-floppy-disk" style="font-size: 20px;"></i> SALVAR TODAS AS ALTERAÇÕES';
+            btn.style.background = '';
+            btn.disabled = false;
+            fecharSide();
+        }, 1200);
     });
 }
 
@@ -797,8 +844,19 @@ function sortTable(col, toggle = true) {
 
     const tbody = document.getElementById('tableBody');
     const rows = Array.from(tbody.querySelectorAll('.task-row'));
+    
+    const mostrarArquivados = document.getElementById('chkMostrarArquivados') ? document.getElementById('chkMostrarArquivados').checked : false;
 
-    rows.sort((a, b) => {
+    let visibleRows = rows.filter(r => {
+        const isArquivado = r.getAttribute('data-status-key') === 'arquivado';
+        if (!mostrarArquivados && isArquivado) {
+            r.style.display = 'none';
+            return false;
+        }
+        return true;
+    });
+
+    visibleRows.sort((a, b) => {
         let valA = a.getAttribute('data-' + currentSortCol).toLowerCase();
         let valB = b.getAttribute('data-' + currentSortCol).toLowerCase();
         let cmp = 0;
@@ -840,10 +898,13 @@ function sortTable(col, toggle = true) {
     tbody.appendChild(rowNewTask);
 
     if (crit === 'none') {
-        rows.forEach(r => tbody.appendChild(r));
+        visibleRows.forEach(r => {
+            r.style.display = '';
+            tbody.appendChild(r);
+        });
     } else {
         const groups = {};
-        rows.forEach(r => {
+        visibleRows.forEach(r => {
             const val = r.getAttribute('data-'+crit) || '(vazio)';
             if(!groups[val]) groups[val] = [];
             groups[val].push(r);
@@ -880,6 +941,14 @@ function sortTable(col, toggle = true) {
                     else labelDisplay = dataFormatada;
                 }
             }
+            
+            const naoFinalizados = groups[g].filter(r => r.getAttribute('data-finalizado') !== '1');
+            const qtdNaoFinalizados = naoFinalizados.length;
+
+            let badgePendentes = '';
+            if (qtdNaoFinalizados > 0) {
+                badgePendentes = `<span style="background: var(--gn-orange); color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 10px; font-weight: bold;">${qtdNaoFinalizados} pendentes</span>`;
+            }
 
             const textoHeader = `${labelDisplay} (${groups[g].length})`;
             
@@ -899,14 +968,19 @@ function sortTable(col, toggle = true) {
                 header.setAttribute('data-grupo-atrasado', '1');
             }
 
-            header.innerHTML = `<td colspan="8"><i class="ph ph-caret-down icone-colapso" style="margin-right: 5px;"></i> ${labelDisplay} <span style="color: var(--text-muted); font-size: 13px; font-weight: normal; margin-left: 5px;">(${groups[g].length})</span></td>`;
+            header.innerHTML = `<td colspan="8">
+                <i class="ph ph-caret-down icone-colapso" style="margin-right: 5px;"></i> 
+                ${labelDisplay} 
+                <span style="color: var(--text-muted); font-size: 13px; font-weight: normal; margin-left: 5px;">(${groups[g].length})</span>
+                ${badgePendentes}
+            </td>`;
             tbody.appendChild(header);
             
-            const naoFinalizados = groups[g].filter(r => r.getAttribute('data-finalizado') !== '1');
             const finalizados = groups[g].filter(r => r.getAttribute('data-finalizado') === '1');
             const listaFinal = naoFinalizados.concat(finalizados);
 
             listaFinal.forEach(r => {
+                r.style.display = '';
                 if(isCollapsed) r.classList.add('linha-colapsada');
                 else r.classList.remove('linha-colapsada');
                 tbody.appendChild(r);
