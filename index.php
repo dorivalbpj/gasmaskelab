@@ -93,6 +93,7 @@ $stmt_pag_sem = $pdo->query("
     SELECT SUM(valor) as total 
     FROM fin_lancamentos 
     WHERE YEARWEEK(data_vencimento, 1) = YEARWEEK(CURDATE(), 1) 
+    AND data_vencimento <= CURDATE() 
     AND status IN ('pendente', 'atrasado')
 ");
 $pagar_semana = $stmt_pag_sem->fetch()['total'] ?? 0;
@@ -126,7 +127,7 @@ require_once 'includes/layout/sidebar.php';
         <a href="modules/financeiro/index.php" class="metric-premium-card clickable accent-green" style="text-decoration: none;">
             <div class="metric-premium-icon" style="color: var(--green);"><i class="ph-fill ph-trend-up"></i></div>
             <div class="metric-premium-value text-green"><?= money($receber_hoje) ?></div>
-            <div class="metric-premium-label">A Receber (Vence Hoje)</div>
+            <div class="metric-premium-label">A Receber</div>
             <i class="ph ph-arrow-right metric-premium-link"></i>
         </a>
     </div>
