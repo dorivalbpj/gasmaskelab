@@ -1,5 +1,7 @@
 <?php
-// modules/planejamento/form.phprequire_once '../../config/session.php';
+// modules/planejamento/form.php
+
+require_once '../../config/session.php';
 require_once '../../config/database.php';
 require_once '../../includes/functions.php';
 
@@ -72,11 +74,10 @@ if(isset($_GET['msg']) && $_GET['msg'] == 'sucesso') {
     $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Tarefa criada com sucesso!</div>";
 }
 
-// Buscar CLIENTES diretamente da tabela clientes
+// Buscar CLIENTES, USUÁRIOS E CATEGORIAS DO BANCO
 $clientes = $pdo->query("SELECT id, nome FROM clientes ORDER BY nome ASC")->fetchAll();
-
 $usuarios = $pdo->query("SELECT id, nome FROM usuarios ORDER BY nome ASC")->fetchAll();
-$categorias_existentes = $pdo->query("SELECT DISTINCT tipo FROM planejamento WHERE tipo IS NOT NULL AND tipo != '' ORDER BY tipo ASC")->fetchAll(PDO::FETCH_COLUMN);
+$task_categorias = $pdo->query("SELECT * FROM task_categorias ORDER BY nome ASC")->fetchAll();
 
 $status_lista = [
     'pendente'                      => 'Pendente',
@@ -113,10 +114,14 @@ require_once '../../includes/layout/sidebar.php';
             </div>
             <div class="form-group" style="margin-bottom: 0;">
                 <label>Categoria</label>
-                <input type="text" name="tipo" list="lista_categorias" class="form-control" value="<?= htmlspecialchars($tarefa['tipo']) ?>" placeholder="Ex: Social Media" autocomplete="off">
-                <datalist id="lista_categorias">
-                    <?php foreach($categorias_existentes as $cat): ?><option value="<?= htmlspecialchars($cat) ?>"><?php endforeach; ?>
-                </datalist>
+                <select name="tipo" class="form-control">
+                    <option value="">Sem categoria...</option>
+                    <?php foreach($task_categorias as $cat): ?>
+                        <option value="<?= htmlspecialchars($cat['nome']) ?>" <?= $tarefa['tipo'] == $cat['nome'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($cat['nome']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
             </div>
             <div class="form-group" style="margin-bottom: 0;">
                 <label>Escopo</label>
@@ -155,7 +160,7 @@ require_once '../../includes/layout/sidebar.php';
                 <select name="status_geral" class="form-control">
                     <?php foreach ($status_lista as $valor => $rotulo): ?>
                         <option value="<?= $valor ?>" <?= $tarefa['status_geral'] == $valor ? 'selected' : '' ?>><?= $rotulo ?></option>
-                    <?php endforeach; ?>
+                    <?php endselect; ?>
                 </select>
             </div>
         </div>

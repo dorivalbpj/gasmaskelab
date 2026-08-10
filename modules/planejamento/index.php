@@ -118,7 +118,16 @@ foreach($clientes as $c) {
 }
 echo '</style>';
 
-$categorias_fixas = ['Carrossel', 'Video', 'Estático', 'Roteiro', 'Captação', 'Operacional', 'Social', 'Design', 'Email', 'Blog', 'Thumb', 'Orçamento', 'Pessoal'];
+// --- GERAR ESTILOS DAS CATEGORIAS DE TAREFAS DINAMICAMENTE ---
+$task_categorias = $pdo->query("SELECT * FROM task_categorias ORDER BY nome ASC")->fetchAll();
+$cat_map = [];
+echo '<style>';
+echo ".pill-cat-vazio { background-color: transparent !important; color: var(--text-primary) !important; border: 1px solid var(--border-mid) !important; } \n";
+foreach($task_categorias as $cat) {
+    $cat_map[$cat['nome']] = $cat; // Mapeia pelo nome para cruzar com a coluna `tipo`
+    echo ".pill-cat-{$cat['id']} { background-color: {$cat['cor']} !important; color: #fff !important; border-color: transparent !important; } \n";
+}
+echo '</style>';
 
 $status_lista = [
     'a_fazer' => 'A fazer',
@@ -209,8 +218,8 @@ require_once '../../includes/layout/sidebar.php';
         <thead>
             <tr>
                 <th class="sortable resizable" style="width: 13%;" onclick="sortTable('cliente')">Cliente <i class="ph ph-arrows-down-up" style="margin-left:4px; opacity:0.5;"></i></th>
-                <th class="sortable resizable" style="width: 9%;" onclick="sortTable('categoria')">Categoria <i class="ph ph-arrows-down-up" style="margin-left:4px; opacity:0.5;"></i></th>
-                <th class="sortable resizable" style="width: 28%;" onclick="sortTable('tema')">Tarefa <i class="ph ph-arrows-down-up" style="margin-left:4px; opacity:0.5;"></i></th>
+                <th class="sortable resizable" style="width: 11%;" onclick="sortTable('categoria')">Categoria <i class="ph ph-arrows-down-up" style="margin-left:4px; opacity:0.5;"></i></th>
+                <th class="sortable resizable" style="width: 26%;" onclick="sortTable('tema')">Tarefa <i class="ph ph-arrows-down-up" style="margin-left:4px; opacity:0.5;"></i></th>
                 <th class="sortable resizable" style="width: 10%;" onclick="sortTable('data')">Prazo <i class="ph ph-arrows-down-up" style="margin-left:4px; opacity:0.5;"></i></th>
                 <th class="sortable resizable" style="width: 10%;" onclick="sortTable('prioridade')">Prio <i class="ph ph-arrows-down-up" style="margin-left:4px; opacity:0.5;"></i></th>
                 <th class="sortable resizable" style="width: 13%;" onclick="sortTable('responsavel')">Responsável <i class="ph ph-arrows-down-up" style="margin-left:4px; opacity:0.5;"></i></th>
@@ -248,7 +257,11 @@ require_once '../../includes/layout/sidebar.php';
                 }
             }
             $resp_nome = ($t['responsavel_id'] && isset($usuarios_map[$t['responsavel_id']])) ? $usuarios_map[$t['responsavel_id']] : 'Sem Resp.';
+            
+            // Tratamento dinâmico da Categoria
             $categoria = $t['tipo'] ?? '';
+            $cat_id = isset($cat_map[$categoria]) ? $cat_map[$categoria]['id'] : 'vazio';
+
             $tem_link = !empty($t['link_arte_final']);
             $esta_finalizado = ($t['status_geral'] == 'finalizado');
         ?>
@@ -272,10 +285,11 @@ require_once '../../includes/layout/sidebar.php';
                 </select>
             </td>
             <td>
-                <select onchange="salvar(<?= $t['id'] ?>, 'tipo', this.value); this.closest('tr').setAttribute('data-categoria', this.value); agruparTabela(false);" class="silent-select" style="font-size: 12px;">
-                    <option value="">—</option>
-                    <?php foreach($categorias_fixas as $cat): ?>
-                        <option value="<?= $cat ?>" <?= $categoria == $cat ? 'selected' : '' ?>><?= $cat ?></option>
+                <!-- O select agora pega a cor real cadastrada no banco -->
+                <select onchange="salvar(<?= $t['id'] ?>, 'tipo', this.value); this.className='silent-select pill '+(this.value ? 'pill-cat-'+this.options[this.selectedIndex].getAttribute('data-id') : 'pill-cat-vazio'); this.closest('tr').setAttribute('data-categoria', this.value); agruparTabela(false);" class="silent-select pill <?= $cat_id != 'vazio' ? 'pill-cat-'.$cat_id : 'pill-cat-vazio' ?>" style="font-size: 12px; font-weight: 600;">
+                    <option value="" data-id="vazio">—</option>
+                    <?php foreach($task_categorias as $cat): ?>
+                        <option value="<?= htmlspecialchars($cat['nome']) ?>" data-id="<?= $cat['id'] ?>" <?= $categoria == $cat['nome'] ? 'selected' : '' ?>><?= htmlspecialchars($cat['nome']) ?></option>
                     <?php endforeach; ?>
                 </select>
             </td>
