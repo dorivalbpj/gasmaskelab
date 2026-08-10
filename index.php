@@ -60,18 +60,41 @@ $tarefas_atrasadas = $stmt_atrasadas->fetchAll();
 // =======================================================
 // 3. RADAR FINANCEIRO (Curto Prazo - Somando Atrasados)
 // =======================================================
-$stmt_rec_hoje = $pdo->query("SELECT SUM(valor) as total FROM parcelas WHERE data_vencimento = CURDATE() AND status = 'pendente'");
+
+// A RECEBER - Todos os pendentes/atrasados com vencimento <= hoje
+$stmt_rec_hoje = $pdo->query("
+    SELECT SUM(valor) as total 
+    FROM parcelas 
+    WHERE status IN ('pendente', 'atrasado') 
+    AND data_vencimento <= CURDATE()
+");
 $receber_hoje = $stmt_rec_hoje->fetch()['total'] ?? 0;
 
-// Soma pendentes + atrasados da semana atual
-$stmt_rec_sem = $pdo->query("SELECT SUM(valor) as total FROM parcelas WHERE YEARWEEK(data_vencimento, 1) = YEARWEEK(CURDATE(), 1) AND status IN ('pendente', 'atrasado')");
-$receber_semana = $stmt_rec_sem->fetch()['total'] ?? 0;
-
-$stmt_pag_hoje = $pdo->query("SELECT SUM(valor) as total FROM fin_lancamentos WHERE data_vencimento = CURDATE() AND status = 'pendente'");
+// A PAGAR - Todos os pendentes/atrasados com vencimento <= hoje (EMPRESA + PESSOAL)
+$stmt_pag_hoje = $pdo->query("
+    SELECT SUM(valor) as total 
+    FROM fin_lancamentos 
+    WHERE status IN ('pendente', 'atrasado') 
+    AND data_vencimento <= CURDATE()
+");
 $pagar_hoje = $stmt_pag_hoje->fetch()['total'] ?? 0;
 
-// Soma pendentes + atrasados da semana atual
-$stmt_pag_sem = $pdo->query("SELECT SUM(valor) as total FROM fin_lancamentos WHERE YEARWEEK(data_vencimento, 1) = YEARWEEK(CURDATE(), 1) AND status IN ('pendente', 'atrasado')");
+// Soma pendentes + atrasados da semana atual (A RECEBER)
+$stmt_rec_sem = $pdo->query("
+    SELECT SUM(valor) as total 
+    FROM parcelas 
+    WHERE YEARWEEK(data_vencimento, 1) = YEARWEEK(CURDATE(), 1) 
+    AND status IN ('pendente', 'atrasado')
+");
+$receber_semana = $stmt_rec_sem->fetch()['total'] ?? 0;
+
+// Soma pendentes + atrasados da semana atual (A PAGAR)
+$stmt_pag_sem = $pdo->query("
+    SELECT SUM(valor) as total 
+    FROM fin_lancamentos 
+    WHERE YEARWEEK(data_vencimento, 1) = YEARWEEK(CURDATE(), 1) 
+    AND status IN ('pendente', 'atrasado')
+");
 $pagar_semana = $stmt_pag_sem->fetch()['total'] ?? 0;
 
 
