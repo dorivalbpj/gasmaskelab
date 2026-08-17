@@ -16,17 +16,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
     $acao = $_POST['acao'];
     try {
         if ($acao == 'salvar_avulsa') {
-            $pdo->prepare("INSERT INTO parcelas (descricao, valor, data_vencimento, data_pagamento, status, contrato_id, numero_parcela) VALUES (?, ?, ?, ?, 'pago', NULL, 1)")
-                ->execute([trim($_POST['descricao']), str_replace(',', '.', $_POST['valor']), $_POST['data_vencimento'], $_POST['data_vencimento']]);
-            $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Entrada rápida registrada!</div>";
+            $status_avulsa = ($_POST['status'] ?? 'pendente') === 'pago' ? 'pago' : 'pendente';
+            $data_pag_avulsa = ($status_avulsa === 'pago') ? date('Y-m-d') : null;
+
+            $pdo->prepare("INSERT INTO parcelas (descricao, valor, data_vencimento, data_pagamento, status, contrato_id, numero_parcela) VALUES (?, ?, ?, ?, ?, NULL, 1)")
+                ->execute([trim($_POST['descricao']), str_replace(',', '.', $_POST['valor']), $_POST['data_vencimento'], $data_pag_avulsa, $status_avulsa]);
+            $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Entrada registrada!</div>";
         } elseif ($acao == 'dar_baixa') {
             $pdo->prepare("UPDATE parcelas SET status = 'pago', data_pagamento = ? WHERE id = ?")
                 ->execute([$_POST['data_pagamento'] ?? date('Y-m-d'), $_POST['parcela_id']]);
             header("Location: index.php?" . http_build_query($_GET) . "&msg=sucesso");
             exit;
         } elseif ($acao == 'editar_entrada') {
-            $query_upd = "UPDATE parcelas SET descricao = ?, valor = ?, data_vencimento = ?";
-            $params = [$_POST['descricao'], str_replace(',', '.', $_POST['valor']), $_POST['data_vencimento']];
+            $status_edit = ($_POST['status'] ?? 'pendente') === 'pago' ? 'pago' : 'pendente';
+
+            // Busca o status/data_pagamento atuais pra saber se precisa ajustar a data de pagamento
+            $stmt_atual = $pdo->prepare("SELECT status, data_pagamento FROM parcelas WHERE id = ?");
+            $stmt_atual->execute([$_POST['parcela_id']]);
+            $atual = $stmt_atual->fetch();
+
+            if ($status_edit === 'pago') {
+                // Se está virando pago agora e ainda não tinha data de pagamento, usa hoje
+                $data_pagamento_edit = ($atual && $atual['data_pagamento']) ? $atual['data_pagamento'] : date('Y-m-d');
+            } else {
+                // Voltando para pendente: limpa a data de pagamento
+                $data_pagamento_edit = null;
+            }
+
+            $query_upd = "UPDATE parcelas SET descricao = ?, valor = ?, data_vencimento = ?, status = ?, data_pagamento = ?";
+            $params = [$_POST['descricao'], str_replace(',', '.', $_POST['valor']), $_POST['data_vencimento'], $status_edit, $data_pagamento_edit];
 
             // Lógica de Upload do Comprovante
             if (isset($_FILES['comprovante']) && $_FILES['comprovante']['error'] == 0) {
@@ -256,7 +274,7 @@ require_once '../../includes/layout/sidebar.php';
                         </td>
                         <td style="text-align: center;">
                             <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
-                                <button type="button" class="btn btn-ghost btn--sm btn-icon-table" onclick="abrirModalEditarEntrada(<?= $p['id'] ?>, '<?= addslashes(htmlspecialchars($p['descricao'])) ?>', '<?= $p['valor'] ?>', '<?= $p['data_vencimento'] ?>')" title="Editar"><i class="ph ph-pencil-simple"></i></button>
+                                <button type="button" class="btn btn-ghost btn--sm btn-icon-table" onclick="abrirModalEditarEntrada(<?= $p['id'] ?>, '<?= addslashes(htmlspecialchars($p['descricao'])) ?>', '<?= $p['valor'] ?>', '<?= $p['data_vencimento'] ?>', '<?= $p['status'] == 'pago' ? 'pago' : 'pendente' ?>')" title="Editar"><i class="ph ph-pencil-simple"></i></button>
                                 <?php if ($p['status'] != 'pago'): ?>
                                     <form method="POST" style="margin: 0;" onsubmit="return confirm('Confirmar o recebimento?');">
                                         <input type="hidden" name="acao" value="dar_baixa">
@@ -304,7 +322,14 @@ require_once '../../includes/layout/sidebar.php';
             <div class="form-group"><label>Descrição do Serviço *</label><input type="text" name="descricao" class="form-control" required placeholder="Ex: Ajuste de Arte, Flyer..."></div>
             <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                 <div class="form-group"><label>Valor (R$) *</label><input type="number" step="0.01" name="valor" class="form-control" required placeholder="0.00"></div>
-                <div class="form-group"><label>Data *</label><input type="date" name="data_vencimento" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
+                <div class="form-group"><label>Data de Vencimento *</label><input type="date" name="data_vencimento" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
+            </div>
+            <div class="form-group">
+                <label>Status *</label>
+                <select name="status" class="form-control">
+                    <option value="pendente">Pendente (Agendar / A Receber)</option>
+                    <option value="pago">Já Recebido</option>
+                </select>
             </div>
             <button type="submit" class="btn btn-primary w-100" style="justify-content: center;">Registrar Entrada</button>
         </form>
@@ -323,6 +348,13 @@ require_once '../../includes/layout/sidebar.php';
             <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                 <div class="form-group"><label>Valor (R$)</label><input type="number" step="0.01" name="valor" id="edit_ent_valor" class="form-control" required></div>
                 <div class="form-group"><label>Vencimento</label><input type="date" name="data_vencimento" id="edit_ent_data" class="form-control" required></div>
+            </div>
+            <div class="form-group">
+                <label>Status</label>
+                <select name="status" id="edit_ent_status" class="form-control">
+                    <option value="pendente">Pendente (A Receber)</option>
+                    <option value="pago">Recebido</option>
+                </select>
             </div>
 
             <div class="form-group mt-3">
@@ -343,11 +375,12 @@ require_once '../../includes/layout/sidebar.php';
 // Modal Entradas
 function abrirModalAvulso() { document.getElementById('modalAvulso').classList.add('active'); }
 function fecharModalAvulso() { document.getElementById('modalAvulso').classList.remove('active'); }
-function abrirModalEditarEntrada(id, desc, valor, data) {
+function abrirModalEditarEntrada(id, desc, valor, data, status) {
     document.getElementById('edit_ent_id').value = id;
     document.getElementById('edit_ent_desc').value = desc;
     document.getElementById('edit_ent_valor').value = parseFloat(valor).toFixed(2);
     document.getElementById('edit_ent_data').value = data;
+    document.getElementById('edit_ent_status').value = status;
     document.getElementById('modalEditarEntrada').classList.add('active');
 }
 function fecharModalEditarEntrada() { document.getElementById('modalEditarEntrada').classList.remove('active'); }
