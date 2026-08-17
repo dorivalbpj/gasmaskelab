@@ -15,7 +15,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 try {
     // Validações
-    if (!isset($_SESSION['user_id'])) {
+    if (!isset($_SESSION['user_id']) && !isset($_SESSION['usuario_id']) && !isset($_SESSION['id'])) {
         http_response_code(401);
         echo json_encode(['erro' => 'Não autenticado']);
         exit;
