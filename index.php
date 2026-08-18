@@ -138,7 +138,10 @@ $stmt_cartoes = $pdo->query("
                SELECT SUM(l.valor) 
                FROM fin_lancamentos l 
                JOIN fin_faturas f ON l.fatura_id = f.id 
-               WHERE f.cartao_id = c.id AND f.status = 'aberta'
+               WHERE f.cartao_id = c.id 
+                 AND f.status = 'aberta'
+                 AND f.mes = MONTH(CURRENT_DATE)
+                 AND f.ano = YEAR(CURRENT_DATE)
            ), 0) as valor_fatura_aberta
     FROM fin_cartoes c 
     WHERE c.ativo = 1
