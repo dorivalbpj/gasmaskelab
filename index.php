@@ -9,7 +9,7 @@ requireLogin();
 
 // Apenas Admin tem acesso a este dashboard completo
 if (!isAdmin()) {
-    header("Location: modules/cliente/index.php"); // Fallback
+    header("Location: modules/cliente/index.php");
     exit;
 }
 
@@ -18,7 +18,6 @@ $hoje_str = date('Y-m-d');
 
 // =======================================================
 // HELPER: calcula em quantos dias fecha a fatura do cartão
-// (considera virada de mês, ex: hoje dia 29, fechamento dia 5)
 // =======================================================
 function diasParaFechar($dia_fechamento) {
     $hoje = new DateTime();
@@ -31,7 +30,6 @@ function diasParaFechar($dia_fechamento) {
     if ($diaFechamento < $diaAtual) {
         $dataFechamento->modify('+1 month');
     }
-    // Protege contra meses com menos dias que o dia de fechamento (ex: dia 30 em fevereiro)
     $ultimoDiaMes = (int)$dataFechamento->format('t');
     $dataFechamento->setDate((int)$dataFechamento->format('Y'), (int)$dataFechamento->format('m'), min($diaFechamento, $ultimoDiaMes));
 
@@ -57,24 +55,26 @@ $status_badge = [
     'postar' => 'badge-green', 'finalizado' => 'badge-green', 'arquivado' => 'badge-gray'
 ];
 
+// TAREFAS DE HOJE - exclui finalizado e arquivado
 $stmt_hoje = $pdo->prepare("
     SELECT p.*, c.nome as cliente_nome 
     FROM planejamento p 
     LEFT JOIN clientes c ON p.cliente_id = c.id 
     WHERE p.data_publicacao = CURDATE() 
-      AND p.status_geral != 'finalizado' 
+      AND p.status_geral NOT IN ('finalizado', 'arquivado')
       AND p.responsavel_id = ?
     ORDER BY p.prioridade DESC
 ");
 $stmt_hoje->execute([$usuario_id_logado]);
 $tarefas_hoje = $stmt_hoje->fetchAll();
 
+// TAREFAS ATRASADAS - exclui finalizado e arquivado
 $stmt_atrasadas = $pdo->prepare("
     SELECT p.*, c.nome as cliente_nome 
     FROM planejamento p 
     LEFT JOIN clientes c ON p.cliente_id = c.id 
     WHERE p.data_publicacao < CURDATE() 
-      AND p.status_geral != 'finalizado' 
+      AND p.status_geral NOT IN ('finalizado', 'arquivado')
       AND p.responsavel_id = ?
     ORDER BY p.data_publicacao ASC
 ");
@@ -82,21 +82,34 @@ $stmt_atrasadas->execute([$usuario_id_logado]);
 $tarefas_atrasadas = $stmt_atrasadas->fetchAll();
 
 // =======================================================
-// 3. RADAR FINANCEIRO (Hoje / Atrasado / Semana)
+// 3. RADAR FINANCEIRO - CORRIGIDO
 // =======================================================
 
-// A RECEBER - separado em atrasado vs vence hoje
+// A RECEBER
 $receber_atrasado = $pdo->query("SELECT SUM(valor) as total, COUNT(*) as qtd FROM parcelas WHERE status IN ('pendente','atrasado') AND data_vencimento < CURDATE()")->fetch();
 $receber_hoje_row = $pdo->query("SELECT SUM(valor) as total, COUNT(*) as qtd FROM parcelas WHERE status IN ('pendente','atrasado') AND data_vencimento = CURDATE()")->fetch();
 
-// A PAGAR - separado em atrasado vs vence hoje (empresa + pessoal)
-$pagar_atrasado = $pdo->query("SELECT SUM(valor) as total, COUNT(*) as qtd FROM fin_lancamentos WHERE status IN ('pendente','atrasado') AND data_vencimento < CURDATE()")->fetch();
-$pagar_hoje_row = $pdo->query("SELECT SUM(valor) as total, COUNT(*) as qtd FROM fin_lancamentos WHERE status = 'pendente' AND data_vencimento = CURDATE()")->fetch();
+// A PAGAR - EXCLUINDO CARTÃO (fatura_id IS NULL)
+$pagar_atrasado = $pdo->query("
+    SELECT SUM(valor) as total, COUNT(*) as qtd 
+    FROM fin_lancamentos 
+    WHERE status IN ('pendente','atrasado') 
+      AND data_vencimento < CURDATE() 
+      AND fatura_id IS NULL
+")->fetch();
+
+$pagar_hoje_row = $pdo->query("
+    SELECT SUM(valor) as total, COUNT(*) as qtd 
+    FROM fin_lancamentos 
+    WHERE status = 'pendente' 
+      AND data_vencimento = CURDATE() 
+      AND fatura_id IS NULL
+")->fetch();
 
 $pagar_hoje = ($pagar_atrasado['total'] ?? 0) + ($pagar_hoje_row['total'] ?? 0);
 $receber_hoje = ($receber_atrasado['total'] ?? 0) + ($receber_hoje_row['total'] ?? 0);
 
-// Soma pendentes + atrasados da semana atual (A RECEBER)
+// A RECEBER - Semana
 $stmt_rec_sem = $pdo->query("
     SELECT SUM(valor) as total 
     FROM parcelas 
@@ -105,13 +118,14 @@ $stmt_rec_sem = $pdo->query("
 ");
 $receber_semana = $stmt_rec_sem->fetch()['total'] ?? 0;
 
-// Soma pendentes + atrasados da semana atual (A PAGAR)
+// A PAGAR - Semana (exclui cartão)
 $stmt_pag_sem = $pdo->query("
     SELECT SUM(valor) as total 
     FROM fin_lancamentos 
     WHERE YEARWEEK(data_vencimento, 1) = YEARWEEK(CURDATE(), 1) 
     AND data_vencimento <= CURDATE() 
     AND status IN ('pendente', 'atrasado')
+    AND fatura_id IS NULL
 ");
 $pagar_semana = $stmt_pag_sem->fetch()['total'] ?? 0;
 
@@ -142,7 +156,7 @@ foreach ($cartoes_ativos as $c) {
 }
 
 // =======================================================
-// 5. CRM - Agenda de Contatos (Hoje / Atrasado)
+// 5. CRM - Agenda de Contatos
 // =======================================================
 $stmt_crm = $pdo->query("
     SELECT * FROM leads 
@@ -174,7 +188,7 @@ $stmt_prop = $pdo->query("
 $propostas_pendentes = $stmt_prop->fetchAll();
 
 // =======================================================
-// 8. CONTRATOS - Pendências e Vencimento Próximo (último mês)
+// 8. CONTRATOS - Pendências e Vencimento Próximo
 // =======================================================
 $stmt_contratos = $pdo->query("
     SELECT c.*, cli.nome as cliente_nome,
@@ -192,7 +206,7 @@ $stmt_contratos = $pdo->query("
 $contratos_atencao = $stmt_contratos->fetchAll();
 
 // =======================================================
-// TOTAL DE ALERTAS (para o aviso geral do topo)
+// TOTAL DE ALERTAS
 // =======================================================
 $total_alertas = count($tarefas_atrasadas) + count($contatos_pendentes) + count($briefings_pendentes)
                 + count($propostas_pendentes) + count($contratos_atencao) + count($cartoes_fechando);
@@ -202,7 +216,6 @@ require_once 'includes/layout/sidebar.php';
 ?>
 
 <style>
-    /* --- Acordeões do Dashboard (usa as mesmas variáveis de cor do resto do sistema) --- */
     .acc-panel { margin-bottom: 16px; padding: 0; overflow: hidden; }
     .acc-panel > summary { list-style: none; cursor: pointer; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; }
     .acc-panel > summary::-webkit-details-marker { display: none; }
@@ -235,7 +248,6 @@ require_once 'includes/layout/sidebar.php';
         <p>Visão cirúrgica de hoje. Foque apenas no que exige sua atenção agora.</p>
     </div>
 
-    <!-- AVISO GERAL (bater o olho e saber o que precisa fazer hoje) -->
     <?php if ($total_alertas > 0): ?>
         <div class="top-alert-banner">
             <i class="ph-fill ph-bell-ringing" style="font-size: 20px;"></i>
@@ -340,7 +352,7 @@ require_once 'includes/layout/sidebar.php';
             </div>
         </div>
 
-        <!-- RADAR FINANCEIRO (VISÃO DO DIA) -->
+        <!-- RADAR FINANCEIRO -->
         <div class="radar-panel panel-financeiro">
             <div class="radar-header">
                 <h3 style="color: var(--text);"><i class="ph-fill ph-calendar-check" style="color: var(--blue); margin-right: 5px;"></i> Radar Financeiro (Resumo)</h3>
