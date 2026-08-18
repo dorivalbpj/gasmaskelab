@@ -15,7 +15,7 @@ $proposta = [
     'titulo' => '', 'descricao' => '', 'servicos_inclusos' => '',
     'valor' => 0, 'tipo_cobranca' => 'mensal', 'duracao_meses' => 3, 
     'data_validade' => date('Y-m-d', strtotime('+7 days')), 'codigo_proposta' => '',
-    'token' => ''
+    'token' => '', 'status' => 'rascunho'
 ];
 
 $mensagem = '';
@@ -32,7 +32,23 @@ if ($id) {
     }
 }
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+// --- ALTERAR STATUS VIA POST (DENTRO DO PRÓPRIO FORM) ---
+if (isset($_POST['acao_alterar_status']) && isset($_POST['novo_status'])) {
+    $novo_status = $_POST['novo_status'];
+    $status_validos = ['rascunho', 'enviada', 'aceita', 'recusada', 'expirada'];
+    if (in_array($novo_status, $status_validos)) {
+        $pdo->prepare("UPDATE propostas SET status = ? WHERE id = ?")->execute([$novo_status, $id]);
+        // Recarrega os dados
+        $stmt = $pdo->prepare("SELECT * FROM propostas WHERE id = ?");
+        $stmt->execute([$id]);
+        $res = $stmt->fetch();
+        if ($res) $proposta = array_merge($proposta, $res);
+        $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Status alterado para <strong>" . ucfirst($novo_status) . "</strong>!</div>";
+    }
+}
+
+// --- SALVAR PROPOSTA ---
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && !isset($_POST['acao_alterar_status'])) {
     $cliente_id = $_POST['cliente_id'] ?? '';
     $titulo = $_POST['titulo'] ?? '';
     $descricao = $_POST['descricao'] ?? '';
@@ -87,12 +103,10 @@ require_once '../../includes/layout/sidebar.php';
     .layout-proposta { display: grid; grid-template-columns: 350px 1fr; gap: 30px; align-items: start; }
     @media(max-width: 992px) { .layout-proposta { grid-template-columns: 1fr; } }
     
-    /* UX do Editor */
     .ql-toolbar.ql-snow { border: 1px solid var(--border-light); background: #fcfcfc; border-top-left-radius: 8px; border-top-right-radius: 8px; padding: 12px; }
     .ql-container.ql-snow { border: 1px solid var(--border-light); background: #ffffff; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; }
     .ql-editor { min-height: 500px; padding: 30px; color: #1a1a1a; line-height: 1.7; }
     
-    /* UX das Pills de Serviços (Moderno) */
     .service-pill-container { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
     .service-pill input[type="checkbox"] { display: none; }
     .service-pill label { 
@@ -110,8 +124,28 @@ require_once '../../includes/layout/sidebar.php';
         <h2 class="page-title"><?= $id ? 'Editar Proposta (' . htmlspecialchars($proposta['codigo_proposta']) . ')' : 'Nova Proposta' ?></h2>
         <p class="page-subtitle">Configure o financeiro e use a IA para redigir o escopo estratégico.</p>
     </div>
-    <div style="display: flex; gap: 12px;">
+    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
         <a href="index.php" class="btn btn-ghost"><i class="ph ph-arrow-left"></i> Voltar</a>
+        
+        <?php if ($id && $proposta['status'] != 'aceita'): ?>
+            <form method="POST" style="display: inline;" onsubmit="return confirm('Marcar esta proposta como ACEITA? Isso validará o fechamento.')">
+                <input type="hidden" name="acao_alterar_status" value="1">
+                <input type="hidden" name="novo_status" value="aceita">
+                <button type="submit" class="btn btn-success" style="background: var(--green); border-color: var(--green);">
+                    <i class="ph-fill ph-check-circle"></i> Validar Proposta
+                </button>
+            </form>
+        <?php endif; ?>
+        
+        <?php if ($id && $proposta['status'] != 'recusada'): ?>
+            <form method="POST" style="display: inline;" onsubmit="return confirm('Marcar esta proposta como RECUSADA?')">
+                <input type="hidden" name="acao_alterar_status" value="1">
+                <input type="hidden" name="novo_status" value="recusada">
+                <button type="submit" class="btn btn-ghost" style="color: var(--red); border-color: rgba(255,59,47,0.3);">
+                    <i class="ph ph-x-circle"></i> Recusar
+                </button>
+            </form>
+        <?php endif; ?>
         
         <?php if ($id): ?>
             <a href="../contratos/form.php?proposta_id=<?= $id ?>" class="btn btn-ghost" style="color: var(--purple); border-color: rgba(168, 85, 247, 0.3);">
@@ -126,6 +160,30 @@ require_once '../../includes/layout/sidebar.php';
 </div>
 
 <?= $mensagem ?>
+
+<?php if ($id): ?>
+<div style="background: var(--bg-hover); padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 16px; border: 1px solid var(--border-light); flex-wrap: wrap;">
+    <span style="font-size: 13px; color: var(--text-secondary);">Status atual:</span>
+    
+    <form method="POST" style="display: flex; align-items: center; gap: 10px;">
+        <input type="hidden" name="acao_alterar_status" value="1">
+        <select name="novo_status" class="form-control" style="width: auto; padding: 4px 30px 4px 12px; font-weight: 600; border-radius: 50px;">
+            <option value="rascunho" <?= $proposta['status'] == 'rascunho' ? 'selected' : '' ?>>Rascunho</option>
+            <option value="enviada" <?= $proposta['status'] == 'enviada' ? 'selected' : '' ?>>Enviada</option>
+            <option value="aceita" <?= $proposta['status'] == 'aceita' ? 'selected' : '' ?>>Validada</option>
+            <option value="recusada" <?= $proposta['status'] == 'recusada' ? 'selected' : '' ?>>Recusada</option>
+            <option value="expirada" <?= $proposta['status'] == 'expirada' ? 'selected' : '' ?>>Expirada</option>
+        </select>
+        <button type="submit" class="btn btn-primary btn-sm">Alterar Status</button>
+    </form>
+    
+    <?php if ($proposta['status'] == 'aceita'): ?>
+        <span style="font-size: 12px; color: var(--green);"><i class="ph-fill ph-check-circle"></i> Proposta validada</span>
+    <?php elseif ($proposta['status'] == 'recusada'): ?>
+        <span style="font-size: 12px; color: var(--red);"><i class="ph-fill ph-x-circle"></i> Proposta recusada</span>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
 
 <form method="POST" id="formProposta" onsubmit="sincronizarEditor()">
     <div class="layout-proposta">
@@ -225,16 +283,10 @@ require_once '../../includes/layout/sidebar.php';
 
 <?php if ($exibir_modal_ninja): ?>
     <?php 
-        // 1. Verifica se a conexão atual é segura (HTTPS) ou se está atrás de um proxy
         $is_https = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') || 
                     (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
-        
         $protocolo = $is_https ? "https" : "http";
-        
-        // 2. Captura o domínio automaticamente (ex: 'localhost' ou 'erp.gasmaskelab.com.br')
         $dominio = $_SERVER['HTTP_HOST']; 
-        
-        // 3. Monta o link dinâmico
         $link_proposta = $protocolo . "://" . $dominio . "/publico/proposta.php?token=" . $token_ninja; 
     ?>
     <div id="modalNinja" class="modal-ninja-overlay">
@@ -285,9 +337,7 @@ A estratégia que desenhamos para você já está no ar. Segue o link com acesso
         const clienteId = document.querySelector('select[name="cliente_id"]').value;
         if (!clienteId) { alert("Selecione um Cliente primeiro!"); return; }
 
-        // MAGIA AQUI: Ele pega todo o texto que já veio preenchido do briefing no editor
         const contextoBriefing = quill.getText().trim();
-        
         if(contextoBriefing.length < 15) {
             alert("O editor está vazio. O sistema precisa que as respostas do briefing estejam no editor para a IA ler.");
             return;
@@ -301,7 +351,7 @@ A estratégia que desenhamos para você já está no ar. Segue o link com acesso
         try {
             const formData = new FormData();
             formData.append('cliente_id', clienteId);
-            formData.append('contexto_briefing', contextoBriefing); // Mandando o texto pra IA ler!
+            formData.append('contexto_briefing', contextoBriefing);
 
             const res = await fetch('gerar_proposta_ia.php', { method: 'POST', body: formData });
             const data = await res.json();

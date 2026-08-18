@@ -8,6 +8,26 @@ require_once '../../includes/functions.php';
 requireLogin();
 if (!isAdmin()) die("Acesso negado.");
 
+// --- PROCESSAR ALTERAÇÃO DE STATUS VIA POST ---
+if (isset($_POST['acao_alterar_status']) && isset($_POST['proposta_id']) && isset($_POST['novo_status'])) {
+    $id = (int)$_POST['proposta_id'];
+    $status = $_POST['novo_status'];
+    $status_validos = ['rascunho', 'enviada', 'aceita', 'recusada', 'expirada'];
+    
+    if (in_array($status, $status_validos)) {
+        try {
+            $pdo->prepare("UPDATE propostas SET status = ? WHERE id = ?")->execute([$status, $id]);
+            $_SESSION['flash_msg'] = "Status alterado para <strong>" . ucfirst($status) . "</strong>";
+            $_SESSION['flash_type'] = "success";
+        } catch (Exception $e) {
+            $_SESSION['flash_msg'] = "Erro ao alterar status: " . $e->getMessage();
+            $_SESSION['flash_type'] = "danger";
+        }
+    }
+    header("Location: index.php");
+    exit;
+}
+
 // Busca propostas
 $stmt = $pdo->query("SELECT p.*, c.nome as cliente_nome FROM propostas p JOIN clientes c ON p.cliente_id = c.id ORDER BY p.criado_em DESC");
 $propostas = $stmt->fetchAll();
@@ -18,6 +38,13 @@ $url_base_publica = $protocolo . "://" . $dominio . "/publico/proposta.php?token
 
 require_once '../../includes/layout/header.php';
 require_once '../../includes/layout/sidebar.php';
+
+// Exibir mensagem flash
+if (isset($_SESSION['flash_msg'])) {
+    $type = $_SESSION['flash_type'] ?? 'info';
+    echo "<div class='alert alert-{$type}'>{$_SESSION['flash_msg']}</div>";
+    unset($_SESSION['flash_msg'], $_SESSION['flash_type']);
+}
 ?>
 
 <div class="cabecalho">
@@ -84,6 +111,12 @@ require_once '../../includes/layout/sidebar.php';
                         $link_completo = $url_base_publica . $p['token'];
                         $data_pura = date('Y-m-d', strtotime($p['criado_em']));
                         $texto_busca = strtolower($p['cliente_nome'] . " " . $p['titulo'] . " " . $p['codigo_proposta']);
+                        
+                        $badge = 'badge-gray';
+                        if ($p['status'] == 'enviada') $badge = 'badge-blue';
+                        if ($p['status'] == 'aceita') $badge = 'badge-green';
+                        if ($p['status'] == 'recusada') $badge = 'badge-red';
+                        if ($p['status'] == 'expirada') $badge = 'badge-yellow';
                     ?>
                     <tr class="linha-dado" data-busca="<?= htmlspecialchars($texto_busca) ?>" data-data="<?= $data_pura ?>" data-status="<?= $p['status'] ?>">
                         <td><span class="txt-date-sm"><?= dataBR($p['criado_em']) ?></span></td>
@@ -96,14 +129,17 @@ require_once '../../includes/layout/sidebar.php';
                             <span class="txt-meta-sm"><?= $p['tipo_cobranca'] == 'mensal' ? $p['duracao_meses'] . 'x de ' . money($p['valor']) : 'Valor Único' ?></span>
                         </td>
                         <td class="text-center">
-                            <?php 
-                                $badge = 'badge-gray';
-                                if ($p['status'] == 'enviada') $badge = 'badge-blue';
-                                if ($p['status'] == 'aceita') $badge = 'badge-green';
-                                if ($p['status'] == 'recusada') $badge = 'badge-red';
-                                if ($p['status'] == 'expirada') $badge = 'badge-yellow';
-                            ?>
-                            <span class="badge <?= $badge ?>"><?= $p['status'] ?></span>
+                            <form method="POST" style="display: inline;">
+                                <input type="hidden" name="acao_alterar_status" value="1">
+                                <input type="hidden" name="proposta_id" value="<?= $p['id'] ?>">
+                                <select name="novo_status" class="badge <?= $badge ?>" style="border: none; padding: 6px 12px; cursor: pointer; font-weight: 600; appearance: auto; min-width: 100px;" onchange="this.form.submit()">
+                                    <option value="rascunho" <?= $p['status'] == 'rascunho' ? 'selected' : '' ?>>Rascunho</option>
+                                    <option value="enviada" <?= $p['status'] == 'enviada' ? 'selected' : '' ?>>Enviada</option>
+                                    <option value="aceita" <?= $p['status'] == 'aceita' ? 'selected' : '' ?>>Validada</option>
+                                    <option value="recusada" <?= $p['status'] == 'recusada' ? 'selected' : '' ?>>Recusada</option>
+                                    <option value="expirada" <?= $p['status'] == 'expirada' ? 'selected' : '' ?>>Expirada</option>
+                                </select>
+                            </form>
                         </td>
                         <td class="text-center">
                             <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
@@ -160,7 +196,6 @@ function copiarMensagemWpp(nome, titulo, link, btn) {
     const msg = `Olá, ${nome.split(' ')[0]}! Tudo bem?\n\nA proposta para *${titulo}* está pronta: \n\n🔗 ${link}`;
     navigator.clipboard.writeText(msg).then(() => {
         const originalHTML = btn.innerHTML;
-        // Muda para o ícone de sucesso mantendo o formato do botão quadrado
         btn.innerHTML = '<i class="ph-fill ph-check-circle"></i>';
         btn.style.background = 'rgba(37, 211, 102, 0.15)';
         
