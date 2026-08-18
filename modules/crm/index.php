@@ -127,7 +127,7 @@ require_once '../../includes/layout/sidebar.php';
                                     <i class="ph ph-pencil-simple"></i>
                                 </a>
                                 
-                                <button type="button" class="btn btn-ghost btn-icon-table btn-icon-wpp" onclick="pedirBriefing('<?= addslashes($lead['nome']) ?>', '<?= $link_publico_briefing ?>', this)" title="Pedir Briefing via WhatsApp">
+                                <button type="button" class="btn btn-ghost btn-icon-table btn-icon-wpp" onclick="pedirBriefing('<?= addslashes($lead['nome']) ?>', '<?= $link_publico_briefing ?>?lead_id=<?= $lead['id'] ?>', this)" title="Pedir Briefing via WhatsApp">
                                     <i class="ph ph-whatsapp-logo"></i>
                                 </button>
 

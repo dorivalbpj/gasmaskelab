@@ -10,11 +10,22 @@ foreach ($perguntas_db as $p) {
     $perguntas_por_servico[$p['servico_id']][] = $p;
 }
 
+// 1. Busca os dados do Lead caso tenha vindo pela URL
+$lead_id = $_GET['lead_id'] ?? null;
+$dados_lead = null;
+
+if ($lead_id) {
+    $stmt_lead = $pdo->prepare("SELECT * FROM leads WHERE id = ?");
+    $stmt_lead->execute([$lead_id]);
+    $dados_lead = $stmt_lead->fetch();
+}
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $nome     = trim($_POST['nome'] ?? '');
     $empresa  = trim($_POST['empresa'] ?? '');
     $email    = trim($_POST['email'] ?? '');
     $telefone = trim($_POST['telefone'] ?? '');
+    $lead_id_post = $_POST['lead_id'] ?? null;
 
     $redes_tipos = $_POST['redes_tipos'] ?? [];
     $redes_links = $_POST['redes_links'] ?? [];
@@ -49,8 +60,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     if (!empty($nome) && !empty($email)) {
         try {
-            $stmt = $pdo->prepare("INSERT INTO briefings (nome, empresa, email, telefone, servicos_interesse, servicos_desejados, objetivo, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'novo')");
-            $stmt->execute([$nome, $empresa, $email, $telefone, $string_servicos, $string_servicos, $objetivo_final]);
+            // 2. Salva o briefing amarrado ao Lead
+            $stmt = $pdo->prepare("INSERT INTO briefings (nome, empresa, email, telefone, servicos_interesse, servicos_desejados, objetivo, status, lead_id) VALUES (?, ?, ?, ?, ?, ?, ?, 'novo', ?)");
+            $stmt->execute([$nome, $empresa, $email, $telefone, $string_servicos, $string_servicos, $objetivo_final, $lead_id_post]);
+            
+            // 3. Atualiza o status do CRM (Lead) automaticamente
+            if (!empty($lead_id_post)) {
+                $stmt_update = $pdo->prepare("UPDATE leads SET status = 'em_negociacao' WHERE id = ?");
+                $stmt_update->execute([$lead_id_post]);
+            }
+            
             $mensagem = 'sucesso';
         } catch (Exception $e) {
             $mensagem = 'erro';
@@ -113,37 +132,41 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <form method="POST" id="briefing-form">
 
                 <!-- SEÇÃO 1: Identificação -->
-                <div class="card mb-24">
-                    <div class="card-header">
-                        <div class="card-icon"><i class="ph-fill ph-identification-card"></i></div>
-                        <div>
-                            <h3>Identificação</h3>
-                            <p>Quem é você e sua empresa?</p>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="form-grid" style="margin-bottom:14px;">
-                            <div class="form-group col-full">
-                                <label>Nome do Responsável *</label>
-                                <input type="text" name="nome" class="form-control" required placeholder="João Silva">
-                            </div>
-                            <div class="form-group col-full">
-                                <label>Empresa / Projeto</label>
-                                <input type="text" name="empresa" class="form-control" placeholder="Nome da empresa">
-                            </div>
-                        </div>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label>E-mail *</label>
-                                <input type="email" name="email" class="form-control" required placeholder="contato@empresa.com">
-                            </div>
-                            <div class="form-group">
-                                <label>WhatsApp *</label>
-                                <input type="tel" name="telefone" class="form-control" required placeholder="(00) 00000-0000">
-                            </div>
-                        </div>
-                    </div>
-                </div>
+<div class="card mb-24">
+    <div class="card-header">
+        <div class="card-icon"><i class="ph-fill ph-identification-card"></i></div>
+        <div>
+            <h3>Identificação</h3>
+            <p>Quem é você e sua empresa?</p>
+        </div>
+    </div>
+    <div class="card-body">
+        
+        <!-- Campo Oculto com o ID do Lead para passar no POST -->
+        <input type="hidden" name="lead_id" value="<?= htmlspecialchars($lead_id ?? '') ?>">
+
+        <div class="form-grid" style="margin-bottom:14px;">
+            <div class="form-group col-full">
+                <label>Nome do Responsável *</label>
+                <input type="text" name="nome" class="form-control" required placeholder="João Silva" value="<?= $dados_lead ? htmlspecialchars($dados_lead['nome']) : '' ?>">
+            </div>
+            <div class="form-group col-full">
+                <label>Empresa / Projeto</label>
+                <input type="text" name="empresa" class="form-control" placeholder="Nome da empresa" value="<?= $dados_lead ? htmlspecialchars($dados_lead['empresa']) : '' ?>">
+            </div>
+        </div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>E-mail *</label>
+                <input type="email" name="email" class="form-control" required placeholder="contato@empresa.com" value="<?= $dados_lead ? htmlspecialchars($dados_lead['email']) : '' ?>">
+            </div>
+            <div class="form-group">
+                <label>WhatsApp *</label>
+                <input type="tel" name="telefone" class="form-control" required placeholder="(00) 00000-0000" value="<?= $dados_lead ? htmlspecialchars($dados_lead['telefone']) : '' ?>">
+            </div>
+        </div>
+    </div>
+</div>
 
                 <!-- SEÇÃO 2: Presença Digital -->
                 <div class="card mb-24">
