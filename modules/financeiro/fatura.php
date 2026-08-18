@@ -202,6 +202,35 @@ require_once '../../includes/layout/sidebar.php';
 
 <?= $mensagem ?>
 
+<!-- ============ PROJEÇÃO FUTURA (agora logo no topo, visível de cara) ============ -->
+<?php if (count($projecao) > 0): ?>
+<div class="card" style="margin-bottom: 24px;">
+    <div class="card-header">
+        <h3 class="card-title">Projeção Futura</h3>
+        <span class="badge badge-gray">Próximos meses</span>
+    </div>
+
+    <div class="projecao-strip">
+        <?php foreach ($projecao as $p): ?>
+            <?php
+                $eh_atual = ($p['mes'] == $mes_atual_real && $p['ano'] == $ano_atual_real);
+                $eh_fatura_aberta_view = ($p['id'] == $fatura['id']);
+            ?>
+            <a href="fatura.php?id=<?= $p['id'] ?>" class="projecao-tile <?= $eh_atual ? 'atual' : '' ?> <?= $eh_fatura_aberta_view ? 'em-visualizacao' : '' ?>" title="<?= $eh_fatura_aberta_view ? 'Fatura em visualização' : 'Ver esta fatura' ?>">
+                <div class="projecao-mes"><?= $meses_abrev_pt[str_pad($p['mes'], 2, '0', STR_PAD_LEFT)] ?>/<?= substr($p['ano'], 2, 2) ?></div>
+                <div class="projecao-valor"><?= money($p['total']) ?></div>
+                <span class="projecao-status-dot st-<?= $p['status'] ?>"><?= ucfirst($p['status']) ?></span>
+            </a>
+        <?php endforeach; ?>
+    </div>
+
+    <div class="projecao-total-futuro">
+        <span>Total a pagar de <?= $meses_abrev_pt[str_pad($projecao[0]['mes'], 2, '0', STR_PAD_LEFT)] ?>/<?= $projecao[0]['ano'] ?> em diante</span>
+        <strong><?= money($total_futuro) ?></strong>
+    </div>
+</div>
+<?php endif; ?>
+
 <div style="display: grid; grid-template-columns: 320px 1fr; gap: 24px; align-items: start;">
     <!-- Lado Esquerdo: Resumo e Pagamento -->
     <div class="card" style="margin-bottom: 0;">
@@ -321,35 +350,6 @@ require_once '../../includes/layout/sidebar.php';
     </div>
 </div>
 
-<!-- ============ PROJEÇÃO FUTURA ============ -->
-<?php if (count($projecao) > 0): ?>
-<div class="card" style="margin-top: 50px;">
-    <div class="card-header">
-        <h3 class="card-title">Projeção Futura</h3>
-        <span class="badge badge-gray">Próximos meses</span>
-    </div>
-
-    <div class="projecao-strip">
-        <?php foreach ($projecao as $p): ?>
-            <?php
-                $eh_atual = ($p['mes'] == $mes_atual_real && $p['ano'] == $ano_atual_real);
-                $eh_fatura_aberta_view = ($p['id'] == $fatura['id']);
-            ?>
-            <a href="fatura.php?id=<?= $p['id'] ?>" class="projecao-tile <?= $eh_atual ? 'atual' : '' ?>" title="<?= $eh_fatura_aberta_view ? 'Fatura em visualização' : 'Ver esta fatura' ?>">
-                <div class="projecao-mes"><?= $meses_abrev_pt[str_pad($p['mes'], 2, '0', STR_PAD_LEFT)] ?>/<?= substr($p['ano'], 2, 2) ?></div>
-                <div class="projecao-valor"><?= money($p['total']) ?></div>
-                <span class="projecao-status-dot st-<?= $p['status'] ?>"><?= ucfirst($p['status']) ?></span>
-            </a>
-        <?php endforeach; ?>
-    </div>
-
-    <div class="projecao-total-futuro">
-        <span>Total a pagar de <?= $meses_abrev_pt[str_pad($projecao[0]['mes'], 2, '0', STR_PAD_LEFT)] ?>/<?= $projecao[0]['ano'] ?> em diante</span>
-        <strong><?= money($total_futuro) ?></strong>
-    </div>
-</div>
-<?php endif; ?>
-
 <!-- ============ MODAL DE UPLOAD PDF ============ -->
 <div id="modalUploadPDF" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;">
     <div class="card" style="width: 100%; max-width: 500px; margin: 20px;">
@@ -380,49 +380,62 @@ require_once '../../includes/layout/sidebar.php';
     </div>
 </div>
 
-<!-- ============ TELA DE REVISÃO DINÂMICA ============ -->
-<div id="telaRevisao" style="display: none; margin-top: 30px;">
-    <div class="card">
-        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-mid); padding-bottom: 15px;">
+<!-- ============ TELA DE REVISÃO (modal, lado a lado) ============ -->
+<div id="telaRevisao" class="overlay-revisao">
+    <div class="box-revisao">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-mid); padding-bottom: 15px; flex-shrink: 0;">
             <div>
                 <h3 class="card-title" style="font-size: 20px;">Revisão de Lançamentos</h3>
-                <small style="color: var(--text-3);">Revise e classifique os gastos detectados pela IA antes de importar</small>
+                <small style="color: var(--text-3);">Compare com o que já está na fatura antes de importar</small>
             </div>
             <button type="button" onclick="fecharTelaRevisao()" class="btn btn-secondary" style="font-size: 13px;">
                 <i class="ph ph-x"></i> Cancelar Importação
             </button>
         </div>
-        
-        <div style="overflow-x: auto;">
-            <!-- Aplicando a classe .notion-table do seu CSS -->
-            <table id="tabelaRevisao" class="notion-table">
-                <thead>
-                    <tr>
-                        <th style="width: 40px; text-align: center;">
-                            <input type="checkbox" id="checkboxTodos" onchange="toggleTodosCheked(this)" style="cursor: pointer;">
-                        </th>
-                        <th style="width: 120px;">Data</th>
-                        <th style="width: 25%;">Descrição</th>
-                        <th style="width: 20%;">Categoria</th>
-                        <th style="width: 15%;">Tipo</th>
-                        <th style="width: 120px; text-align: right;">Valor</th>
-                        <th style="width: 60px; text-align: center;"></th>
-                    </tr>
-                </thead>
-                <tbody id="corpoTabelaRevisao">
+
+        <div class="revisao-colunas">
+            <!-- Coluna esquerda: o que já está lançado nesta fatura -->
+            <div class="coluna-existentes">
+                <div class="coluna-existentes-titulo">
+                    <i class="ph ph-database"></i> Já está na fatura (<span id="totalExistentes">0</span>)
+                </div>
+                <div id="listaExistentes" class="lista-existentes">
                     <!-- Preenchido dinamicamente por JS -->
-                </tbody>
-            </table>
+                </div>
+            </div>
+
+            <!-- Coluna direita: itens novos detectados pela IA -->
+            <div class="coluna-novos">
+                <div style="overflow-x: auto;">
+                    <table id="tabelaRevisao" class="notion-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px; text-align: center;">
+                                    <input type="checkbox" id="checkboxTodos" onchange="toggleTodosCheked(this)" style="cursor: pointer;">
+                                </th>
+                                <th style="width: 120px;">Data</th>
+                                <th style="width: 25%;">Descrição</th>
+                                <th style="width: 20%;">Categoria</th>
+                                <th style="width: 15%;">Tipo</th>
+                                <th style="width: 120px; text-align: right;">Valor</th>
+                                <th style="width: 60px; text-align: center;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="corpoTabelaRevisao">
+                            <!-- Preenchido dinamicamente por JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-        
-        <div style="padding: 24px; background: var(--bg-hover); border-top: 1px solid var(--border-mid); display: flex; justify-content: space-between; align-items: center; border-radius: 0 0 8px 8px;">
+
+        <div style="padding: 20px 24px; background: var(--bg-hover); border-top: 1px solid var(--border-mid); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
             <div>
                 <span style="font-size: 13px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.5px;">Selecionados (<span id="contadorSelecionados">0</span>)</span>
                 <div style="font-size: 24px; font-weight: 700; color: var(--gn-blue); line-height: 1;">
                     <span id="valorTotalSelecionados">R$ 0,00</span>
                 </div>
             </div>
-            <!-- Aplicando o botão bombado do seu CSS -->
             <button type="button" class="btn-save-lg" onclick="salvarLancamentosSelecionados()" id="btnSalvarLancamentos" style="width: auto; padding: 12px 30px;">
                 <i class="ph ph-check-circle" style="font-size: 20px;"></i> Confirmar e Salvar
             </button>
@@ -521,6 +534,102 @@ require_once '../../includes/layout/sidebar.php';
     outline: none;
     border-color: var(--blue);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* ---------- MODAL DE REVISÃO LADO A LADO ---------- */
+.overlay-revisao {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.65);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.overlay-revisao.ativo { display: flex; }
+
+.box-revisao {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg, 12px);
+    width: 100%;
+    max-width: 1180px;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.box-revisao > .card-header { padding: 20px 24px 15px; }
+
+.revisao-colunas {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 0;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.coluna-existentes {
+    border-right: 1px solid var(--border-mid);
+    background: var(--bg-hover);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.coluna-existentes-titulo {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    color: var(--text-3);
+    padding: 14px 16px 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border-mid);
+}
+.lista-existentes {
+    overflow-y: auto;
+    padding: 8px;
+    flex: 1;
+}
+.item-existente {
+    padding: 8px 10px;
+    border-radius: var(--r-sm, 6px);
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+.item-existente-desc {
+    color: var(--text-2);
+    font-weight: 600;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.item-existente-valor {
+    color: var(--text-3);
+    font-size: 11px;
+}
+.lista-existentes-vazio {
+    padding: 20px 12px;
+    text-align: center;
+    color: var(--text-3);
+    font-size: 12px;
+}
+
+.coluna-novos {
+    overflow-y: auto;
+    min-height: 0;
+    padding: 0 4px;
+}
+
+@media (max-width: 900px) {
+    .revisao-colunas { grid-template-columns: 1fr; }
+    .coluna-existentes { border-right: none; border-bottom: 1px solid var(--border-mid); max-height: 180px; }
 }
 </style>
 
@@ -624,14 +733,32 @@ function exibirTelaRevisao(dados) {
             };
         });
         
+        renderizarListaExistentes(lancamentosExistentes);
         renderizarTabelaRevisao();
-        document.getElementById('telaRevisao').style.display = 'block';
+        document.getElementById('telaRevisao').classList.add('ativo');
         atualizarContadores();
     });
 }
 
+function renderizarListaExistentes(lista) {
+    const container = document.getElementById('listaExistentes');
+    document.getElementById('totalExistentes').textContent = lista.length;
+
+    if (lista.length === 0) {
+        container.innerHTML = '<div class="lista-existentes-vazio">Nenhum lançamento ainda nesta fatura.</div>';
+        return;
+    }
+
+    container.innerHTML = lista.map(item => `
+        <div class="item-existente">
+            <span class="item-existente-desc">${escapeHtml(item.descricao)}</span>
+            <span class="item-existente-valor">${formatarMoeda(parseFloat(item.valor) || 0)}</span>
+        </div>
+    `).join('');
+}
+
 function fecharTelaRevisao() {
-    document.getElementById('telaRevisao').style.display = 'none';
+    document.getElementById('telaRevisao').classList.remove('ativo');
     lancamentosRevisao = [];
 }
 function renderizarTabelaRevisao() {

@@ -54,13 +54,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
             $dir = '../../uploads/financeiro/';
             if (!is_dir($dir)) mkdir($dir, 0777, true);
 
+            
+            $dir_absoluto = realpath($dir);
+            $doc_root = realpath($_SERVER['DOCUMENT_ROOT']);
+            $url_base_uploads = str_replace('\\', '/', str_replace($doc_root, '', $dir_absoluto));
+            if (substr($url_base_uploads, -1) !== '/') $url_base_uploads .= '/';
+
             // Upload Arquivo de Cobrança (Boleto/NF)
             if (isset($_FILES['arquivo_cobranca']) && $_FILES['arquivo_cobranca']['error'] == 0) {
                 $ext1 = pathinfo($_FILES['arquivo_cobranca']['name'], PATHINFO_EXTENSION);
                 $nome_cob = 'cob_' . time() . '_' . rand(10,99) . '.' . $ext1;
                 if (move_uploaded_file($_FILES['arquivo_cobranca']['tmp_name'], $dir . $nome_cob)) {
                     $query_upd .= ", cobranca_url = ?";
-                    $params[] = '/gasmaske/uploads/financeiro/' . $nome_cob;
+                    $params[] = $url_base_uploads . $nome_cob;
                 }
             }
 
@@ -70,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
                 $nome_comp = 'comp_sai_' . time() . '_' . rand(10,99) . '.' . $ext2;
                 if (move_uploaded_file($_FILES['comprovante']['tmp_name'], $dir . $nome_comp)) {
                     $query_upd .= ", comprovante_url = ?";
-                    $params[] = '/gasmaske/uploads/financeiro/' . $nome_comp;
+                    $params[] = $url_base_uploads . $nome_comp;
                 }
             }
 

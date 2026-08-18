@@ -249,6 +249,7 @@
 }
 .projecao-tile:hover { border-color: var(--border-mid); background: var(--bg-elevated); }
 .projecao-tile.atual { border-color: var(--blue); background: rgba(59,130,246,.08); }
+.projecao-tile.em-visualizacao { box-shadow: 0 0 0 2px var(--text) inset; }
 
 .projecao-mes {
     font-size: 10px;
