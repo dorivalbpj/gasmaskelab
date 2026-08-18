@@ -57,13 +57,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $link_drive     = null;
             $msg_drive      = "";
 
+            // === INÍCIO DA AUTOMAÇÃO DRIVE E E-MAIL ===
             try {
-                $pasta_mae_id = '1QShkupoCzUHvAD5w9rMifI8337HEDx7K';
+                // MACETE PARA A HOSTINGER
+                \Firebase\JWT\JWT::$leeway = 300;
+
+                // Troque pelo ID da sua pasta nova que funcionou!
+                $pasta_mae_id = '1UyXCtbT2Q-LdFzOzC_UiQ6DBa3dp9FCu'; 
                 $client = new \Google_Client();
                 $client->setAuthConfig('../../config/google-credentials.json');
                 $client->addScope(\Google_Service_Drive::DRIVE);
                 $driveService = new \Google_Service_Drive($client);
 
+                // 1. CRIA A PASTA MÃE DO CLIENTE
                 $nome_pasta   = $contrato['codigo_agc'] . ' - ' . $contrato['cliente_nome'];
                 $fileMetadata = new \Google_Service_Drive_DriveFile([
                     'name'     => $nome_pasta,
@@ -72,11 +78,130 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 ]);
                 $folder     = $driveService->files->create($fileMetadata, ['fields' => 'id, webViewLink']);
                 $link_drive = $folder->webViewLink;
-                $msg_drive  = " e pasta do Drive criada";
-            } catch (Exception $e) {
-                $msg_drive = " (Falha no Drive: " . $e->getMessage() . ")";
-            }
+                $pasta_cliente_id = $folder->id;
 
+                // 2. ESTRUTURA DE SUBPASTAS (A Árvore)
+                $estrutura_pastas = [
+                    '1 - Captação' => ['1.1 - Visual' => []],
+                    '2 - Contratos e Administrativo' => [],
+                    '3 - Identidade Visual e Branding' => ['3.1 - Logotipo' => []],
+                    '4 - Planejamento Estratégico' => [],
+                    '5 - Produção de Conteúdo' => [
+                        '5.1 - Imagens' => ['5.1.1 - Entrega' => [], '5.1.2 - Produção' => []],
+                        '5.2 - Vídeos' => ['5.2.1 - Entrega' => [], '5.2.2 - Produção' => []],
+                        '5.3 - Roteiros' => ['5.3.1 - Videos' => [], '5.3.2 - Carrossel' => []]
+                    ],
+                    '6 - Compartilhada' => []
+                ];
+
+                $criarPastas = function($estrutura, $parentId) use (&$criarPastas, $driveService) {
+                    foreach ($estrutura as $nome => $sub) {
+                        $meta = new \Google_Service_Drive_DriveFile([
+                            'name' => $nome,
+                            'mimeType' => 'application/vnd.google-apps.folder',
+                            'parents' => [$parentId]
+                        ]);
+                        $f = $driveService->files->create($meta, ['fields' => 'id']);
+                        if (!empty($sub)) {
+                            $criarPastas($sub, $f->id);
+                        }
+                    }
+                };
+
+                $criarPastas($estrutura_pastas, $pasta_cliente_id);
+
+                // 3. GERA O ARQUIVO TXT DO CONTRATO LOCALMENTE
+                $cpf_cnpj_aceite = $contrato['cpf_cnpj_aceite'] ?? 'Não assinado';
+                $aceito_em = $contrato['aceito_em'] ? date('d/m/Y H:i:s', strtotime($contrato['aceito_em'])) : 'Não assinado';
+                $aceito_ip = $contrato['aceito_ip'] ?? 'Não registrado';
+                $texto_contrato = $contrato['texto_contrato'] ?? '';
+                $texto_contrato = str_replace('{{SISTEMA_DATA_HORA}}', $aceito_em, $texto_contrato);
+                $texto_contrato = str_replace('{{SISTEMA_IP}}', $aceito_ip, $texto_contrato);
+                $texto_contrato = str_replace('Será preenchido na assinatura', $cpf_cnpj_aceite, $texto_contrato);
+
+                $valor_parcela_fmt = number_format($contrato['valor'] ?? 0, 2, ',', '.');
+                $duracao_fmt = (int)($contrato['duracao_meses'] ?? 1);
+                $valor_total_fmt = number_format(($contrato['valor'] ?? 0) * $duracao_fmt, 2, ',', '.');
+                $endereco_cliente = $contrato['cliente_endereco_completo'] ?? $contrato['cliente_endereco'] ?? 'Não informado';
+
+                $conteudo_txt = "=" . str_repeat("=", 78) . "\n";
+                $conteudo_txt .= "                    CONTRATO DE PRESTAÇÃO DE SERVIÇOS\n";
+                $conteudo_txt .= "                  GASMASKE LAB - Assessoria Musical\n";
+                $conteudo_txt .= "=" . str_repeat("=", 78) . "\n\n";
+                $conteudo_txt .= "📄 CÓDIGO: " . $contrato['codigo_agc'] . "\n";
+                $conteudo_txt .= "📅 DATA DE GERAÇÃO: " . date('d/m/Y H:i:s') . "\n";
+                $conteudo_txt .= "📊 STATUS: EM ANDAMENTO\n\n";
+                $conteudo_txt .= str_repeat("-", 78) . "\n";
+                $conteudo_txt .= "DADOS DO CONTRATANTE\n";
+                $conteudo_txt .= str_repeat("-", 78) . "\n\n";
+                $conteudo_txt .= "NOME / RAZÃO SOCIAL: " . $contrato['cliente_nome'] . "\n";
+                $conteudo_txt .= "CPF / CNPJ: " . $cpf_cnpj_aceite . "\n";
+                $conteudo_txt .= "E-MAIL: " . ($contrato['cliente_email'] ?? 'Não informado') . "\n";
+                $conteudo_txt .= "TELEFONE: " . ($contrato['cliente_telefone'] ?? 'Não informado') . "\n";
+                $conteudo_txt .= "ENDEREÇO: " . $endereco_cliente . "\n\n";
+                $conteudo_txt .= str_repeat("-", 78) . "\n";
+                $conteudo_txt .= "DADOS DO CONTRATO\n";
+                $conteudo_txt .= str_repeat("-", 78) . "\n\n";
+                $conteudo_txt .= "VALOR MENSAL: R$ " . $valor_parcela_fmt . "\n";
+                $conteudo_txt .= "DURAÇÃO: " . $duracao_fmt . " meses\n";
+                $conteudo_txt .= "VALOR TOTAL: R$ " . $valor_total_fmt . "\n";
+                $conteudo_txt .= "DIA DE VENCIMENTO: " . $dia_vencimento . "\n\n";
+                $conteudo_txt .= str_repeat("-", 78) . "\n";
+                $conteudo_txt .= "REGISTRO DE ASSINATURA DIGITAL\n";
+                $conteudo_txt .= str_repeat("-", 78) . "\n\n";
+                $conteudo_txt .= "DOCUMENTO: " . $cpf_cnpj_aceite . "\n";
+                $conteudo_txt .= "DATA E HORA: " . $aceito_em . "\n";
+                $conteudo_txt .= "IP DE ORIGEM: " . $aceito_ip . "\n";
+                $conteudo_txt .= "VALIDADE JURÍDICA: Lei nº 14.063/2020 (Assinatura Digital)\n\n";
+                $conteudo_txt .= str_repeat("-", 78) . "\n";
+                $conteudo_txt .= "CLÁUSULAS DO CONTRATO\n";
+                $conteudo_txt .= str_repeat("-", 78) . "\n\n";
+                $conteudo_txt .= $texto_contrato . "\n\n";
+                $conteudo_txt .= str_repeat("=", 78) . "\n";
+                $conteudo_txt .= "Documento gerado eletronicamente em " . date('d/m/Y H:i:s') . "\n";
+                $conteudo_txt .= "Gasmaske Lab\n";
+                $conteudo_txt .= "Este documento tem fé pública e validade jurídica nos termos da Lei nº 14.063/2020.\n";
+                $conteudo_txt .= "Verifique a autenticidade pelo código do contrato: " . $contrato['codigo_agc'] . "\n";
+                $conteudo_txt .= str_repeat("=", 78) . "\n";
+
+                $nome_arquivo = 'Contrato_' . $contrato['codigo_agc'] . '_' . date('Y-m-d') . '.txt';
+                $caminho_temp = sys_get_temp_dir() . '/' . $nome_arquivo;
+                file_put_contents($caminho_temp, $conteudo_txt);
+
+                // 4. DISPARO DOS E-MAILS COM ANEXO
+                $boundary = md5(time());
+                $headers  = "From: contato@gasmaskelab.com.br\r\n";
+                $headers .= "Reply-To: contato@gasmaskelab.com.br\r\n";
+                $headers .= "MIME-Version: 1.0\r\n";
+                $headers .= "Content-Type: multipart/mixed; boundary=\"" . $boundary . "\"\r\n";
+
+                $mensagem_html = "Olá " . $contrato['cliente_nome'] . ",\n\nSeu contrato de prestação de serviços (Código: ".$contrato['codigo_agc'].") está ativo e em andamento.\n\nSegue em anexo a sua via do contrato, contendo o registro de assinatura e validade jurídica.\n\nAgradecemos a confiança e estamos prontos para iniciar o projeto!\n\nAtenciosamente,\nEquipe Gasmaske Lab";
+                
+                $body = "--$boundary\r\n";
+                $body .= "Content-Type: text/plain; charset=UTF-8\r\n";
+                $body .= "Content-Transfer-Encoding: 7bit\r\n\r\n";
+                $body .= $mensagem_html . "\r\n\r\n";
+
+                $body .= "--$boundary\r\n";
+                $body .= "Content-Type: text/plain; name=\"$nome_arquivo\"\r\n";
+                $body .= "Content-Transfer-Encoding: base64\r\n";
+                $body .= "Content-Disposition: attachment; filename=\"$nome_arquivo\"\r\n\r\n";
+                $body .= chunk_split(base64_encode(file_get_contents($caminho_temp))) . "\r\n";
+                $body .= "--$boundary--";
+
+                if (!empty($contrato['cliente_email'])) {
+                    mail($contrato['cliente_email'], "Seu Contrato Ativo - Gasmaske Lab", $body, $headers, "-fcontato@gasmaskelab.com.br");
+                }
+                mail("contato@gasmaskelab.com.br", "CONTRATO ATIVADO: " . $contrato['codigo_agc'] . " - " . $contrato['cliente_nome'], $body, $headers, "-fcontato@gasmaskelab.com.br");
+
+                unlink($caminho_temp);
+                $msg_drive  = " | Pastas geradas e e-mails disparados com sucesso!";
+            } catch (Exception $e) {
+                $msg_drive = " (Falha na automação: " . $e->getMessage() . ")";
+            }
+            // === FIM DA AUTOMAÇÃO DRIVE E E-MAIL ===
+
+            // === ATUALIZAÇÃO DO BANCO DE DADOS E GERAÇÃO DE PARCELAS ===
             $pdo->beginTransaction();
             $pdo->prepare("UPDATE contratos SET status = 'em_andamento', data_inicio = ?, dia_vencimento = ?, link_drive = ? WHERE id = ?")->execute([$data_pagamento, $dia_vencimento, $link_drive, $id]);
             $pdo->prepare("DELETE FROM parcelas WHERE contrato_id = ?")->execute([$id]);
