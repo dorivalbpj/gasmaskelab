@@ -11,75 +11,73 @@ require_once '../../includes/functions.php';
 
 requireLogin();
 
+// --- AJAX: ATUALIZAÇÕES RÁPIDAS COM LOG ---
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['acao'] == 'atualizar_campo') {
+    $id_tarefa = $_POST['id_tarefa'];
+    $campo = $_POST['campo'];
+    $valor = empty($_POST['valor']) ? null : $_POST['valor'];
+    
+    // Todos os campos editáveis que existem no index.php
+    $campos_permitidos = ['responsavel_id', 'prioridade', 'data_publicacao', 'status_geral', 'link_arte_final', 'tipo', 'cliente_id', 'tema', 'roteiro', 'legenda', 'inspiracao'];
+    
+    if (in_array($campo, $campos_permitidos)) {
+        // Log de alterações
+        $stmt = $pdo->prepare("SELECT {$campo} FROM planejamento WHERE id = ?");
+        $stmt->execute([$id_tarefa]);
+        $valor_antigo = $stmt->fetchColumn();
+
+        if ($valor_antigo != $valor) {
+            $usuario_log = $_SESSION['usuario_id'] ?? 1;
+            $pdo->prepare("INSERT INTO planejamento_logs (tarefa_id, usuario_id, campo, valor_antigo, valor_novo) VALUES (?, ?, ?, ?, ?)")
+                ->execute([$id_tarefa, $usuario_log, $campo, $valor_antigo, $valor]);
+        }
+
+        $pdo->prepare("UPDATE planejamento SET {$campo} = ?, data_ultima_acao = NOW() WHERE id = ?")->execute([$valor, $id_tarefa]);
+        echo "ok"; exit;
+    }
+}
+
 $id = $_GET['id'] ?? 0;
-$mensagem = '';
 
 // Busca os dados completos da tarefa
-$stmt = $pdo->prepare("SELECT p.*, cli.nome as cliente_nome, 
-                        u1.nome as nome_resp_roteiro, u2.nome as nome_resp_peca 
+$stmt = $pdo->prepare("SELECT p.*, cli.nome as cliente_nome 
                        FROM planejamento p 
                        LEFT JOIN clientes cli ON p.cliente_id = cli.id 
-                       LEFT JOIN usuarios u1 ON p.responsavel_roteiro = u1.id 
-                       LEFT JOIN usuarios u2 ON p.responsavel_peca = u2.id 
                        WHERE p.id = ?");
 $stmt->execute([$id]);
 $item = $stmt->fetch();
 
 if (!$item) die("Tarefa não encontrada.");
 
-// --- LÓGICA PARA SALVAR ROTEIRO E ARTE ---
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $acao = $_POST['acao'] ?? '';
+// Dados para os selects (Puxados do banco igual no index.php)
+$usuarios = $pdo->query("SELECT id, nome FROM usuarios ORDER BY nome ASC")->fetchAll();
+$clientes = $pdo->query("SELECT id, nome FROM clientes ORDER BY nome ASC")->fetchAll();
+$task_categorias = $pdo->query("SELECT * FROM task_categorias ORDER BY nome ASC")->fetchAll();
 
-    try {
-        if ($acao == 'salvar_roteiro') {
-            $roteiro = $_POST['roteiro'] ?? '';
-            $novo_status = ($item['status_geral'] == 'criado') ? 'roteiro_em_producao' : $item['status_geral'];
-            
-            $pdo->prepare("UPDATE planejamento SET roteiro = ?, status_geral = ? WHERE id = ?")->execute([$roteiro, $novo_status, $id]);
-            $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Roteiro salvo com sucesso!</div>";
-            $item['roteiro'] = $roteiro;
-            $item['status_geral'] = $novo_status;
-
-        } elseif ($acao == 'enviar_roteiro_cliente') {
-            $pdo->prepare("UPDATE planejamento SET status_roteiro = 'aguardando_aprovacao', status_geral = 'roteiro_aguardando_aprovacao' WHERE id = ?")->execute([$id]);
-            $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Roteiro liberado! O cliente já pode ver e aprovar.</div>";
-            $item['status_roteiro'] = 'aguardando_aprovacao';
-            $item['status_geral'] = 'roteiro_aguardando_aprovacao';
-
-        } elseif ($acao == 'salvar_peca') {
-            $link_peca = $_POST['link_peca'] ?? '';
-            $novo_status = ($item['status_geral'] == 'roteiro_aprovado') ? 'peca_em_producao' : $item['status_geral'];
-            
-            $pdo->prepare("UPDATE planejamento SET link_peca = ?, status_geral = ? WHERE id = ?")->execute([$link_peca, $novo_status, $id]);
-            $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Link da peça salvo com sucesso!</div>";
-            $item['link_peca'] = $link_peca;
-            $item['status_geral'] = $novo_status;
-
-        } elseif ($acao == 'enviar_peca_cliente') {
-            $pdo->prepare("UPDATE planejamento SET status_peca = 'aguardando_aprovacao', status_geral = 'peca_aguardando_aprovacao' WHERE id = ?")->execute([$id]);
-            $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Arte liberada para o cliente!</div>";
-            $item['status_peca'] = 'aguardando_aprovacao';
-            $item['status_geral'] = 'peca_aguardando_aprovacao';
-        }
-    } catch (Exception $e) {
-        $mensagem = "<div class='alert alert-warning'><i class='ph-fill ph-warning-circle'></i> Erro: " . $e->getMessage() . "</div>";
-    }
-}
+$status_lista = [
+    'a_fazer' => 'A fazer',
+    'em_execucao' => 'Em execução',
+    'revisao_interna' => 'Revisão Interna',
+    'revisao_externa' => 'Revisão externa',
+    'aguardar_interno' => 'Aguardar Interno',
+    'aguardar_cliente' => 'Aguardar Cliente',
+    'postar' => 'Postar',
+    'finalizado' => 'Finalizado',
+    'arquivado' => 'Arquivado'
+];
 
 require_once '../../includes/layout/header.php';
 require_once '../../includes/layout/sidebar.php';
 ?>
 
-<!-- O CAMINHO DO CSS FOI CORRIGIDO PARA PUXAR O ARQUIVO EXATO DO SEU SISTEMA -->
 <link rel="stylesheet" href="../../assets/css/planejamento.css?v=<?= time() ?>">
 
-<div style="max-width: 1200px; margin: 0 auto; width: 100%; padding-top: 10px;">
+<div style="max-width: 1200px; margin: 0 auto; width: 100%; padding-top: 10px; padding-bottom: 50px;">
 
-    <!-- CABEÇALHO NO PADRÃO DO SISTEMA -->
+    <!-- CABEÇALHO -->
     <div class="header-planejamento">
         <div class="header-title-block">
-            <h2 class="page-title">Mesa de Trabalho</h2>
+            <h2 class="page-title">Visualização da Tarefa <?= $item['id'] ?></h2>
             <div class="header-stats" style="margin-top: 5px;">
                 <span class="badge badge-gray" style="font-size: 11px;">Tarefa #<?= $item['id'] ?></span>
             </div>
@@ -92,124 +90,122 @@ require_once '../../includes/layout/sidebar.php';
         </div>
     </div>
 
-    <?= $mensagem ?>
-
-    <!-- RESUMO DA TAREFA -->
-    <div class="item-resumo">
-        <div class="grid-info">
+    <!-- METADADOS DA TAREFA -->
+    <div class="item-resumo" style="background: var(--bg-elevated); border: 1px solid var(--border-mid); border-radius: 8px; padding: 25px; margin-bottom: 25px;">
+        
+        <!-- GRID DE SELECTS -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; margin-bottom: 25px;">
+            <!-- Cliente -->
             <div>
-                <p class="label">Cliente</p>
-                <span class="valor"><?= htmlspecialchars($item['cliente_nome'] ?? 'Interno') ?></span>
+                <label class="label" style="font-size: 11px; text-transform: uppercase; color: var(--text-3); font-weight: bold; margin-bottom: 6px; display: block;">Cliente</label>
+                <select onchange="salvarCampo(<?= $item['id'] ?>, 'cliente_id', this.value)" class="gn-select silent-select" style="width: 100%; font-weight: 600;">
+                    <option value="">Interno</option>
+                    <?php foreach($clientes as $c): ?>
+                        <option value="<?= $c['id'] ?>" <?= $item['cliente_id'] == $c['id'] ? 'selected' : '' ?>><?= htmlspecialchars($c['nome']) ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
+            <!-- Categoria -->
             <div>
-                <p class="label">Categoria</p>
-                <span class="valor"><?= htmlspecialchars($item['tipo']) ?></span>
+                <label class="label" style="font-size: 11px; text-transform: uppercase; color: var(--text-3); font-weight: bold; margin-bottom: 6px; display: block;">Categoria</label>
+                <select onchange="salvarCampo(<?= $item['id'] ?>, 'tipo', this.value)" class="gn-select silent-select" style="width: 100%; font-weight: 600;">
+                    <option value="">—</option>
+                    <?php foreach($task_categorias as $cat): ?>
+                        <option value="<?= htmlspecialchars($cat['nome']) ?>" <?= ($item['tipo'] ?? '') == $cat['nome'] ? 'selected' : '' ?>><?= htmlspecialchars($cat['nome']) ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
+            <!-- Prazo -->
             <div>
-                <p class="label">Data Prevista</p>
-                <span class="valor"><?= $item['data_publicacao'] ? date('d/m/Y', strtotime($item['data_publicacao'])) : 'Sem data' ?></span>
+                <label class="label" style="font-size: 11px; text-transform: uppercase; color: var(--text-3); font-weight: bold; margin-bottom: 6px; display: block;">Prazo</label>
+                <input type="date" value="<?= $item['data_publicacao'] ?? '' ?>" onchange="salvarCampo(<?= $item['id'] ?>, 'data_publicacao', this.value)" class="silent-input" style="width: 100%; border: 1px solid var(--border-mid); padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); color: var(--text-primary);">
             </div>
+            <!-- Prioridade -->
             <div>
-                <p class="label">Status Geral</p>
-                <span class="badge badge-blue" style="font-size: 11px; padding: 4px 8px; margin-top: 4px;">
-                    <?= str_replace('_', ' ', $item['status_geral']) ?>
-                </span>
+                <label class="label" style="font-size: 11px; text-transform: uppercase; color: var(--text-3); font-weight: bold; margin-bottom: 6px; display: block;">Prioridade</label>
+                <select onchange="salvarCampo(<?= $item['id'] ?>, 'prioridade', this.value)" class="gn-select silent-select" style="width: 100%; font-weight: 600;">
+                    <option value="baixa" <?= ($item['prioridade']??'')=='baixa'?'selected':'' ?>>Baixa</option>
+                    <option value="media" <?= ($item['prioridade']??'')=='media'?'selected':'' ?>>Média</option>
+                    <option value="alta" <?= ($item['prioridade']??'')=='alta'?'selected':'' ?>>Alta</option>
+                    <option value="urgente" <?= ($item['prioridade']??'')=='urgente'?'selected':'' ?>>Urgente</option>
+                </select>
+            </div>
+            <!-- Responsável -->
+            <div>
+                <label class="label" style="font-size: 11px; text-transform: uppercase; color: var(--text-3); font-weight: bold; margin-bottom: 6px; display: block;">Responsável</label>
+                <select onchange="salvarCampo(<?= $item['id'] ?>, 'responsavel_id', this.value)" class="gn-select silent-select" style="width: 100%; font-weight: 600;">
+                    <option value="">Sem Responsável</option>
+                    <?php foreach($usuarios as $u): ?>
+                        <option value="<?= $u['id'] ?>" <?= ($item['responsavel_id']??'')==$u['id']?'selected':'' ?>><?= htmlspecialchars($u['nome']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <!-- Status Geral -->
+            <div>
+                <label class="label" style="font-size: 11px; text-transform: uppercase; color: var(--text-3); font-weight: bold; margin-bottom: 6px; display: block;">Status Geral</label>
+                <select onchange="salvarCampo(<?= $item['id'] ?>, 'status_geral', this.value)" class="gn-select silent-select" style="width: 100%; font-weight: bold; border-color: var(--gn-blue);">
+                    <?php foreach($status_lista as $k => $v): ?>
+                        <option value="<?= $k ?>" <?= ($item['status_geral']??'')==$k?'selected':'' ?>><?= $v ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
         </div>
-        
-        <div class="tema-box">
-            <p class="label">Tema / Título:</p>
-            <div class="tema"><?= htmlspecialchars($item['tema']) ?></div>
-            
-            <?php if(!empty($item['descricao'])): ?>
-                <div class="descricao" style="margin-top: 15px; border-top: 1px dashed var(--border-mid); padding-top: 15px;">
-                    <p class="label" style="margin-bottom: 5px;">Briefing / Instruções adicionais:</p>
-                    <?= nl2br(htmlspecialchars($item['descricao'])) ?>
-                </div>
-            <?php endif; ?>
+
+        <!-- TEMA E LINK -->
+        <div style="margin-bottom: 20px;">
+            <label class="label" style="font-size: 11px; text-transform: uppercase; color: var(--text-3); font-weight: bold; margin-bottom: 6px; display: block;">Tema / Título Principal</label>
+            <input type="text" value="<?= htmlspecialchars($item['tema'] ?? '') ?>" onchange="salvarCampo(<?= $item['id'] ?>, 'tema', this.value)" class="silent-input" style="width: 100%; font-size: 18px; font-weight: bold; padding: 12px; border: 1px solid var(--border-mid); border-radius: 6px; background: rgba(0,0,0,0.1); color: var(--text-primary);">
+        </div>
+
+        <div>
+            <label class="label" style="font-size: 11px; text-transform: uppercase; color: var(--text-3); font-weight: bold; margin-bottom: 6px; display: block;">Link de Entrega (Drive / Canva)</label>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="url" id="linkArteFinal" value="<?= htmlspecialchars($item['link_arte_final'] ?? '') ?>" onchange="salvarCampo(<?= $item['id'] ?>, 'link_arte_final', this.value)" class="silent-input" style="flex: 1; padding: 12px; border: 1px solid var(--border-mid); border-radius: 6px; background: rgba(0,0,0,0.1); color: var(--text-primary);" placeholder="Cole a URL do projeto aqui...">
+                <a id="btnAbrirLinkItem" href="<?= htmlspecialchars($item['link_arte_final'] ?? '#') ?>" target="_blank" class="btn btn-secondary" style="display: <?= empty($item['link_arte_final']) ? 'none' : 'inline-flex' ?>; align-items: center; justify-content: center; height: 44px; padding: 0 20px;">
+                    <i class="ph ph-arrow-square-out"></i> Abrir Link
+                </a>
+            </div>
         </div>
     </div>
 
-    <!-- COLUNAS DE ROTEIRO E ARTE -->
-    <div class="item-colunas">
+    <!-- ÁREA DE CONTEÚDO (ROTEIRO, LEGENDA E INSPIRAÇÃO) -->
+    <div style="display: flex; flex-direction: column; gap: 25px;">
         
-        <!-- COLUNA 1: ROTEIRO -->
-        <div class="card-coluna card-coluna-roteiro">
-            <h3>
-                <span style="display: flex; align-items: center; gap: 8px;"><i class="ph-fill ph-file-text" style="color: var(--gn-blue);"></i> 1. Roteiro / Copy</span>
-                <span class="resp-badge"><i class="ph ph-user"></i> <?= htmlspecialchars($item['nome_resp_roteiro'] ?? 'Sem Resp.') ?></span>
-            </h3>
-            
-            <span class="status-label">Status do Roteiro: <?= str_replace('_', ' ', $item['status_roteiro']) ?></span>
-
-            <form method="POST">
-                <input type="hidden" name="acao" value="salvar_roteiro">
-                <textarea name="roteiro" rows="14" placeholder="Escreva o roteiro do vídeo ou a legenda do post aqui..."><?= htmlspecialchars($item['roteiro'] ?? '') ?></textarea>
-                
-                <button type="submit" class="btn-save-lg" style="padding: 12px; font-size: 14px;">
-                    <i class="ph-fill ph-floppy-disk"></i> Salvar
-                </button>
-            </form>
-
-            <?php if(!empty($item['roteiro']) && $item['status_roteiro'] == 'pendente'): ?>
-                <form method="POST" style="margin-top: 10px;">
-                    <input type="hidden" name="acao" value="enviar_roteiro_cliente">
-                    <button type="submit" class="btn-enviar" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
-                        <i class="ph-fill ph-paper-plane-right"></i> Enviar p/ Aprovação
-                    </button>
-                </form>
-            <?php endif; ?>
-            
-            <?php if($item['status_roteiro'] == 'aprovado'): ?>
-                <div class="aprovado-badge"><i class="ph-fill ph-check-circle"></i> Roteiro Aprovado pelo Cliente!</div>
-            <?php endif; ?>
+        <!-- Roteiro / Briefing -->
+        <div style="background: var(--bg-elevated); border: 1px solid var(--border-mid); border-radius: 8px; padding: 25px;">
+            <label class="label" style="font-size: 14px; color: var(--text-primary); font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                <i class="ph-fill ph-file-text" style="color: var(--gn-blue);"></i> Descrição / Roteiro / Briefing
+            </label>
+            <textarea onchange="salvarCampo(<?= $item['id'] ?>, 'roteiro', this.value)" class="silent-input" rows="12" style="width: 100%; padding: 15px; border: 1px solid var(--border-mid); border-radius: 6px; background: rgba(0,0,0,0.1); resize: vertical; color: var(--text-primary); font-family: inherit;" placeholder="Detalhe a tarefa ou escreva o roteiro do vídeo aqui..."><?= htmlspecialchars($item['roteiro'] ?? '') ?></textarea>
         </div>
 
-        <!-- COLUNA 2: ARTE -->
-        <div class="card-coluna card-coluna-arte">
-            <h3>
-                <span style="display: flex; align-items: center; gap: 8px;"><i class="ph-fill ph-image" style="color: var(--gn-pink);"></i> 2. Arte / Vídeo</span>
-                <span class="resp-badge"><i class="ph ph-user"></i> <?= htmlspecialchars($item['nome_resp_peca'] ?? 'Sem Resp.') ?></span>
-            </h3>
-
-            <span class="status-label">Status da Arte: <?= str_replace('_', ' ', $item['status_peca']) ?></span>
-
-            <?php if($item['status_roteiro'] == 'aprovado'): ?>
-                <form method="POST">
-                    <input type="hidden" name="acao" value="salvar_peca">
-                    <label style="display:block; font-size: 12px; font-weight: 700; color: var(--text-2); margin-bottom: 8px; text-transform: uppercase;">Link de Entrega (Drive/Canva)</label>
-                    <input type="url" name="link_peca" class="silent-input" style="border: 1px solid var(--border-mid); margin-bottom: 15px; padding: 12px;" value="<?= htmlspecialchars($item['link_peca'] ?? '') ?>" placeholder="https://...">
-                    
-                    <button type="submit" class="btn-save-lg" style="padding: 12px; font-size: 14px; background: var(--gn-pink);">
-                        <i class="ph-fill ph-floppy-disk"></i> Salvar Link
+        <!-- Legenda e Inspiração Lado a Lado -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+            <div style="background: var(--bg-elevated); border: 1px solid var(--border-mid); border-radius: 8px; padding: 25px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <label class="label" style="font-size: 14px; color: var(--text-primary); font-weight: bold; display: flex; align-items: center; gap: 8px; margin: 0;">
+                        <i class="ph-fill ph-chat-centered-text" style="color: var(--gn-pink);"></i> Legenda do Post
+                    </label>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="copiarLegenda()" id="btnCopiarLeg" style="padding: 4px 10px; font-size: 12px; height: auto;">
+                        <i class="ph ph-copy"></i> Copiar
                     </button>
-                </form>
-
-                <?php if(!empty($item['link_peca']) && $item['status_peca'] == 'pendente'): ?>
-                    <form method="POST" style="margin-top: 10px;">
-                        <input type="hidden" name="acao" value="enviar_peca_cliente">
-                        <button type="submit" class="btn-enviar btn-enviar-arte" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
-                            <i class="ph-fill ph-paper-plane-right"></i> Enviar Arte p/ Aprovação
-                        </button>
-                    </form>
-                <?php endif; ?>
-                
-                <?php if($item['status_peca'] == 'aprovado'): ?>
-                    <div class="aprovado-badge"><i class="ph-fill ph-check-circle"></i> Arte Aprovada pelo Cliente!</div>
-                <?php endif; ?>
-
-            <?php else: ?>
-                <div class="bloqueado">
-                    <i class="ph ph-lock-key" style="font-size: 32px; margin-bottom: 10px; color: var(--text-3);"></i>
-                    <p>O cliente precisa <strong>aprovar o roteiro</strong> primeiro para liberar a produção da arte visual.</p>
                 </div>
-            <?php endif; ?>
+                <textarea id="textoLegenda" onchange="salvarCampo(<?= $item['id'] ?>, 'legenda', this.value)" class="silent-input" rows="8" style="width: 100%; padding: 15px; border: 1px solid var(--border-mid); border-radius: 6px; background: rgba(0,0,0,0.1); resize: vertical; color: var(--text-primary); font-family: inherit;" placeholder="Texto da legenda para publicar..."><?= htmlspecialchars($item['legenda'] ?? '') ?></textarea>
+            </div>
+
+            <div style="background: var(--bg-elevated); border: 1px solid var(--border-mid); border-radius: 8px; padding: 25px;">
+                <label class="label" style="font-size: 14px; color: var(--text-primary); font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                    <i class="ph-fill ph-lightbulb" style="color: var(--gn-orange);"></i> Inspiração (Links de Referência)
+                </label>
+                <textarea onchange="salvarCampo(<?= $item['id'] ?>, 'inspiracao', this.value)" class="silent-input" rows="8" style="width: 100%; padding: 15px; border: 1px solid var(--border-mid); border-radius: 6px; background: rgba(0,0,0,0.1); resize: vertical; color: var(--text-primary); font-family: inherit;" placeholder="Cole os links de referência do Instagram/TikTok aqui..."><?= htmlspecialchars($item['inspiracao'] ?? '') ?></textarea>
+            </div>
         </div>
+
     </div>
 
 </div>
 
-<!-- IA FLUTUANTE FIIOTE (MANTENDO O PADRÃO DO SISTEMA) -->
+<!-- IA FLUTUANTE -->
 <div class="ai-floating-container">
     <div class="ai-bubble" id="aiBubble">
         <div class="ai-bubble-header">
@@ -223,7 +219,7 @@ require_once '../../includes/layout/sidebar.php';
         </div>
         <p class="ai-bubble-text">
             E aí🤖<br>
-            Precisa de ajuda com o roteiro ou copy desta tarefa?<br>
+            A tela de edição agora salva automaticamente assim que você clica fora dos campos.<br>
             <strong>#GasmaskeLab</strong>
         </p>
         <div class="ai-bubble-time">● Hoje, agora</div>
@@ -237,6 +233,87 @@ require_once '../../includes/layout/sidebar.php';
 </div>
 
 <script>
+// --- SALVAMENTO VIA AJAX (AUTO-SAVE) ---
+function salvarCampo(id, campo, valor) {
+    let fd = new FormData();
+    fd.append('acao', 'atualizar_campo');
+    fd.append('id_tarefa', id);
+    fd.append('campo', campo);
+    fd.append('valor', valor);
+
+    fetch('item.php?id=' + id, {
+        method: 'POST',
+        body: fd
+    })
+    .then(res => res.text())
+    .then(txt => {
+        if(txt.trim() === 'ok') {
+            mostrarNotificacao();
+            
+            // Controle dinâmico do botão de abrir link
+            if(campo === 'link_arte_final') {
+                const btn = document.getElementById('btnAbrirLinkItem');
+                if(valor.trim() !== '') {
+                    btn.href = valor;
+                    btn.style.display = 'inline-flex';
+                } else {
+                    btn.href = '#';
+                    btn.style.display = 'none';
+                }
+            }
+        }
+    }).catch(err => console.error("Erro ao salvar:", err));
+}
+
+// --- COPIAR LEGENDA ---
+function copiarLegenda() {
+    const legenda = document.getElementById('textoLegenda').value;
+    const btn = document.getElementById('btnCopiarLeg');
+    
+    if (!legenda || legenda.trim() === '') {
+        alert('A legenda está vazia.');
+        return;
+    }
+
+    navigator.clipboard.writeText(legenda).then(() => {
+        const textoOriginal = btn.innerHTML;
+        btn.innerHTML = '<i class="ph-fill ph-check-circle"></i> Copiado!';
+        btn.style.color = '#1fa463';
+        btn.style.borderColor = '#1fa463';
+
+        setTimeout(() => {
+            btn.innerHTML = textoOriginal;
+            btn.style.color = '';
+            btn.style.borderColor = '';
+        }, 2000);
+    });
+}
+
+// --- TOAST DE NOTIFICAÇÃO ---
+function mostrarNotificacao() {
+    let toast = document.getElementById('gasmaskeToast');
+    if(!toast) {
+        toast = document.createElement('div');
+        toast.id = 'gasmaskeToast';
+        toast.style.position = 'fixed';
+        toast.style.bottom = '20px';
+        toast.style.right = '20px';
+        toast.style.background = 'var(--gn-green, #10b981)';
+        toast.style.color = '#fff';
+        toast.style.padding = '12px 24px';
+        toast.style.borderRadius = '8px';
+        toast.style.fontWeight = '600';
+        toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        toast.style.zIndex = '9999';
+        toast.style.transition = 'opacity 0.3s ease-in-out';
+        toast.innerHTML = '<i class="ph-fill ph-check-circle"></i> Salvo automaticamente!';
+        document.body.appendChild(toast);
+    }
+    
+    toast.style.opacity = '1';
+    setTimeout(() => toast.style.opacity = '0', 2500);
+}
+
 // --- FUNÇÕES DA IA FLUTUANTE ---
 function toggleAI() {
     const bubble = document.getElementById('aiBubble');
