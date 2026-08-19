@@ -160,7 +160,7 @@ require_once '../../includes/layout/sidebar.php';
                 <select name="status_geral" class="form-control">
                     <?php foreach ($status_lista as $valor => $rotulo): ?>
                         <option value="<?= $valor ?>" <?= $tarefa['status_geral'] == $valor ? 'selected' : '' ?>><?= $rotulo ?></option>
-                    <?php endselect; ?>
+                    <?php endforeach; ?>
                 </select>
             </div>
         </div>
