@@ -224,7 +224,74 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Pagamento confirmado! Contrato ativo$msg_drive.</div>";
             $contrato['status']     = 'em_andamento';
             $contrato['link_drive'] = $link_drive;
+
+        // === INÍCIO DO NOVO BLOCO PARA CONTRATOS LEGADOS ===
+        // Agora exigimos apenas que não tenha link, ignorando o status.
+        } elseif ($acao == 'gerar_pastas_legado' && empty(trim($contrato['link_drive'] ?? ''))) {
+            try {
+                // MACETE PARA A HOSTINGER
+                \Firebase\JWT\JWT::$leeway = 300;
+
+                $pasta_mae_id = '1UyXCtbT2Q-LdFzOzC_UiQ6DBa3dp9FCu'; 
+                $client = new \Google_Client();
+                $client->setAuthConfig('../../config/google-credentials.json');
+                $client->addScope(\Google_Service_Drive::DRIVE);
+                $driveService = new \Google_Service_Drive($client);
+
+                // 1. CRIA A PASTA MÃE DO CLIENTE
+                $nome_pasta   = $contrato['codigo_agc'] . ' - ' . $contrato['cliente_nome'];
+                $fileMetadata = new \Google_Service_Drive_DriveFile([
+                    'name'     => $nome_pasta,
+                    'mimeType' => 'application/vnd.google-apps.folder',
+                    'parents'  => [$pasta_mae_id]
+                ]);
+                $folder     = $driveService->files->create($fileMetadata, ['fields' => 'id, webViewLink']);
+                $link_drive = $folder->webViewLink;
+                $pasta_cliente_id = $folder->id;
+
+                // 2. ESTRUTURA DE SUBPASTAS (A Árvore idêntica)
+                $estrutura_pastas = [
+                    '1 - Captação' => ['1.1 - Visual' => []],
+                    '2 - Contratos e Administrativo' => [],
+                    '3 - Identidade Visual e Branding' => ['3.1 - Logotipo' => []],
+                    '4 - Planejamento Estratégico' => [],
+                    '5 - Produção de Conteúdo' => [
+                        '5.1 - Imagens' => ['5.1.1 - Entrega' => [], '5.1.2 - Produção' => []],
+                        '5.2 - Vídeos' => ['5.2.1 - Entrega' => [], '5.2.2 - Produção' => []],
+                        '5.3 - Roteiros' => ['5.3.1 - Videos' => [], '5.3.2 - Carrossel' => []]
+                    ],
+                    '6 - Compartilhada' => []
+                ];
+
+                $criarPastas = function($estrutura, $parentId) use (&$criarPastas, $driveService) {
+                    foreach ($estrutura as $nome => $sub) {
+                        $meta = new \Google_Service_Drive_DriveFile([
+                            'name' => $nome,
+                            'mimeType' => 'application/vnd.google-apps.folder',
+                            'parents' => [$parentId]
+                        ]);
+                        $f = $driveService->files->create($meta, ['fields' => 'id']);
+                        if (!empty($sub)) {
+                            $criarPastas($sub, $f->id);
+                        }
+                    }
+                };
+
+                $criarPastas($estrutura_pastas, $pasta_cliente_id);
+
+                // 3. ATUALIZA O BANCO E REGISTRA O LOG
+                $pdo->prepare("UPDATE contratos SET link_drive = ? WHERE id = ?")->execute([$link_drive, $id]);
+                $pdo->prepare("INSERT INTO contrato_log (contrato_id, usuario_id, descricao) VALUES (?, ?, 'Pastas geradas no Drive manualmente (Correção de Legado).')")->execute([$id, $usuario_id_log]);
+                
+                $mensagem = "<div class='alert alert-success'><i class='ph-fill ph-check-circle'></i> Pastas geradas com sucesso para este contrato!</div>";
+                $contrato['link_drive'] = $link_drive;
+
+            } catch (Exception $e) {
+                $mensagem = "<div class='alert alert-danger'><i class='ph-fill ph-warning-circle'></i> Erro ao gerar pastas no Drive: " . $e->getMessage() . "</div>";
+            }
         }
+        // === FIM DO NOVO BLOCO PARA CONTRATOS LEGADOS ===
+
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         $mensagem = "<div class='alert alert-danger'><i class='ph-fill ph-warning-circle'></i> Erro: " . $e->getMessage() . "</div>";
@@ -409,6 +476,7 @@ require_once '../../includes/layout/sidebar.php';
                     if ($contrato['status'] == 'aguardando_aceite_cliente') $badge_status = 'badge-yellow';
                     if ($contrato['status'] == 'aguardando_pagamento')      $badge_status = 'badge-blue';
                     if ($contrato['status'] == 'em_andamento')              $badge_status = 'badge-green';
+                    if ($contrato['status'] == 'ativo')                     $badge_status = 'badge-green';
                     if ($contrato['status'] == 'finalizado')                $badge_status = 'badge-purple';
                     if ($contrato['status'] == 'rascunho')                  $badge_status = 'badge-gray';
                 ?>
@@ -456,18 +524,28 @@ require_once '../../includes/layout/sidebar.php';
                     <?php endif; ?>
                 </div>
 
-                <?php if (!empty($contrato['link_drive'])): ?>
+                <!-- Nova Lógica: Se tem link, mostra acessar. Se não tem, mostra gerar (independente de status) -->
+                <?php if (!empty(trim($contrato['link_drive'] ?? ''))): ?>
                 <div style="margin-top: 16px;">
-                    <a href="<?= htmlspecialchars($contrato['link_drive']) ?>" target="_blank" class="btn btn-secondary w-100" style="justify-content: center;">
+                    <a href="<?= htmlspecialchars(trim($contrato['link_drive'])) ?>" target="_blank" class="btn btn-secondary w-100" style="justify-content: center;">
                         <i class="ph ph-folder-open"></i> Acessar Pasta no Drive
                     </a>
+                </div>
+                <?php else: ?>
+                <div style="margin-top: 16px;">
+                    <form method="POST">
+                        <input type="hidden" name="acao" value="gerar_pastas_legado">
+                        <button type="submit" class="btn btn-secondary w-100" style="justify-content: center; background-color: var(--yellow, #F6E05E); border-color: var(--yellow, #F6E05E); color: #000;">
+                            <i class="ph ph-folder-plus"></i> Gerar Pastas (Contrato Antigo)
+                        </button>
+                    </form>
                 </div>
                 <?php endif; ?>
             </div>
         </div>
 
         <!-- Card: Painel de Controle (Oculto se ativo ou finalizado) -->
-        <?php if (!in_array($contrato['status'], ['em_andamento', 'finalizado'])): ?>
+        <?php if (!in_array($contrato['status'], ['em_andamento', 'finalizado', 'ativo'])): ?>
         <div class="card" style="margin-bottom: 0;">
             <div class="card-header">
                 <h3 class="card-title"><i class="ph ph-sliders"></i> Painel de Controle</h3>
