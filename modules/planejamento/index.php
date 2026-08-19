@@ -94,6 +94,11 @@ foreach($usuarios as $u) {
     $usuarios_map[$u['id']] = $u['nome'];
 }
 
+$clientes = $pdo->query("SELECT id, nome FROM clientes ORDER BY nome ASC")->fetchAll();
+$task_categorias = $pdo->query("SELECT * FROM task_categorias ORDER BY nome ASC")->fetchAll();
+$cat_map = [];
+
+// Gerando as classes CSS de forma organizada (evitando styles inline)
 echo '<style>';
 $paleta = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#0284c7'];
 $c_index = 0;
@@ -102,11 +107,7 @@ foreach($usuarios as $u) {
     echo ".pill-resp-{$u['id']} { background-color: {$cor} !important; color: #fff !important; border-color: transparent !important; } \n";
     $c_index++;
 }
-echo '</style>';
 
-$clientes = $pdo->query("SELECT id, nome FROM clientes ORDER BY nome ASC")->fetchAll();
-
-echo '<style>';
 $paleta_clientes = ['#059669', '#2563eb', '#7c3aed', '#db2777', '#dc2626', '#d97706', '#65a30d', '#0d9488', '#0284c7', '#4f46e5', '#c026d3', '#e11d48', '#ea580c', '#ca8a04', '#4d7c0f'];
 $c_index_cli = 0;
 echo ".pill-cliente-interno { background-color: #334155 !important; color: #fff !important; border-color: transparent !important; } \n";
@@ -116,17 +117,47 @@ foreach($clientes as $c) {
     echo ".pill-cliente-{$c['id']} { background-color: {$cor_cli} !important; color: #fff !important; border-color: transparent !important; } \n";
     $c_index_cli++;
 }
-echo '</style>';
 
-// --- GERAR ESTILOS DAS CATEGORIAS DE TAREFAS DINAMICAMENTE ---
-$task_categorias = $pdo->query("SELECT * FROM task_categorias ORDER BY nome ASC")->fetchAll();
-$cat_map = [];
-echo '<style>';
 echo ".pill-cat-vazio { background-color: transparent !important; color: var(--text-primary) !important; border: 1px solid var(--border-mid) !important; } \n";
 foreach($task_categorias as $cat) {
-    $cat_map[$cat['nome']] = $cat; // Mapeia pelo nome para cruzar com a coluna `tipo`
+    $cat_map[$cat['nome']] = $cat;
     echo ".pill-cat-{$cat['id']} { background-color: {$cat['cor']} !important; color: #fff !important; border-color: transparent !important; } \n";
 }
+
+// Classes para os botões da tabela
+echo '
+.table-action-cell {
+    text-align: center;
+    white-space: nowrap;
+}
+.btn-table-action {
+    padding: 6px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn-copy-leg {
+    color: var(--text-muted);
+}
+.btn-copy-leg:hover {
+    color: var(--text-primary);
+}
+.btn-detalhes-haslink {
+    color: #1fa463;
+    opacity: 1;
+}
+.btn-detalhes-nolink {
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+.btn-detalhes-nolink:hover {
+    opacity: 1;
+}
+';
 echo '</style>';
 
 $status_lista = [
@@ -219,12 +250,12 @@ require_once '../../includes/layout/sidebar.php';
             <tr>
                 <th class="sortable resizable" style="width: 13%;" onclick="sortTable('cliente')">Cliente <i class="ph ph-arrows-down-up" style="margin-left:4px; opacity:0.5;"></i></th>
                 <th class="sortable resizable" style="width: 11%;" onclick="sortTable('categoria')">Categoria <i class="ph ph-arrows-down-up" style="margin-left:4px; opacity:0.5;"></i></th>
-                <th class="sortable resizable" style="width: 26%;" onclick="sortTable('tema')">Tarefa <i class="ph ph-arrows-down-up" style="margin-left:4px; opacity:0.5;"></i></th>
+                <th class="sortable resizable" style="width: 24%;" onclick="sortTable('tema')">Tarefa <i class="ph ph-arrows-down-up" style="margin-left:4px; opacity:0.5;"></i></th>
                 <th class="sortable resizable" style="width: 10%;" onclick="sortTable('data')">Prazo <i class="ph ph-arrows-down-up" style="margin-left:4px; opacity:0.5;"></i></th>
                 <th class="sortable resizable" style="width: 10%;" onclick="sortTable('prioridade')">Prio <i class="ph ph-arrows-down-up" style="margin-left:4px; opacity:0.5;"></i></th>
                 <th class="sortable resizable" style="width: 13%;" onclick="sortTable('responsavel')">Responsável <i class="ph ph-arrows-down-up" style="margin-left:4px; opacity:0.5;"></i></th>
                 <th class="sortable resizable" style="width: 10%;" onclick="sortTable('status')">Status <i class="ph ph-arrows-down-up" style="margin-left:4px; opacity:0.5;"></i></th>
-                <th style="text-align: center; width: 60px;">+</th>
+                <th style="text-align: center; width: 80px;">Ações</th>
             </tr>
         </thead>
         <tbody id="tableBody">
@@ -264,6 +295,10 @@ require_once '../../includes/layout/sidebar.php';
 
             $tem_link = !empty($t['link_arte_final']);
             $esta_finalizado = ($t['status_geral'] == 'finalizado');
+            
+            // Classes dos botões calculadas via PHP para manter limpo
+            $classe_btn_detalhes = $tem_link ? 'btn-table-action btn-detalhes-haslink' : 'btn-table-action btn-detalhes-nolink';
+            $icone_btn_detalhes = $tem_link ? 'ph-fill ph-check-circle' : 'ph ph-plus-circle';
         ?>
         <tr class="task-row<?= $esta_finalizado ? ' tarefa-finalizada' : '' ?>" 
             data-cliente="<?= htmlspecialchars($t['cliente_nome'] ?: 'Interno') ?>" 
@@ -326,9 +361,12 @@ require_once '../../includes/layout/sidebar.php';
                     <?php endforeach; ?>
                 </select>
             </td>
-            <td style="text-align: center;">
-                <button onclick="abrirSide(<?= $t['id'] ?>)" class="btn-ghost" style="padding: 4px; color: <?= $tem_link ? '#1fa463' : 'var(--text-muted)' ?>; opacity: <?= $tem_link ? '1' : '0.6' ?>;" title="Abrir detalhes">
-                    <i class="<?= $tem_link ? 'ph-fill ph-check-circle' : 'ph ph-plus-circle' ?>" style="font-size: 22px;"></i>
+            <td class="table-action-cell">
+                <button onclick="copiarLegendaTabela(<?= $t['id'] ?>, this)" class="btn-table-action btn-copy-leg" title="Copiar Legenda">
+                    <i class="ph ph-copy" style="font-size: 20px;"></i>
+                </button>
+                <button onclick="abrirSide(<?= $t['id'] ?>)" class="<?= $classe_btn_detalhes ?>" title="Abrir detalhes">
+                    <i class="<?= $icone_btn_detalhes ?>" style="font-size: 22px;"></i>
                 </button>
             </td>
         </tr>
@@ -366,7 +404,12 @@ require_once '../../includes/layout/sidebar.php';
         </div>
 
         <div class="side-section">
-            <label class="side-section-label">Legenda do Post</label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label class="side-section-label" style="margin-bottom: 0;">Legenda do Post</label>
+                <button type="button" class="btn btn-secondary" onclick="copiarLegendaModal()" id="btnCopiarLegendaModal" style="padding: 4px 10px; font-size: 12px; height: auto;">
+                    <i class="ph ph-copy"></i> Copiar
+                </button>
+            </div>
             <textarea id="sideLegenda" class="silent-input" style="height: 160px; border: 1px solid var(--border-mid); background: rgba(0,0,0,0.2); resize: vertical; padding: 12px; width: 100%; box-sizing: border-box;" placeholder="Texto da legenda para publicar..."></textarea>
         </div>
 
@@ -803,18 +846,18 @@ function salvarTudoSide() {
         document.getElementById('hidden_ins_'+id).value = inspiracao;
         document.getElementById('hidden_link_'+id).value = link;
 
+        // Atualiza a cor do botão de detalhes na tabela se houver link
         const tr = document.querySelector(`tr input[id="hidden_tema_${id}"]`).closest('tr');
         if(tr) {
-            const btnIcon = tr.querySelector('td:last-child button i');
-            if(btnIcon) {
+            const btnDetails = tr.querySelector('.btn-table-action[title="Abrir detalhes"]');
+            if(btnDetails) {
+                const icon = btnDetails.querySelector('i');
                 if(link && link.trim() !== '') {
-                    btnIcon.className = 'ph-fill ph-check-circle';
-                    btnIcon.parentElement.style.color = '#1fa463';
-                    btnIcon.parentElement.style.opacity = '1';
+                    btnDetails.className = 'btn-table-action btn-detalhes-haslink';
+                    icon.className = 'ph-fill ph-check-circle';
                 } else {
-                    btnIcon.className = 'ph ph-plus-circle';
-                    btnIcon.parentElement.style.color = 'var(--text-muted)';
-                    btnIcon.parentElement.style.opacity = '0.6';
+                    btnDetails.className = 'btn-table-action btn-detalhes-nolink';
+                    icon.className = 'ph ph-plus-circle';
                 }
             }
         }
@@ -825,6 +868,57 @@ function salvarTudoSide() {
             btn.disabled = false;
             fecharSide();
         }, 1200);
+    });
+}
+
+// --- FUNÇÕES DE COPIAR LEGENDA ---
+function copiarLegendaTabela(id, btnElement) {
+    const legenda = document.getElementById('hidden_leg_' + id).value;
+    
+    if (!legenda || legenda.trim() === '') {
+        alert('Esta tarefa ainda não possui uma legenda salva.');
+        return;
+    }
+
+    navigator.clipboard.writeText(legenda).then(() => {
+        const icone = btnElement.querySelector('i');
+        const classeOriginal = icone.className;
+        
+        icone.className = 'ph-fill ph-check-circle';
+        btnElement.style.color = '#1fa463'; 
+
+        setTimeout(() => {
+            icone.className = classeOriginal;
+            btnElement.style.color = '';
+        }, 1500);
+    }).catch(err => {
+        console.error('Erro ao copiar a legenda:', err);
+    });
+}
+
+function copiarLegendaModal() {
+    const legenda = document.getElementById('sideLegenda').value;
+    const btn = document.getElementById('btnCopiarLegendaModal');
+    
+    if (!legenda || legenda.trim() === '') {
+        alert('A legenda está vazia.');
+        return;
+    }
+
+    navigator.clipboard.writeText(legenda).then(() => {
+        const textoOriginal = btn.innerHTML;
+        
+        btn.innerHTML = '<i class="ph-fill ph-check-circle"></i> Copiado!';
+        btn.style.color = '#1fa463';
+        btn.style.borderColor = '#1fa463';
+
+        setTimeout(() => {
+            btn.innerHTML = textoOriginal;
+            btn.style.color = '';
+            btn.style.borderColor = '';
+        }, 2000);
+    }).catch(err => {
+        console.error('Erro ao copiar a legenda:', err);
     });
 }
 
@@ -977,7 +1071,6 @@ function sortTable(col, toggle = true) {
             header.className = isCollapsed ? 'group-header collapsed' : 'group-header';
             header.setAttribute('data-group-key', g);
             
-            // TAG PARA O SCROLL DAS ATRASADAS
             if (crit === 'data' && g !== '(vazio)' && g !== '' && g < dataHoje) {
                 header.setAttribute('data-grupo-atrasado', '1');
             }
